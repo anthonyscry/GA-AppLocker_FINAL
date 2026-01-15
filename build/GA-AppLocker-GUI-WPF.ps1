@@ -2609,21 +2609,46 @@ $xamlString = @"
                                 Style="{StaticResource PrimaryButton}" Grid.Column="4"/>
                     </Grid>
 
-                    <!-- Discovered Computers List -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="8" Height="150">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Discovered Computers (Ctrl+Click to multi-select)" FontSize="10" FontWeight="Bold"
-                                       Foreground="#8B949E" Margin="0,0,0,4"/>
-                            <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
-                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
-                                     SelectionMode="Extended"/>
-                        </Grid>
-                    </Border>
+                    <!-- Online/Offline Computers Grid -->
+                    <Grid Margin="0,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Online Computers List -->
+                        <Border Grid.Column="0" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="8" Height="140">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Online Computers (Ctrl+Click to multi-select)" FontSize="10" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,0,0,4"/>
+                                <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
+                                         Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
+                                         SelectionMode="Extended"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Offline Computers List -->
+                        <Border Grid.Column="2" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="8" Height="140">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Offline Computers" FontSize="10" FontWeight="Bold"
+                                           Foreground="#F85149" Margin="0,0,0,4"/>
+                                <ListBox x:Name="OfflineComputersList" Grid.Row="1" Background="#0D1117"
+                                         Foreground="#8B949E" BorderThickness="0" FontFamily="Consolas" FontSize="9"
+                                         SelectionMode="Extended"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
 
                     <!-- Status Line -->
                     <TextBlock x:Name="DiscoveryStatus" Text="Ready to discover computers"
@@ -3025,6 +3050,7 @@ $TestConnectivityBtn = $window.FindName("TestConnectivityBtn")
 $SelectAllComputersBtn = $window.FindName("SelectAllComputersBtn")
 $ScanSelectedBtn = $window.FindName("ScanSelectedBtn")
 $DiscoveredComputersList = $window.FindName("DiscoveredComputersList")
+$OfflineComputersList = $window.FindName("OfflineComputersList")
 $DiscoveryOutput = $window.FindName("DiscoveryOutput")
 $DiscoveryStatus = $window.FindName("DiscoveryStatus")
 
@@ -3127,7 +3153,7 @@ function Write-Log {
         [string]$Level = "INFO"
     )
 
-    $logDir = ".\Logs"
+    $logDir = "C:\GA-AppLocker\Logs"
     if (-not (Test-Path $logDir)) {
         New-Item -ItemType Directory -Path $logDir -Force | Out-Null
     }
@@ -3138,6 +3164,36 @@ function Write-Log {
 
     try {
         Add-Content -Path $logFile -Value $logEntry -ErrorAction Stop
+    } catch {
+        # Silently fail if logging fails
+    }
+}
+
+# Log console/output text to file
+function Write-OutputLog {
+    param(
+        [string]$Section,
+        [string]$Output
+    )
+
+    $logDir = "C:\GA-AppLocker\Logs"
+    if (-not (Test-Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logFile = Join-Path $logDir "GA-AppLocker-$(Get-Date -Format 'yyyy-MM-dd').log"
+
+    try {
+        $header = "[$timestamp] [OUTPUT] === $Section ==="
+        Add-Content -Path $logFile -Value $header -ErrorAction Stop
+        # Log each line of output
+        $Output -split "`n" | ForEach-Object {
+            if ($_.Trim()) {
+                Add-Content -Path $logFile -Value "    $_" -ErrorAction SilentlyContinue
+            }
+        }
+        Add-Content -Path $logFile -Value "" -ErrorAction SilentlyContinue
     } catch {
         # Silently fail if logging fails
     }
@@ -4819,11 +4875,13 @@ $ForceGPUpdateBtn.Add_Click({
 
         $WinRMOutput.Text += "`n`n=== SUMMARY ===`nSuccess: $successCount`nFailed: $failCount`nOffline/Skipped: $skippedCount`nTotal: $($computers.Count)"
 
+        Write-OutputLog "Force GPUpdate" $WinRMOutput.Text
         [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount`nOffline/Skipped: $skippedCount", "Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        Write-Log "Force GPUpdate completed: $successCount success, $failCount failed"
+        Write-Log "Force GPUpdate completed: $successCount success, $failCount failed, $skippedCount offline"
     }
     catch {
         $WinRMOutput.Text = "=== ERROR ===`n`n$($_.Exception.Message)`n`nMake sure Active Directory module is available."
+        Write-OutputLog "Force GPUpdate Error" $WinRMOutput.Text
         [System.Windows.MessageBox]::Show("Failed to run GPUpdate:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         Write-Log "Force GPUpdate failed: $($_.Exception.Message)" -Level "ERROR"
     }
@@ -4839,6 +4897,7 @@ $DiscoverComputersBtn.Add_Click({
     }
 
     $DiscoveredComputersList.Items.Clear()
+    $OfflineComputersList.Items.Clear()
     $DiscoveryOutput.Text = "Searching Active Directory for computers...`n`nPlease wait..."
     [System.Windows.Forms.Application]::DoEvents()
 
@@ -4851,13 +4910,35 @@ $DiscoverComputersBtn.Add_Click({
                      Select-Object Name, OperatingSystem, LastLogonDate |
                      Sort-Object Name
 
+        $DiscoveryOutput.Text = "Found $($computers.Count) computers. Checking connectivity...`n"
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $onlineCount = 0
+        $offlineCount = 0
+
         foreach ($comp in $computers) {
-            $DiscoveredComputersList.Items.Add("$($comp.Name) | $($comp.OperatingSystem) | Last: $($comp.LastLogonDate)")
+            $DiscoveryOutput.Text += "Pinging $($comp.Name)..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            # Quick ping check
+            $pingResult = Test-Connection -ComputerName $comp.Name -Count 1 -Quiet -ErrorAction SilentlyContinue
+
+            if ($pingResult) {
+                $DiscoveredComputersList.Items.Add("$($comp.Name) | $($comp.OperatingSystem) | Last: $($comp.LastLogonDate)")
+                $onlineCount++
+                $DiscoveryOutput.Text = $DiscoveryOutput.Text -replace "Pinging $($comp.Name)...", "Pinging $($comp.Name)... ONLINE`n"
+            } else {
+                $OfflineComputersList.Items.Add("$($comp.Name) | $($comp.OperatingSystem) | Last: $($comp.LastLogonDate)")
+                $offlineCount++
+                $DiscoveryOutput.Text = $DiscoveryOutput.Text -replace "Pinging $($comp.Name)...", "Pinging $($comp.Name)... offline`n"
+            }
+            [System.Windows.Forms.Application]::DoEvents()
         }
 
-        $DiscoveryOutput.Text = "Found $($computers.Count) computers matching filter '$filter'`n`nSelect computers and click 'Test Connectivity' or 'Scan Selected'"
-        $DiscoveryStatus.Text = "Discovered $($computers.Count) computers"
-        Write-Log "AD Discovery found $($computers.Count) computers"
+        $DiscoveryOutput.Text += "`n=== DISCOVERY COMPLETE ===`nTotal: $($computers.Count)`nOnline: $onlineCount`nOffline: $offlineCount"
+        $DiscoveryStatus.Text = "Online: $onlineCount | Offline: $offlineCount | Total: $($computers.Count)"
+        Write-Log "AD Discovery found $($computers.Count) computers ($onlineCount online, $offlineCount offline)"
+        Write-OutputLog "AD Discovery" $DiscoveryOutput.Text
     }
     catch {
         $DiscoveryOutput.Text = "ERROR: $($_.Exception.Message)`n`nMake sure the Active Directory module is installed."
