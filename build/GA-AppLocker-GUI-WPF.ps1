@@ -2241,25 +2241,25 @@ $xamlString = @"
 
                     <!-- Discovered Computers List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200">
+                            CornerRadius="8" Padding="10" Height="100">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="Discovered Computers" FontSize="13" FontWeight="Bold"
-                                       Foreground="#8B949E" Margin="0,0,0,10"/>
+                            <TextBlock Grid.Row="0" Text="Discovered Computers" FontSize="12" FontWeight="Bold"
+                                       Foreground="#8B949E" Margin="0,0,0,5"/>
 
                             <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
-                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="11"
+                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="10"
                                      SelectionMode="Multiple"/>
                         </Grid>
                     </Border>
 
                     <!-- Discovery Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Margin="0,15,0,0" Height="120">
+                            CornerRadius="8" Padding="15" Margin="0,10,0,0" MinHeight="150">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="DiscoveryOutput" Text="Click 'Discover Computers' to search Active Directory..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
