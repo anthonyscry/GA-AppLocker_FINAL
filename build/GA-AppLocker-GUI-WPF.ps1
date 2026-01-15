@@ -1597,7 +1597,9 @@ function New-BrowserDenyRules {
 "@
 
         # Save policy
-        $policyPath = ".\AppLocker-BrowserDeny-Admins.xml"
+        $rulesDir = "C:\GA-AppLocker\Rules"
+        if (-not (Test-Path $rulesDir)) { New-Item -ItemType Directory -Path $rulesDir -Force | Out-Null }
+        $policyPath = Join-Path $rulesDir "AppLocker-BrowserDeny-Admins.xml"
         $policyXml | Out-File -FilePath $policyPath -Encoding UTF8 -Force
 
         $output += "`n=== POLICY GENERATED ===`n"
