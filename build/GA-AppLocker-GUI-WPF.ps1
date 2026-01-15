@@ -8,7 +8,9 @@ try {
     Add-Type -AssemblyName PresentationCore -ErrorAction Stop
     Add-Type -AssemblyName WindowsBase -ErrorAction Stop
 } catch {
-    [System.Windows.Forms.MessageBox]::Show("Failed to load WPF assemblies. This application requires .NET Framework 4.5 or later.", "Error", "OK", "Error")
+    Write-Host "ERROR: Failed to load WPF assemblies. This application requires .NET Framework 4.5 or later." -ForegroundColor Red
+    Write-Host "Press any key to exit..." -ForegroundColor Yellow
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit 1
 }
 
