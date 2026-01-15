@@ -447,16 +447,80 @@ function Get-AppLockerGroupMembers {
 
 <#
 .SYNOPSIS
-    Create WinRM GPO
+    Create Enterprise WinRM GPO for Remote AppLocker Artifact Collection
 .DESCRIPTION
-    Creates a GPO to enable WinRM for remote management
+    Creates a GPO to enable WinRM for remote management following enterprise/DoD standards.
+
+    This function creates a GPO-backed WinRM configuration suitable for:
+    - Running Invoke-Command from a Domain Controller
+    - Running Get-AppLockerPolicy -Effective -ComputerName
+    - Pulling AppLocker event logs remotely
+    - Querying CIM/WMI over WinRM
+
+    CRITICAL: This function does NOT use:
+    - Enable-PSRemoting (cmdlet - not GPO-backed)
+    - winrm quickconfig (local configuration - not GPO-backed)
+    - Local firewall rules (uses GPO firewall policies instead)
+
+    All settings are registry-backed via Group Policy and will:
+    - Survive reboot
+    - Appear correctly in RSOP/GPRESULT
+    - Be acceptable in RMF/audit/inspection scenarios
+
+.PARAMETER GpoName
+    Name of the GPO to create. Default: 'GA-AppLocker-WinRM'
+
+.PARAMETER TargetOU
+    Optional. Distinguished Name of the OU to link the GPO to.
+    If not specified, links to domain root.
+
+.PARAMETER IPv4Filter
+    IP addresses/ranges allowed for WinRM. Default: '*' (all)
+    Can be restricted to specific subnets for security.
+
+.PARAMETER IPv6Filter
+    IPv6 addresses/ranges allowed for WinRM. Default: '*' (all)
+
+.PARAMETER DisableUnencryptedTraffic
+    If $true (default), disables unencrypted WinRM traffic.
+    Required for DoD/enterprise security compliance.
+
+.EXAMPLE
+    New-WinRMGPO -GpoName 'AppLocker-WinRM-Policy'
+
+.EXAMPLE
+    New-WinRMGPO -GpoName 'AppLocker-WinRM' -TargetOU 'OU=Workstations,DC=contoso,DC=com'
+
+.NOTES
+    Security Context:
+    - Scanning account does NOT need to be Domain Admin
+    - Access is granted via membership in:
+      * Remote Management Users (local group on target)
+      * Event Log Readers (for AppLocker event access)
+
+    Validation Commands (run from Domain Controller after GPO applies):
+      Test-WsMan targetMachine
+      Invoke-Command -ComputerName targetMachine { hostname }
+      Get-AppLockerPolicy -Effective -ComputerName targetMachine
+      Get-WinEvent -ComputerName targetMachine -LogName "Microsoft-Windows-AppLocker/EXE and DLL"
 #>
 function New-WinRMGPO {
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess)]
     param(
-        [string]$GpoName = 'Enable-WinRM'
+        [string]$GpoName = 'GA-AppLocker-WinRM',
+
+        [string]$TargetOU,
+
+        [string]$IPv4Filter = '*',
+
+        [string]$IPv6Filter = '*',
+
+        [bool]$DisableUnencryptedTraffic = $true
     )
 
+    # =========================================================================
+    # PREREQUISITE CHECK - Required PowerShell Modules
+    # =========================================================================
     try {
         Import-Module GroupPolicy -ErrorAction Stop
         Import-Module ActiveDirectory -ErrorAction Stop
@@ -464,88 +528,319 @@ function New-WinRMGPO {
     catch {
         return @{
             success = $false
-            error = 'Required modules not available'
+            error = 'Required modules not available. Install RSAT: GroupPolicy and ActiveDirectory modules.'
         }
     }
 
+    # Track configuration results for detailed reporting
+    $configResults = @{
+        service = @{}
+        client = @{}
+        firewall = @{}
+    }
+    $warnings = @()
+
     try {
+        # =====================================================================
+        # CHECK FOR EXISTING GPO
+        # =====================================================================
         $existing = Get-GPO -Name $GpoName -ErrorAction SilentlyContinue
         if ($existing) {
             return @{
                 success = $true
                 existed = $true
                 gpoName = $GpoName
-                message = 'WinRM GPO already exists'
+                gpoId = $existing.Id.ToString()
+                message = 'WinRM GPO already exists. Delete it first to recreate with new settings.'
             }
         }
 
-        $gpo = New-GPO -Name $GpoName -Comment 'Enables WinRM for remote management'
+        # =====================================================================
+        # CREATE NEW GPO
+        # =====================================================================
+        if ($PSCmdlet.ShouldProcess($GpoName, "Create WinRM Group Policy Object")) {
+            $gpo = New-GPO -Name $GpoName -Comment @"
+GA-AppLocker WinRM Configuration GPO
+Purpose: Enable WinRM for remote AppLocker artifact collection
+Created: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+Settings: Service auto-config, Client config, Firewall rules (Domain/Private)
+Security: Unencrypted traffic disabled, requires Remote Management Users membership
+"@
+        }
+        else {
+            return @{ success = $false; error = 'Operation cancelled by user' }
+        }
 
-        # Configure WinRM service settings
+        # =====================================================================
+        # SECTION 1: WINRM SERVICE CONFIGURATION
+        # Registry Path: HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service
+        # These settings control the WinRM service on target computers
+        # =====================================================================
+        $serviceKeyPath = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service'
+
+        # 1.1 Enable WinRM Service Auto-Configuration
+        # This is the master switch that enables WinRM via Group Policy
         try {
             Set-GPRegistryValue -Name $GpoName `
-                -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service' `
+                -Key $serviceKeyPath `
                 -ValueName 'AllowAutoConfig' `
                 -Type DWord `
                 -Value 1 `
-                -ErrorAction Stop
+                -ErrorAction Stop | Out-Null
+            $configResults.service['AllowAutoConfig'] = 'Set to 1 (Enabled)'
         }
         catch {
-            Write-Warning "Failed to set AllowAutoConfig registry value: $($_.Exception.Message)"
+            $warnings += "Failed to set Service\AllowAutoConfig: $($_.Exception.Message)"
+            $configResults.service['AllowAutoConfig'] = "FAILED: $($_.Exception.Message)"
         }
 
+        # 1.2 IPv4 Filter - Which IP addresses can connect
+        # '*' allows all; can be restricted to specific subnets (e.g., '10.0.0.0/8')
         try {
             Set-GPRegistryValue -Name $GpoName `
-                -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service' `
+                -Key $serviceKeyPath `
                 -ValueName 'IPv4Filter' `
                 -Type String `
-                -Value '*' `
-                -ErrorAction Stop
+                -Value $IPv4Filter `
+                -ErrorAction Stop | Out-Null
+            $configResults.service['IPv4Filter'] = "Set to '$IPv4Filter'"
         }
         catch {
-            Write-Warning "Failed to set IPv4Filter registry value: $($_.Exception.Message)"
+            $warnings += "Failed to set Service\IPv4Filter: $($_.Exception.Message)"
+            $configResults.service['IPv4Filter'] = "FAILED: $($_.Exception.Message)"
         }
+
+        # 1.3 IPv6 Filter - Which IPv6 addresses can connect
+        try {
+            Set-GPRegistryValue -Name $GpoName `
+                -Key $serviceKeyPath `
+                -ValueName 'IPv6Filter' `
+                -Type String `
+                -Value $IPv6Filter `
+                -ErrorAction Stop | Out-Null
+            $configResults.service['IPv6Filter'] = "Set to '$IPv6Filter'"
+        }
+        catch {
+            $warnings += "Failed to set Service\IPv6Filter: $($_.Exception.Message)"
+            $configResults.service['IPv6Filter'] = "FAILED: $($_.Exception.Message)"
+        }
+
+        # 1.4 Allow Basic Authentication (Service)
+        # Required for some remote management scenarios
+        # Note: Traffic is still encrypted via HTTPS or Kerberos
+        try {
+            Set-GPRegistryValue -Name $GpoName `
+                -Key $serviceKeyPath `
+                -ValueName 'AllowBasic' `
+                -Type DWord `
+                -Value 1 `
+                -ErrorAction Stop | Out-Null
+            $configResults.service['AllowBasic'] = 'Set to 1 (Enabled)'
+        }
+        catch {
+            $warnings += "Failed to set Service\AllowBasic: $($_.Exception.Message)"
+            $configResults.service['AllowBasic'] = "FAILED: $($_.Exception.Message)"
+        }
+
+        # 1.5 Disable Unencrypted Traffic (Security Requirement)
+        # CRITICAL: Always disable unencrypted traffic in enterprise environments
+        $unencryptedValue = if ($DisableUnencryptedTraffic) { 0 } else { 1 }
+        try {
+            Set-GPRegistryValue -Name $GpoName `
+                -Key $serviceKeyPath `
+                -ValueName 'AllowUnencryptedTraffic' `
+                -Type DWord `
+                -Value $unencryptedValue `
+                -ErrorAction Stop | Out-Null
+            $configResults.service['AllowUnencryptedTraffic'] = "Set to $unencryptedValue ($(if ($DisableUnencryptedTraffic) { 'Disabled - Secure' } else { 'Enabled - WARNING' }))"
+        }
+        catch {
+            $warnings += "Failed to set Service\AllowUnencryptedTraffic: $($_.Exception.Message)"
+            $configResults.service['AllowUnencryptedTraffic'] = "FAILED: $($_.Exception.Message)"
+        }
+
+        # =====================================================================
+        # SECTION 2: WINRM CLIENT CONFIGURATION
+        # Registry Path: HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Client
+        # These settings control WinRM client behavior when connecting TO other systems
+        # =====================================================================
+        $clientKeyPath = 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Client'
+
+        # 2.1 Allow Basic Authentication (Client)
+        try {
+            Set-GPRegistryValue -Name $GpoName `
+                -Key $clientKeyPath `
+                -ValueName 'AllowBasic' `
+                -Type DWord `
+                -Value 1 `
+                -ErrorAction Stop | Out-Null
+            $configResults.client['AllowBasic'] = 'Set to 1 (Enabled)'
+        }
+        catch {
+            $warnings += "Failed to set Client\AllowBasic: $($_.Exception.Message)"
+            $configResults.client['AllowBasic'] = "FAILED: $($_.Exception.Message)"
+        }
+
+        # 2.2 Disable Unencrypted Traffic (Client)
+        try {
+            Set-GPRegistryValue -Name $GpoName `
+                -Key $clientKeyPath `
+                -ValueName 'AllowUnencryptedTraffic' `
+                -Type DWord `
+                -Value $unencryptedValue `
+                -ErrorAction Stop | Out-Null
+            $configResults.client['AllowUnencryptedTraffic'] = "Set to $unencryptedValue ($(if ($DisableUnencryptedTraffic) { 'Disabled - Secure' } else { 'Enabled - WARNING' }))"
+        }
+        catch {
+            $warnings += "Failed to set Client\AllowUnencryptedTraffic: $($_.Exception.Message)"
+            $configResults.client['AllowUnencryptedTraffic'] = "FAILED: $($_.Exception.Message)"
+        }
+
+        # =====================================================================
+        # SECTION 3: WINDOWS FIREWALL CONFIGURATION VIA GPO
+        # Registry Path: HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall
+        # CRITICAL: These are GPO-based firewall rules, NOT local firewall rules
+        # This ensures settings survive reboot and appear in RSOP/GPRESULT
+        # =====================================================================
+
+        # 3.1 Enable predefined WinRM firewall rules for Domain profile
+        # Registry path for Windows Firewall with Advanced Security GPO settings
+        $firewallDomainPath = 'HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile\RemoteAdminSettings'
+
+        try {
+            # Enable Windows Remote Management (HTTP-In) for Domain profile
+            Set-GPRegistryValue -Name $GpoName `
+                -Key $firewallDomainPath `
+                -ValueName 'Enabled' `
+                -Type DWord `
+                -Value 1 `
+                -ErrorAction Stop | Out-Null
+            $configResults.firewall['DomainProfile_RemoteAdmin'] = 'Enabled'
+        }
+        catch {
+            $warnings += "Failed to set Domain firewall settings: $($_.Exception.Message)"
+            $configResults.firewall['DomainProfile_RemoteAdmin'] = "FAILED: $($_.Exception.Message)"
+        }
+
+        # 3.2 Enable for Private profile
+        $firewallPrivatePath = 'HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall\StandardProfile\RemoteAdminSettings'
 
         try {
             Set-GPRegistryValue -Name $GpoName `
-                -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service' `
-                -ValueName 'IPv6Filter' `
-                -Type String `
-                -Value '*' `
-                -ErrorAction Stop
+                -Key $firewallPrivatePath `
+                -ValueName 'Enabled' `
+                -Type DWord `
+                -Value 1 `
+                -ErrorAction Stop | Out-Null
+            $configResults.firewall['PrivateProfile_RemoteAdmin'] = 'Enabled'
         }
         catch {
-            Write-Warning "Failed to set IPv6Filter registry value: $($_.Exception.Message)"
+            $warnings += "Failed to set Private firewall settings: $($_.Exception.Message)"
+            $configResults.firewall['PrivateProfile_RemoteAdmin'] = "FAILED: $($_.Exception.Message)"
         }
 
-        $domainDN = (Get-ADDomain).DistinguishedName
+        # 3.3 Configure WinRM HTTP Inbound Rule (Port 5985)
+        # Uses Windows Firewall GPO extension for proper rule definition
+        $firewallRulesPath = 'HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall\FirewallRules'
+
+        # WinRM HTTP Rule (Domain and Private profiles)
+        $winrmHttpRule = 'v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5985|' +
+                         'Profile=Domain|Profile=Private|' +
+                         'Name=Windows Remote Management (HTTP-In)|' +
+                         'Desc=Inbound rule for Windows Remote Management via WS-Management (HTTP port 5985)|' +
+                         'EmbedCtxt=Windows Remote Management|'
 
         try {
-            New-GPLink -Name $GpoName -Target $domainDN -LinkEnabled Yes -ErrorAction Stop
+            Set-GPRegistryValue -Name $GpoName `
+                -Key $firewallRulesPath `
+                -ValueName 'WinRM-HTTP-In-TCP' `
+                -Type String `
+                -Value $winrmHttpRule `
+                -ErrorAction Stop | Out-Null
+            $configResults.firewall['WinRM_HTTP_5985'] = 'Rule created for Domain and Private profiles'
         }
         catch {
-            return @{
-                success = $true
-                existed = $false
-                gpoName = $GpoName
-                linked = $false
-                message = "GPO created but failed to link: $($_.Exception.Message)"
-            }
+            $warnings += "Failed to create WinRM HTTP firewall rule: $($_.Exception.Message)"
+            $configResults.firewall['WinRM_HTTP_5985'] = "FAILED: $($_.Exception.Message)"
         }
 
+        # WinRM HTTPS Rule (Port 5986) - Domain and Private profiles
+        $winrmHttpsRule = 'v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5986|' +
+                          'Profile=Domain|Profile=Private|' +
+                          'Name=Windows Remote Management (HTTPS-In)|' +
+                          'Desc=Inbound rule for Windows Remote Management via WS-Management (HTTPS port 5986)|' +
+                          'EmbedCtxt=Windows Remote Management|'
+
+        try {
+            Set-GPRegistryValue -Name $GpoName `
+                -Key $firewallRulesPath `
+                -ValueName 'WinRM-HTTPS-In-TCP' `
+                -Type String `
+                -Value $winrmHttpsRule `
+                -ErrorAction Stop | Out-Null
+            $configResults.firewall['WinRM_HTTPS_5986'] = 'Rule created for Domain and Private profiles'
+        }
+        catch {
+            $warnings += "Failed to create WinRM HTTPS firewall rule: $($_.Exception.Message)"
+            $configResults.firewall['WinRM_HTTPS_5986'] = "FAILED: $($_.Exception.Message)"
+        }
+
+        # =====================================================================
+        # SECTION 4: LINK GPO TO TARGET
+        # =====================================================================
+        $linkTarget = if ($TargetOU) { $TargetOU } else { (Get-ADDomain).DistinguishedName }
+
+        try {
+            New-GPLink -Name $GpoName -Target $linkTarget -LinkEnabled Yes -ErrorAction Stop | Out-Null
+            $linkedSuccessfully = $true
+        }
+        catch {
+            $linkedSuccessfully = $false
+            $warnings += "Failed to link GPO to '$linkTarget': $($_.Exception.Message)"
+        }
+
+        # =====================================================================
+        # RETURN COMPREHENSIVE RESULTS
+        # =====================================================================
+        $overallSuccess = ($warnings.Count -eq 0) -and $linkedSuccessfully
+
         return @{
-            success = $true
+            success = $overallSuccess
+            partialSuccess = (-not $overallSuccess -and $gpo)
             existed = $false
             gpoName = $GpoName
-            linked = $true
-            linkedTo = $domainDN
-            message = 'WinRM GPO created and linked to domain'
+            gpoId = $gpo.Id.ToString()
+            linked = $linkedSuccessfully
+            linkedTo = $linkTarget
+            configuration = @{
+                service = $configResults.service
+                client = $configResults.client
+                firewall = $configResults.firewall
+            }
+            warnings = $warnings
+            message = if ($overallSuccess) {
+                'WinRM GPO created and configured successfully. Run gpupdate /force on target computers.'
+            } else {
+                "WinRM GPO created with $($warnings.Count) warning(s). Review warnings for details."
+            }
+            validationCommands = @(
+                'Test-WsMan <targetMachine>',
+                'Invoke-Command -ComputerName <targetMachine> { hostname }',
+                'Get-AppLockerPolicy -Effective -ComputerName <targetMachine>',
+                'Get-WinEvent -ComputerName <targetMachine> -LogName "Microsoft-Windows-AppLocker/EXE and DLL" -MaxEvents 10'
+            )
+            securityNotes = @(
+                'Scanning account should be member of "Remote Management Users" on target',
+                'For event log access, add to "Event Log Readers" group on target',
+                'Unencrypted traffic is disabled (secure configuration)',
+                'Basic authentication enabled for compatibility (traffic still encrypted)'
+            )
         }
     }
     catch {
         return @{
             success = $false
-            error = $_.Exception.Message
+            error = "Failed to create WinRM GPO: $($_.Exception.Message)"
         }
     }
 }

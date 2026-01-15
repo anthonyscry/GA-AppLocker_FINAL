@@ -201,27 +201,22 @@ function Get-ComplianceSummary {
     [OutputType([hashtable])]
     param()
 
-    # Import modules for Get-PolicyHealthScore and Get-AppLockerEventStats
-    # Note: These functions should be defined in their respective modules
+    # Import Module1-Dashboard which contains both Get-PolicyHealthScore and Get-AppLockerEventStats
+    # Note: Both functions are in Module1-Dashboard (not Module5-EventMonitor)
     # If not available, we'll use default values
-    $hasPolicyHealth = $false
-    $hasEventStats = $false
+    $hasDashboardModule = $false
 
     try {
         Import-Module "$PSScriptRoot\Module1-Dashboard.psm1" -ErrorAction Stop
-        $hasPolicyHealth = $true
+        $hasDashboardModule = $true
     }
     catch {
         # Module not available, will use defaults
     }
 
-    try {
-        Import-Module "$PSScriptRoot\Module5-EventMonitor.psm1" -ErrorAction Stop
-        $hasEventStats = $true
-    }
-    catch {
-        # Module not available, will use defaults
-    }
+    # Legacy compatibility flags (both from same module now)
+    $hasPolicyHealth = $hasDashboardModule
+    $hasEventStats = $hasDashboardModule
 
     $summary = @{
         timestamp = Get-Date -Format 'o'
