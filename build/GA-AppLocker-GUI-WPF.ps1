@@ -424,38 +424,121 @@ function Start-ComprehensiveScan {
 
 # Module 3: Rule Generator Functions
 function New-PublisherRule {
-    param([string]$PublisherName, [string]$ProductName = "*", [string]$BinaryName = "*", [string]$Version = "*")
+    param(
+        [string]$PublisherName,
+        [string]$ProductName = "*",
+        [string]$BinaryName = "*",
+        [string]$Version = "*",
+        [string]$Action = "Allow",
+        [string]$UserOrGroupSid = "S-1-1-0"
+    )
     if (-not $PublisherName) { return @{ success = $false; error = "Publisher name is required" } }
     $guid = "{" + (New-Guid).ToString() + "}"
-    $xml = "<FilePublisherRule Id=`"$guid`" Name=`"$PublisherName`" UserOrGroupSid=`"S-1-1-0`" Action=`"Allow`"><Conditions><FilePublisherCondition PublisherName=`"$PublisherName`" ProductName=`"$ProductName`" BinaryName=`"$BinaryName`"><BinaryVersionRange LowSection=`"$Version`" HighSection=`"*`" /></FilePublisherCondition></Conditions></FilePublisherRule>"
-    return @{ success = $true; id = $guid; type = "Publisher"; publisher = $PublisherName; xml = $xml }
+    $xml = "<FilePublisherRule Id=`"$guid`" Name=`"$PublisherName`" UserOrGroupSid=`"$UserOrGroupSid`" Action=`"$Action`"><Conditions><FilePublisherCondition PublisherName=`"$PublisherName`" ProductName=`"$ProductName`" BinaryName=`"$BinaryName`"><BinaryVersionRange LowSection=`"$Version`" HighSection=`"*`" /></FilePublisherCondition></Conditions></FilePublisherRule>"
+    return @{ success = $true; id = $guid; type = "Publisher"; publisher = $PublisherName; action = $Action; sid = $UserOrGroupSid; xml = $xml }
 }
 
 function New-HashRule {
-    param([string]$FilePath)
+    param(
+        [string]$FilePath,
+        [string]$Action = "Allow",
+        [string]$UserOrGroupSid = "S-1-1-0"
+    )
     if (-not (Test-Path $FilePath)) { return @{ success = $false; error = "File not found" } }
     $hash = (Get-FileHash -Path $FilePath -Algorithm SHA256).Hash
     $fileName = (Get-Item $FilePath).Name
     $guid = "{" + (New-Guid).ToString() + "}"
-    $xml = "<FileHashRule Id=`"$guid`" Name=`"$fileName`" UserOrGroupSid=`"S-1-1-0`" Action=`"Allow`"><Conditions><FileHashCondition SourceFileName=`"$fileName`" SourceFileHash=`"$hash`" Type=`"SHA256`" /></Conditions></FileHashRule>"
-    return @{ success = $true; id = $guid; type = "Hash"; hash = $hash; fileName = $fileName; xml = $xml }
+    $xml = "<FileHashRule Id=`"$guid`" Name=`"$fileName`" UserOrGroupSid=`"$UserOrGroupSid`" Action=`"$Action`"><Conditions><FileHashCondition SourceFileName=`"$fileName`" SourceFileHash=`"$hash`" Type=`"SHA256`" /></Conditions></FileHashRule>"
+    return @{ success = $true; id = $guid; type = "Hash"; hash = $hash; fileName = $fileName; action = $Action; sid = $UserOrGroupSid; xml = $xml }
 }
 
 function New-RulesFromArtifacts {
-    param([array]$Artifacts, [string]$RuleType = "Publisher")
-    if (-not $Artifacts -or $Artifacts.Count -eq 0) { return @{ success = $false; error = "No artifacts provided" } }
+    param(
+        [array]$Artifacts,
+        [string]$RuleType = "Publisher",
+        [string]$Action = "Allow",
+        [string]$UserOrGroupSid = "S-1-1-0"
+    )
+
+    if (-not $Artifacts -or $Artifacts.Count -eq 0) {
+        return @{ success = $false; error = "No artifacts provided" }
+    }
+
     $rules = @()
-    $publishers = @{}
+    $processed = @{}
+
     foreach ($artifact in $Artifacts) {
-        if ($RuleType -eq "Publisher" -and $artifact.publisher) {
-            if (-not $publishers.ContainsKey($artifact.publisher)) {
-                $publishers[$artifact.publisher] = $true
-                $rule = New-PublisherRule -PublisherName $artifact.publisher
-                if ($rule.success) { $rules += $rule }
+        # Get publisher name (handle various column name formats)
+        $publisherName = $artifact.Publisher
+        if (-not $publisherName) { $publisherName = $artifact.publisher }
+        if (-not $publisherName) { $publisherName = $artifact.CompanyName }
+        if (-not $publisherName) { $publisherName = $artifact.Signer }
+        if (-not $publisherName) { $publisherName = $artifact.name }
+
+        # Get file path (handle various column name formats)
+        $filePath = $artifact.FullPath
+        if (-not $filePath) { $filePath = $artifact.fullPath }
+        if (-not $filePath) { $filePath = $artifact.Path }
+        if (-not $filePath) { $filePath = $artifact.path }
+        if (-not $filePath) { $filePath = $artifact.FilePath }
+
+        # Get file name
+        $fileName = $artifact.FileName
+        if (-not $fileName) { $fileName = $artifact.Name }
+        if (-not $fileName) { $fileName = $artifact.name }
+
+        switch ($RuleType) {
+            "Publisher" {
+                if ($publisherName -and $publisherName -ne "Unknown" -and $publisherName -ne "") {
+                    if (-not $processed.ContainsKey($publisherName)) {
+                        $processed[$publisherName] = $true
+                        $rule = New-PublisherRule -PublisherName $publisherName -Action $Action -UserOrGroupSid $UserOrGroupSid
+                        if ($rule.success) { $rules += $rule }
+                    }
+                }
+            }
+            "Hash" {
+                if ($filePath -and (Test-Path $filePath -ErrorAction SilentlyContinue)) {
+                    $hashKey = $filePath.ToLower()
+                    if (-not $processed.ContainsKey($hashKey)) {
+                        $processed[$hashKey] = $true
+                        $rule = New-HashRule -FilePath $filePath -Action $Action -UserOrGroupSid $UserOrGroupSid
+                        if ($rule.success) { $rules += $rule }
+                    }
+                }
+            }
+            "Path" {
+                if ($filePath) {
+                    # Create path rule for the directory
+                    $directory = Split-Path -Parent $filePath -ErrorAction SilentlyContinue
+                    if ($directory -and -not $processed.ContainsKey($directory)) {
+                        $processed[$directory] = $true
+                        $guid = "{" + (New-Guid).ToString() + "}"
+                        $xml = "<FilePathRule Id=`"$guid`" Name=`"$directory`" UserOrGroupSid=`"$UserOrGroupSid`" Action=`"$Action`"><Conditions><FilePathCondition Path=`"$directory\*`"/></Conditions></FilePathRule>"
+                        $rules += @{
+                            success = $true
+                            type = "Path"
+                            publisher = $directory
+                            path = "$directory\*"
+                            action = $Action
+                            sid = $UserOrGroupSid
+                            xml = $xml
+                        }
+                    }
+                }
             }
         }
     }
-    return @{ success = $true; rules = $rules; count = $rules.Count; ruleType = $RuleType }
+
+    return @{
+        success = $true
+        rules = $rules
+        count = $rules.Count
+        ruleType = $RuleType
+        action = $Action
+        sid = $UserOrGroupSid
+        processedCount = $processed.Count
+    }
 }
 
 # Module 4: Domain Detection
@@ -767,23 +850,26 @@ function New-WinRMGpo {
         }
 
         # ============================================
-        # WinRM SERVICE Configuration
+        # WinRM SERVICE Configuration (Policy Settings)
         # ============================================
 
-        # Allow automatic configuration of listeners (required)
+        # Allow automatic configuration of listeners - THIS IS THE KEY SETTING
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowAutoConfig" -Type DWord -Value 1 -ErrorAction Stop
 
-        # IPv4 Filter - allow all
+        # IPv4 Filter - allow all (required for listener creation)
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "IPv4Filter" -Type String -Value "*" -ErrorAction Stop
 
         # IPv6 Filter - allow all
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "IPv6Filter" -Type String -Value "*" -ErrorAction Stop
 
-        # Allow Basic Authentication for WinRM Service
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowBasic" -Type DWord -Value 1 -ErrorAction Stop
+        # Allow Kerberos authentication (default for domain)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowKerberos" -Type DWord -Value 1 -ErrorAction Stop
 
-        # Allow unencrypted traffic (set to 0 for security, 1 if needed for compatibility)
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowUnencryptedTraffic" -Type DWord -Value 0 -ErrorAction Stop
+        # Allow Negotiate authentication
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowNegotiate" -Type DWord -Value 1 -ErrorAction Stop
+
+        # Allow CredSSP authentication
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowCredSSP" -Type DWord -Value 1 -ErrorAction Stop
 
         Write-Log "WinRM Service policies configured"
 
@@ -791,36 +877,49 @@ function New-WinRMGpo {
         # WinRM CLIENT Configuration
         # ============================================
 
-        # Allow Basic Authentication for WinRM Client
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Client" -ValueName "AllowBasic" -Type DWord -Value 1 -ErrorAction Stop
+        # Allow Kerberos authentication for client
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Client" -ValueName "AllowKerberos" -Type DWord -Value 1 -ErrorAction Stop
 
-        # TrustedHosts - allow all (wildcard *)
+        # Allow Negotiate authentication for client
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Client" -ValueName "AllowNegotiate" -Type DWord -Value 1 -ErrorAction Stop
+
+        # TrustedHosts - allow all domain computers
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Client" -ValueName "TrustedHosts" -Type String -Value "*" -ErrorAction Stop
-
-        # Allow unencrypted traffic for client
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Client" -ValueName "AllowUnencryptedTraffic" -Type DWord -Value 0 -ErrorAction Stop
 
         Write-Log "WinRM Client policies configured"
 
         # ============================================
-        # WinRM Service Startup
+        # WinRM Service Startup Type
         # ============================================
 
-        # Set WinRM service to start automatically
+        # Set WinRM service to start automatically (2 = Automatic)
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\SYSTEM\CurrentControlSet\Services\WinRM" -ValueName "Start" -Type DWord -Value 2 -ErrorAction Stop
+
+        # Enable delayed auto-start for reliability
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\SYSTEM\CurrentControlSet\Services\WinRM" -ValueName "DelayedAutostart" -Type DWord -Value 0 -ErrorAction Stop
+
         Write-Log "WinRM service startup set to Automatic"
 
         # ============================================
-        # Windows Firewall Rules for WinRM
+        # Windows Firewall - Enable Predefined Rules
         # ============================================
 
-        # Enable Windows Firewall - Domain Profile - Allow WinRM
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\FirewallRules" -ValueName "WINRM-HTTP-In-TCP" -Type String -Value "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5985|App=System|Name=Windows Remote Management (HTTP-In)|Desc=Inbound rule for WinRM HTTP|EmbedCtxt=Windows Remote Management|" -ErrorAction SilentlyContinue
+        # Enable the Windows Remote Management firewall group (Domain profile)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\RemoteAdminSettings" -ValueName "Enabled" -Type DWord -Value 1 -ErrorAction SilentlyContinue
 
-        # Enable WinRM HTTPS (port 5986)
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\FirewallRules" -ValueName "WINRM-HTTPS-In-TCP" -Type String -Value "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5986|App=System|Name=Windows Remote Management (HTTPS-In)|Desc=Inbound rule for WinRM HTTPS|EmbedCtxt=Windows Remote Management|" -ErrorAction SilentlyContinue
+        # Enable inbound firewall rule for WinRM HTTP
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\FirewallRules" -ValueName "WINRM-HTTP-In-TCP-NoScope" -Type String -Value "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5985|RA4=LocalSubnet|RA6=LocalSubnet|App=System|Name=Windows Remote Management (HTTP-In)|Desc=Inbound rule for Windows Remote Management via WS-Management. [TCP 5985]|EmbedCtxt=Windows Remote Management|" -ErrorAction SilentlyContinue
 
         Write-Log "WinRM firewall rules configured"
+
+        # ============================================
+        # PowerShell Remoting (Enable-PSRemoting compatibility)
+        # ============================================
+
+        # Enable PS Remoting
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service\WinRS" -ValueName "AllowRemoteShellAccess" -Type DWord -Value 1 -ErrorAction SilentlyContinue
+
+        Write-Log "PowerShell Remoting enabled"
 
         # ============================================
         # Set GPO Permissions
@@ -2025,51 +2124,99 @@ $xamlString = @"
 
                 <!-- Rules Panel -->
                 <StackPanel x:Name="PanelRules" Visibility="Collapsed">
-                    <TextBlock Text="Rule Generator" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Rule Generator" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
-                    <!-- Rule Type Selection -->
-                    <StackPanel Margin="0,0,0,15">
-                        <TextBlock Text="Rule Type:" FontSize="13" Foreground="#8B949E" Margin="0,0,0,8"/>
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton x:Name="RuleTypePublisher" Content="Publisher (Preferred)" IsChecked="True"
-                                         Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="RuleTypeHash" Content="Hash (Fallback)"
-                                         Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="RuleTypePath" Content="Path (Exceptions Only)"
-                                         Foreground="#E6EDF3" FontSize="12" VerticalContentAlignment="Center"/>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <Grid Margin="0,10,0,15">
+                    <!-- Rule Options Row -->
+                    <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="20"/>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button x:Name="ImportArtifactsBtn" Content="Import Artifacts"
+                        <!-- Rule Type -->
+                        <TextBlock Text="Type:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <StackPanel Orientation="Horizontal" Grid.Column="1">
+                            <RadioButton x:Name="RuleTypePublisher" Content="Publisher" IsChecked="True"
+                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                            <RadioButton x:Name="RuleTypeHash" Content="Hash"
+                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                            <RadioButton x:Name="RuleTypePath" Content="Path"
+                                         Foreground="#E6EDF3" FontSize="11" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Action -->
+                        <TextBlock Text="Action:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="3" Margin="0,0,8,0"/>
+                        <StackPanel Orientation="Horizontal" Grid.Column="4">
+                            <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
+                                         Foreground="#3FB950" FontSize="11" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                            <RadioButton x:Name="RuleActionDeny" Content="Deny"
+                                         Foreground="#F85149" FontSize="11" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- AD Group -->
+                        <TextBlock Text="Apply To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="6" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="180"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
+                            <ComboBoxItem Content="Everyone (S-1-1-0)" IsSelected="True" Tag="S-1-1-0"/>
+                            <ComboBoxItem Content="Administrators (S-1-5-32-544)" Tag="S-1-5-32-544"/>
+                            <ComboBoxItem Content="Users (S-1-5-32-545)" Tag="S-1-5-32-545"/>
+                            <ComboBoxItem Content="Domain Users" Tag="DomainUsers"/>
+                            <ComboBoxItem Content="Domain Admins" Tag="DomainAdmins"/>
+                            <ComboBoxItem Content="Custom (Enter SID below)" Tag="Custom"/>
+                        </ComboBox>
+                    </Grid>
+
+                    <!-- Custom SID Input (hidden by default) -->
+                    <Grid x:Name="CustomSidPanel" Margin="0,0,0,10" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Custom SID:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox x:Name="CustomSidText" Grid.Column="1" Height="26"
+                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                 BorderThickness="1" FontSize="11" Padding="5"
+                                 Text="S-1-5-21-..."/>
+                    </Grid>
+
+                    <!-- Action Buttons -->
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="ImportArtifactsBtn" Content="Import CSV"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
-
-                        <Button x:Name="ImportFolderBtn" Content="Import Folder (Recursive)"
+                        <Button x:Name="ImportFolderBtn" Content="Import Folder"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
-
-                        <Button x:Name="MergeRulesBtn" Content="Merge Rules"
+                        <Button x:Name="CreateRulesFromEventsBtn" Content="From Events"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
-
+                        <Button x:Name="MergeRulesBtn" Content="Merge Rules"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="6"/>
                         <Button x:Name="GenerateRulesBtn" Content="Generate Rules"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
+                                Style="{StaticResource PrimaryButton}" Grid.Column="8"/>
                     </Grid>
 
                     <!-- Rules Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200">
+                            CornerRadius="6" Padding="10" MinHeight="180">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
-                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
@@ -2077,35 +2224,58 @@ $xamlString = @"
 
                 <!-- Events Panel -->
                 <StackPanel x:Name="PanelEvents" Visibility="Collapsed">
-                    <TextBlock Text="Event Monitor" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Event Monitor" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
-                    <!-- Event Filters and Export -->
-                    <Grid Margin="0,0,0,15">
+                    <!-- Scan Buttons Row -->
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-
-                        <TextBlock Grid.Column="0" Text="Filter by event type:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center"/>
-
-                        <Button x:Name="FilterAllBtn" Content="All" Style="{StaticResource SecondaryButton}" Grid.Column="1" Margin="5,0"/>
-                        <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="5,0"/>
-                        <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Grid.Column="3" Margin="5,0"/>
-                        <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Grid.Column="4" Margin="5,0"/>
-                        <Button x:Name="RefreshEventsBtn" Content="Refresh" Style="{StaticResource PrimaryButton}" Grid.Column="5" Margin="5,0"/>
-                        <Button x:Name="ExportEventsBtn" Content="Export" Style="{StaticResource PrimaryButton}" Grid.Column="6" Margin="5,0,0,0"/>
+                        <Button x:Name="ScanLocalEventsBtn" Content="Scan Local" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ScanRemoteEventsBtn" Content="Scan Remote" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                        <Button x:Name="ImportEventsBtn" Content="Import" Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
+                        <Button x:Name="ExportEventsBtn" Content="Export" Style="{StaticResource SecondaryButton}" Grid.Column="6"/>
                     </Grid>
 
+                    <!-- Remote Computer Input -->
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Computers:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <TextBox x:Name="EventComputersText" Grid.Column="1" Height="24"
+                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                 BorderThickness="1" FontSize="10" Padding="4"
+                                 Text="(comma-separated or use Load from Discovery)"/>
+                        <Button x:Name="LoadFromDiscoveryBtn" Content="Load from Discovery"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="8,0,0,0"/>
+                    </Grid>
+
+                    <!-- Event Filters -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <TextBlock Text="Filter:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                        <Button x:Name="FilterAllBtn" Content="All" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
+                        <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
+                        <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
+                        <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
+                        <Button x:Name="RefreshEventsBtn" Content="Refresh" Style="{StaticResource PrimaryButton}" Margin="15,0,0,0"/>
+                    </StackPanel>
+
+                    <!-- Events Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="300">
+                            CornerRadius="6" Padding="10" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock x:Name="EventsOutput" Text="Click refresh to load events..."
-                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                            <TextBlock x:Name="EventsOutput"
+                                       Text="=== APPLOCKER EVENT MONITOR ===`n`nScan Local: Get events from this computer`nScan Remote: Get events from computers via WinRM`nImport/Export: CSV file operations`n`nUse AD Discovery to find computers first."
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
@@ -2257,43 +2427,33 @@ $xamlString = @"
 
                 <!-- AD Discovery Panel -->
                 <StackPanel x:Name="PanelDiscovery" Visibility="Collapsed">
-                    <TextBlock Text="AD Discovery" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="AD Discovery" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
-                        <StackPanel>
-                            <TextBlock x:Name="DiscoveryStatus" Text="Active Directory Discovery" FontSize="14"
-                                       FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <TextBlock Text="Discover computers in Active Directory by OU or search criteria."
-                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Search Controls -->
-                    <Grid Margin="0,0,0,15">
+                    <!-- Search and Discover Row -->
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="8"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="140"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Search Filter:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center"/>
-                        <TextBox x:Name="ADSearchFilter" Grid.Column="2" Text="*" Height="32"
+                        <TextBlock Text="Filter:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ADSearchFilter" Grid.Column="2" Text="*" Height="26"
                                  Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                 BorderThickness="1" FontSize="13" Padding="8,5"
+                                 BorderThickness="1" FontSize="11" Padding="5"
                                  ToolTip="Use * for all, or enter computer name filter"/>
-                        <Button x:Name="DiscoverComputersBtn" Content="Discover Computers"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="4"/>
+                        <Button x:Name="DiscoverComputersBtn" Content="Discover"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="4" MinWidth="80"/>
                     </Grid>
 
-                    <!-- Action Buttons -->
-                    <Grid Margin="0,0,0,15">
+                    <!-- Action Buttons Row -->
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="8"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="8"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="TestConnectivityBtn" Content="Test Connectivity"
@@ -2306,28 +2466,30 @@ $xamlString = @"
 
                     <!-- Discovered Computers List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="10" Height="100">
+                            CornerRadius="6" Padding="8" Height="80">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-
-                            <TextBlock Grid.Row="0" Text="Discovered Computers" FontSize="12" FontWeight="Bold"
-                                       Foreground="#8B949E" Margin="0,0,0,5"/>
-
+                            <TextBlock Grid.Row="0" Text="Discovered Computers" FontSize="10" FontWeight="Bold"
+                                       Foreground="#8B949E" Margin="0,0,0,4"/>
                             <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
-                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="10"
+                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
                                      SelectionMode="Multiple"/>
                         </Grid>
                     </Border>
 
+                    <!-- Status Line -->
+                    <TextBlock x:Name="DiscoveryStatus" Text="Ready to discover computers"
+                               FontSize="10" Foreground="#8B949E" Margin="0,6,0,0"/>
+
                     <!-- Discovery Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Margin="0,10,0,0" MinHeight="150">
+                            CornerRadius="6" Padding="10" Margin="0,8,0,0" MinHeight="120">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock x:Name="DiscoveryOutput" Text="Click 'Discover Computers' to search Active Directory..."
-                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                            <TextBlock x:Name="DiscoveryOutput" Text="Click 'Discover' to search AD..."
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
@@ -2655,17 +2817,28 @@ $ArtifactsList = $window.FindName("ArtifactsList")
 $RuleTypePublisher = $window.FindName("RuleTypePublisher")
 $RuleTypeHash = $window.FindName("RuleTypeHash")
 $RuleTypePath = $window.FindName("RuleTypePath")
+$RuleActionAllow = $window.FindName("RuleActionAllow")
+$RuleActionDeny = $window.FindName("RuleActionDeny")
+$RuleGroupCombo = $window.FindName("RuleGroupCombo")
+$CustomSidPanel = $window.FindName("CustomSidPanel")
+$CustomSidText = $window.FindName("CustomSidText")
 $ImportArtifactsBtn = $window.FindName("ImportArtifactsBtn")
 $ImportFolderBtn = $window.FindName("ImportFolderBtn")
+$CreateRulesFromEventsBtn = $window.FindName("CreateRulesFromEventsBtn")
 $MergeRulesBtn = $window.FindName("MergeRulesBtn")
 $GenerateRulesBtn = $window.FindName("GenerateRulesBtn")
 $RulesOutput = $window.FindName("RulesOutput")
+$ScanLocalEventsBtn = $window.FindName("ScanLocalEventsBtn")
+$ScanRemoteEventsBtn = $window.FindName("ScanRemoteEventsBtn")
+$ImportEventsBtn = $window.FindName("ImportEventsBtn")
+$ExportEventsBtn = $window.FindName("ExportEventsBtn")
+$EventComputersText = $window.FindName("EventComputersText")
+$LoadFromDiscoveryBtn = $window.FindName("LoadFromDiscoveryBtn")
 $FilterAllBtn = $window.FindName("FilterAllBtn")
 $FilterAllowedBtn = $window.FindName("FilterAllowedBtn")
 $FilterBlockedBtn = $window.FindName("FilterBlockedBtn")
 $FilterAuditBtn = $window.FindName("FilterAuditBtn")
 $RefreshEventsBtn = $window.FindName("RefreshEventsBtn")
-$ExportEventsBtn = $window.FindName("ExportEventsBtn")
 $EventsOutput = $window.FindName("EventsOutput")
 $CreateGP0Btn = $window.FindName("CreateGP0Btn")
 $LinkGP0Btn = $window.FindName("LinkGP0Btn")
@@ -3557,9 +3730,54 @@ $MergeRulesBtn.Add_Click({
     }
 })
 
+# Rule Group ComboBox selection changed - show/hide custom SID panel
+$RuleGroupCombo.Add_SelectionChanged({
+    $selectedItem = $RuleGroupCombo.SelectedItem
+    if ($selectedItem -and $selectedItem.Tag -eq "Custom") {
+        $CustomSidPanel.Visibility = "Visible"
+    } else {
+        $CustomSidPanel.Visibility = "Collapsed"
+    }
+})
+
+# Helper function to get SID from RuleGroupCombo selection
+function Get-SelectedSid {
+    $selectedItem = $RuleGroupCombo.SelectedItem
+    if (-not $selectedItem) { return "S-1-1-0" }
+
+    $tag = $selectedItem.Tag
+    switch ($tag) {
+        "S-1-1-0" { return "S-1-1-0" }
+        "S-1-5-32-544" { return "S-1-5-32-544" }
+        "S-1-5-32-545" { return "S-1-5-32-545" }
+        "DomainUsers" {
+            try {
+                $domainSid = (Get-ADDomain -ErrorAction Stop).DomainSID.Value
+                return "$domainSid-513"
+            } catch {
+                return "S-1-1-0"
+            }
+        }
+        "DomainAdmins" {
+            try {
+                $domainSid = (Get-ADDomain -ErrorAction Stop).DomainSID.Value
+                return "$domainSid-512"
+            } catch {
+                return "S-1-1-0"
+            }
+        }
+        "Custom" {
+            $customSid = $CustomSidText.Text.Trim()
+            if ($customSid -match "^S-1-") { return $customSid }
+            return "S-1-1-0"
+        }
+        default { return "S-1-1-0" }
+    }
+}
+
 $GenerateRulesBtn.Add_Click({
     if ($script:CollectedArtifacts.Count -eq 0) {
-        $RulesOutput.Text = "ERROR: No artifacts imported. Use Import Artifacts first."
+        $RulesOutput.Text = "ERROR: No artifacts imported. Use Import CSV, Import Folder, or From Events first."
         return
     }
 
@@ -3567,13 +3785,64 @@ $GenerateRulesBtn.Add_Click({
                 elseif ($RuleTypeHash.IsChecked) { "Hash" }
                 else { "Path" }
 
-    $result = New-RulesFromArtifacts -Artifacts $script:CollectedArtifacts -RuleType $ruleType
+    $action = if ($RuleActionAllow.IsChecked) { "Allow" } else { "Deny" }
+    $sid = Get-SelectedSid
 
-    $output = "Generated $($result.count) $ruleType rules:`n`n"
+    $selectedGroup = $RuleGroupCombo.SelectedItem.Content
+    $RulesOutput.Text = "Generating $action $ruleType rules for $selectedGroup...`nProcessing $($script:CollectedArtifacts.Count) artifacts..."
+
+    $result = New-RulesFromArtifacts -Artifacts $script:CollectedArtifacts -RuleType $ruleType -Action $action -UserOrGroupSid $sid
+
+    $script:GeneratedRules = $result.rules
+
+    $output = "=== GENERATED $($result.count) $ruleType RULES ===`n"
+    $output += "Action: $action | Applied To: $selectedGroup`n"
+    $output += "SID: $sid`n`n"
+
     foreach ($rule in $result.rules) {
         $output += "[$($rule.type)] $($rule.publisher)`n"
     }
+
+    $output += "`n--- Use 'Export Rules' in Deployment to save ---"
     $RulesOutput.Text = $output
+    Write-Log "Generated $($result.count) $ruleType rules with Action=$action, SID=$sid"
+})
+
+# Create Rules from Events button
+$CreateRulesFromEventsBtn.Add_Click({
+    if ($script:AllEvents.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("No events loaded. Go to Event Monitor and scan for events first.", "No Events", "OK", "Information")
+        return
+    }
+
+    $RulesOutput.Text = "Creating artifacts from $($script:AllEvents.Count) events..."
+
+    # Convert events to artifacts format
+    $eventArtifacts = @()
+    foreach ($event in $script:AllEvents) {
+        # Parse event message to extract file info
+        $artifact = @{
+            FileName = $event.FileName
+            FullPath = $event.FilePath
+            Publisher = $event.Publisher
+            EventType = $event.EventType
+            Computer = $event.ComputerName
+        }
+        if ($artifact.FileName -or $artifact.FullPath) {
+            $eventArtifacts += [PSCustomObject]$artifact
+        }
+    }
+
+    if ($eventArtifacts.Count -eq 0) {
+        $RulesOutput.Text = "ERROR: Could not extract file information from events."
+        return
+    }
+
+    # Add to collected artifacts
+    $script:CollectedArtifacts = $eventArtifacts
+
+    $RulesOutput.Text = "Loaded $($eventArtifacts.Count) artifacts from events.`n`nReady to generate rules - click 'Generate Rules'"
+    [System.Windows.MessageBox]::Show("Loaded $($eventArtifacts.Count) artifacts from Event Viewer.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", "OK", "Information")
 })
 
 # Events events
@@ -3624,6 +3893,181 @@ $ExportEventsBtn.Add_Click({
         }
         Write-Log "Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)"
         [System.Windows.MessageBox]::Show("Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)", "Export Complete", "OK", "Information")
+    }
+})
+
+# Scan Local Events button
+$ScanLocalEventsBtn.Add_Click({
+    Write-Log "Scanning local AppLocker events"
+    $EventsOutput.Text = "=== SCANNING LOCAL EVENTS ===`n`nReading AppLocker logs from this computer...`n"
+    [System.Windows.Forms.Application]::DoEvents()
+
+    try {
+        $events = @()
+
+        # Get events from EXE and DLL log
+        try {
+            $exeEvents = Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/EXE and DLL' -MaxEvents 500 -ErrorAction SilentlyContinue
+            foreach ($evt in $exeEvents) {
+                $events += [PSCustomObject]@{
+                    ComputerName = $env:COMPUTERNAME
+                    TimeCreated = $evt.TimeCreated
+                    EventId = $evt.Id
+                    EventType = switch ($evt.Id) { 8002 { "Allowed" } 8003 { "Audit" } 8004 { "Blocked" } default { "Other" } }
+                    Message = $evt.Message
+                    FilePath = if ($evt.Message -match '([A-Z]:\\[^"]+\.(exe|dll))') { $Matches[1] } else { "" }
+                    FileName = if ($evt.Message -match '\\([^\\]+\.(exe|dll))') { $Matches[1] } else { "" }
+                    Publisher = if ($evt.Message -match 'was (allowed|blocked).*signed by ([^\.]+)') { $Matches[2] } else { "Unknown" }
+                }
+            }
+            $EventsOutput.Text += "EXE/DLL log: $($exeEvents.Count) events`n"
+        } catch {
+            $EventsOutput.Text += "EXE/DLL log: No events or access denied`n"
+        }
+        [System.Windows.Forms.Application]::DoEvents()
+
+        # Get events from MSI and Script log
+        try {
+            $msiEvents = Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/MSI and Script' -MaxEvents 500 -ErrorAction SilentlyContinue
+            foreach ($evt in $msiEvents) {
+                $events += [PSCustomObject]@{
+                    ComputerName = $env:COMPUTERNAME
+                    TimeCreated = $evt.TimeCreated
+                    EventId = $evt.Id
+                    EventType = switch ($evt.Id) { 8002 { "Allowed" } 8003 { "Audit" } 8004 { "Blocked" } default { "Other" } }
+                    Message = $evt.Message
+                    FilePath = if ($evt.Message -match '([A-Z]:\\[^"]+\.(msi|ps1|vbs|js))') { $Matches[1] } else { "" }
+                    FileName = if ($evt.Message -match '\\([^\\]+\.(msi|ps1|vbs|js))') { $Matches[1] } else { "" }
+                    Publisher = "Unknown"
+                }
+            }
+            $EventsOutput.Text += "MSI/Script log: $($msiEvents.Count) events`n"
+        } catch {
+            $EventsOutput.Text += "MSI/Script log: No events or access denied`n"
+        }
+
+        $script:AllEvents = $events
+        $EventsOutput.Text += "`nTotal events loaded: $($events.Count)`n`n"
+
+        # Show summary by type
+        $allowed = ($events | Where-Object EventType -eq "Allowed").Count
+        $audit = ($events | Where-Object EventType -eq "Audit").Count
+        $blocked = ($events | Where-Object EventType -eq "Blocked").Count
+        $EventsOutput.Text += "Allowed: $allowed | Audit: $audit | Blocked: $blocked`n`n"
+        $EventsOutput.Text += "Use filters above to view specific event types.`nClick 'From Events' in Rule Generator to create rules."
+
+        Write-Log "Local events scanned: $($events.Count) total"
+    } catch {
+        $EventsOutput.Text += "`nERROR: $($_.Exception.Message)"
+        Write-Log "Local event scan failed: $($_.Exception.Message)" -Level "ERROR"
+    }
+})
+
+# Scan Remote Events button
+$ScanRemoteEventsBtn.Add_Click({
+    Write-Log "Scanning remote AppLocker events"
+    $computerInput = $EventComputersText.Text.Trim()
+
+    if ($computerInput -match "^\(|comma-separated") {
+        [System.Windows.MessageBox]::Show("Please enter computer names or use 'Load from Discovery' first.", "No Computers", "OK", "Information")
+        return
+    }
+
+    $computers = $computerInput -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+
+    if ($computers.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("No computers specified.", "No Computers", "OK", "Information")
+        return
+    }
+
+    $EventsOutput.Text = "=== SCANNING REMOTE EVENTS ===`n`nScanning $($computers.Count) computers via WinRM...`n"
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $allEvents = @()
+
+    foreach ($comp in $computers) {
+        $EventsOutput.Text += "`n$comp : "
+        [System.Windows.Forms.Application]::DoEvents()
+
+        try {
+            $remoteEvents = Invoke-Command -ComputerName $comp -ScriptBlock {
+                $events = @()
+                try {
+                    $exeEvents = Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/EXE and DLL' -MaxEvents 100 -ErrorAction SilentlyContinue
+                    foreach ($evt in $exeEvents) {
+                        $events += [PSCustomObject]@{
+                            TimeCreated = $evt.TimeCreated
+                            EventId = $evt.Id
+                            Message = $evt.Message
+                        }
+                    }
+                } catch {}
+                return $events
+            } -ErrorAction Stop
+
+            foreach ($evt in $remoteEvents) {
+                $allEvents += [PSCustomObject]@{
+                    ComputerName = $comp
+                    TimeCreated = $evt.TimeCreated
+                    EventId = $evt.EventId
+                    EventType = switch ($evt.EventId) { 8002 { "Allowed" } 8003 { "Audit" } 8004 { "Blocked" } default { "Other" } }
+                    Message = $evt.Message
+                    FilePath = if ($evt.Message -match '([A-Z]:\\[^"]+\.(exe|dll))') { $Matches[1] } else { "" }
+                    FileName = if ($evt.Message -match '\\([^\\]+\.(exe|dll))') { $Matches[1] } else { "" }
+                    Publisher = "Unknown"
+                }
+            }
+            $EventsOutput.Text += "$($remoteEvents.Count) events"
+            Write-Log "Remote events from $comp : $($remoteEvents.Count)"
+        } catch {
+            $EventsOutput.Text += "FAILED ($($_.Exception.Message -replace '\r?\n.*$',''))"
+            Write-Log "Remote event scan failed on $comp : $($_.Exception.Message)" -Level "ERROR"
+        }
+    }
+
+    $script:AllEvents = $allEvents
+    $EventsOutput.Text += "`n`n--- TOTAL: $($allEvents.Count) events from $($computers.Count) computers ---"
+    $EventsOutput.Text += "`n`nClick 'From Events' in Rule Generator to create rules."
+})
+
+# Import Events button
+$ImportEventsBtn.Add_Click({
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*"
+    $openDialog.Title = "Import Events"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker\Scans"
+
+    if ($openDialog.ShowDialog() -eq "OK") {
+        try {
+            $imported = Import-Csv -Path $openDialog.FileName
+            $script:AllEvents = $imported
+            $EventsOutput.Text = "=== EVENTS IMPORTED ===`n`nLoaded $($imported.Count) events from:`n$($openDialog.FileName)`n`n"
+            $EventsOutput.Text += "Use filters above to view specific event types.`nClick 'From Events' in Rule Generator to create rules."
+            Write-Log "Imported $($imported.Count) events from $($openDialog.FileName)"
+        } catch {
+            $EventsOutput.Text = "ERROR importing events: $($_.Exception.Message)"
+            Write-Log "Event import failed: $($_.Exception.Message)" -Level "ERROR"
+        }
+    }
+})
+
+# Load from Discovery button
+$LoadFromDiscoveryBtn.Add_Click({
+    if ($script:DiscoveredComputers.Count -gt 0) {
+        $EventComputersText.Text = $script:DiscoveredComputers -join ", "
+        $EventsOutput.Text = "Loaded $($script:DiscoveredComputers.Count) computers from AD Discovery:`n$($script:DiscoveredComputers -join ', ')`n`nClick 'Scan Remote' to get events."
+        Write-Log "Loaded $($script:DiscoveredComputers.Count) computers from discovery"
+    } elseif ($DiscoveredComputersList -and $DiscoveredComputersList.SelectedItems.Count -gt 0) {
+        $computers = @()
+        foreach ($item in $DiscoveredComputersList.SelectedItems) {
+            $compName = ($item -split '\|')[0].Trim()
+            $computers += $compName
+        }
+        $EventComputersText.Text = $computers -join ", "
+        $EventsOutput.Text = "Loaded $($computers.Count) selected computers from AD Discovery.`n`nClick 'Scan Remote' to get events."
+        Write-Log "Loaded $($computers.Count) computers from discovery selection"
+    } else {
+        [System.Windows.MessageBox]::Show("No computers available. Go to AD Discovery first and discover computers.", "No Computers", "OK", "Information")
     }
 })
 
@@ -3919,28 +4363,89 @@ $TestConnectivityBtn.Add_Click({
         return
     }
 
-    $DiscoveryOutput.Text = "Testing connectivity to selected computers...`n`n"
+    $DiscoveryOutput.Text = "=== CONNECTIVITY TEST ===`n`nTesting PING and WinRM to selected computers...`n"
     [System.Windows.Forms.Application]::DoEvents()
 
-    $results = @()
+    $pingOK = 0
+    $winrmOK = 0
+    $totalTests = $DiscoveredComputersList.SelectedItems.Count
+
     foreach ($item in $DiscoveredComputersList.SelectedItems) {
         $computerName = ($item -split '\|')[0].Trim()
-        $ping = New-Object System.Net.NetworkInformation.Ping
+        $DiscoveryOutput.Text += "`n$computerName : "
+        [System.Windows.Forms.Application]::DoEvents()
+
+        # Test PING
+        $pingResult = "FAIL"
         try {
-            $reply = $ping.Send($computerName, 1000)
+            $ping = New-Object System.Net.NetworkInformation.Ping
+            $reply = $ping.Send($computerName, 2000)
             if ($reply.Status -eq 'Success') {
-                $results += "$computerName - ONLINE ($($reply.RoundtripTime)ms)"
+                $pingResult = "OK ($($reply.RoundtripTime)ms)"
+                $pingOK++
             } else {
-                $results += "$computerName - OFFLINE ($($reply.Status))"
+                $pingResult = "FAIL ($($reply.Status))"
+            }
+        } catch {
+            $pingResult = "FAIL"
+        }
+        $DiscoveryOutput.Text += "Ping=$pingResult"
+        [System.Windows.Forms.Application]::DoEvents()
+
+        # Test WinRM (WSMan)
+        $winrmResult = "FAIL"
+        try {
+            $wsmanTest = Test-WSMan -ComputerName $computerName -ErrorAction Stop
+            if ($wsmanTest) {
+                $winrmResult = "OK"
+                $winrmOK++
+            }
+        } catch {
+            $errMsg = $_.Exception.Message
+            if ($errMsg -match "Access is denied") {
+                $winrmResult = "ACCESS DENIED"
+            } elseif ($errMsg -match "cannot complete the operation") {
+                $winrmResult = "NOT ENABLED"
+            } elseif ($errMsg -match "cannot connect") {
+                $winrmResult = "CONNECTION REFUSED"
+            } elseif ($errMsg -match "network path") {
+                $winrmResult = "UNREACHABLE"
+            } else {
+                $winrmResult = "FAIL"
             }
         }
-        catch {
-            $results += "$computerName - ERROR"
-        }
+        $DiscoveryOutput.Text += " | WinRM=$winrmResult"
+        [System.Windows.Forms.Application]::DoEvents()
     }
 
-    $DiscoveryOutput.Text = "Connectivity Test Results:`n`n" + ($results -join "`n")
-    Write-Log "Connectivity test completed for $($DiscoveredComputersList.SelectedItems.Count) computers"
+    $DiscoveryOutput.Text += "`n`n--- SUMMARY ---"
+    $DiscoveryOutput.Text += "`nPing OK: $pingOK/$totalTests"
+    $DiscoveryOutput.Text += "`nWinRM OK: $winrmOK/$totalTests"
+
+    if ($winrmOK -eq 0) {
+        $DiscoveryOutput.Text += "`n`n--- TROUBLESHOOTING ---"
+        $DiscoveryOutput.Text += "`n1. On TARGET computers, run:"
+        $DiscoveryOutput.Text += "`n   winrm quickconfig -force"
+        $DiscoveryOutput.Text += "`n   Enable-PSRemoting -Force"
+        $DiscoveryOutput.Text += "`n"
+        $DiscoveryOutput.Text += "`n2. Check WinRM service:"
+        $DiscoveryOutput.Text += "`n   Get-Service WinRM | Start-Service"
+        $DiscoveryOutput.Text += "`n   Set-Service WinRM -StartupType Automatic"
+        $DiscoveryOutput.Text += "`n"
+        $DiscoveryOutput.Text += "`n3. Check firewall (TCP 5985):"
+        $DiscoveryOutput.Text += "`n   netsh advfirewall firewall show rule name=all | findstr WinRM"
+        $DiscoveryOutput.Text += "`n"
+        $DiscoveryOutput.Text += "`n4. Verify GPO applied:"
+        $DiscoveryOutput.Text += "`n   gpresult /r /scope computer"
+    } elseif ($winrmOK -lt $totalTests) {
+        $DiscoveryOutput.Text += "`n`nSome computers not reachable via WinRM."
+        $DiscoveryOutput.Text += "`nRun gpupdate /force on failed computers."
+    } else {
+        $DiscoveryOutput.Text += "`n`nAll computers reachable via WinRM!"
+        $DiscoveryOutput.Text += "`nReady to scan."
+    }
+
+    Write-Log "Connectivity test: Ping=$pingOK/$totalTests, WinRM=$winrmOK/$totalTests"
 })
 
 $SelectAllComputersBtn.Add_Click({
@@ -3955,8 +4460,117 @@ $ScanSelectedBtn.Add_Click({
         return
     }
 
-    $DiscoveryOutput.Text = "Scanning selected computers for artifacts...`n`nThis feature will initiate remote scanning via WinRM.`n`nNote: Ensure WinRM is configured on target machines."
-    [System.Windows.MessageBox]::Show("Remote scanning requires WinRM to be enabled on target machines.`n`nUse 'WinRM Setup' to deploy WinRM configuration via GPO first.", "Remote Scanning", "OK", "Information")
+    # Get selected computer names
+    $selectedComputers = @()
+    foreach ($item in $DiscoveredComputersList.SelectedItems) {
+        $compName = ($item -split '\|')[0].Trim()
+        $selectedComputers += $compName
+    }
+
+    $DiscoveryOutput.Text = "=== REMOTE SCAN STARTED ===`n`nTesting WinRM connectivity to $($selectedComputers.Count) computers...`n"
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $winrmOK = @()
+    $winrmFail = @()
+
+    foreach ($comp in $selectedComputers) {
+        $DiscoveryOutput.Text += "`nTesting $comp..."
+        [System.Windows.Forms.Application]::DoEvents()
+
+        try {
+            # Test WinRM connectivity with a simple command
+            $result = Invoke-Command -ComputerName $comp -ScriptBlock { $env:COMPUTERNAME } -ErrorAction Stop
+            $winrmOK += $comp
+            $DiscoveryOutput.Text += " OK"
+            Write-Log "WinRM OK: $comp"
+        } catch {
+            $winrmFail += $comp
+            $errorMsg = $_.Exception.Message
+            if ($errorMsg -match "Access is denied") {
+                $DiscoveryOutput.Text += " FAILED (Access Denied)"
+            } elseif ($errorMsg -match "WinRM cannot complete") {
+                $DiscoveryOutput.Text += " FAILED (WinRM not enabled)"
+            } elseif ($errorMsg -match "network path was not found") {
+                $DiscoveryOutput.Text += " FAILED (Unreachable)"
+            } else {
+                $DiscoveryOutput.Text += " FAILED"
+            }
+            Write-Log "WinRM FAIL: $comp - $errorMsg" -Level "ERROR"
+        }
+        [System.Windows.Forms.Application]::DoEvents()
+    }
+
+    $DiscoveryOutput.Text += "`n`n--- CONNECTIVITY SUMMARY ---"
+    $DiscoveryOutput.Text += "`nWinRM OK: $($winrmOK.Count) | Failed: $($winrmFail.Count)"
+    [System.Windows.Forms.Application]::DoEvents()
+
+    if ($winrmOK.Count -eq 0) {
+        $DiscoveryOutput.Text += "`n`nERROR: No computers are reachable via WinRM."
+        $DiscoveryOutput.Text += "`n`nTroubleshooting:"
+        $DiscoveryOutput.Text += "`n1. Go to WinRM Setup and create/update the WinRM GPO"
+        $DiscoveryOutput.Text += "`n2. Run 'gpupdate /force' on target computers"
+        $DiscoveryOutput.Text += "`n3. Verify firewall allows WinRM (TCP 5985/5986)"
+        $DiscoveryOutput.Text += "`n4. Check that WinRM service is running"
+        $DiscoveryOutput.Text += "`n`nRun 'winrm quickconfig' on target to verify setup"
+        [System.Windows.MessageBox]::Show("No computers reachable via WinRM.`n`nSee console output for troubleshooting steps.", "WinRM Failed", "OK", "Warning")
+        return
+    }
+
+    # Proceed with scanning reachable computers
+    $DiscoveryOutput.Text += "`n`n=== SCANNING $($winrmOK.Count) COMPUTERS ==="
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $allArtifacts = @()
+    foreach ($comp in $winrmOK) {
+        $DiscoveryOutput.Text += "`n`nScanning $comp..."
+        [System.Windows.Forms.Application]::DoEvents()
+
+        try {
+            $remoteArtifacts = Invoke-Command -ComputerName $comp -ScriptBlock {
+                $artifacts = @()
+                $paths = @("$env:ProgramFiles", "${env:ProgramFiles(x86)}", "$env:SystemRoot\System32")
+                foreach ($path in $paths) {
+                    if (Test-Path $path) {
+                        Get-ChildItem -Path $path -Filter "*.exe" -Recurse -ErrorAction SilentlyContinue |
+                            Select-Object -First 100 | ForEach-Object {
+                                $sig = Get-AuthenticodeSignature $_.FullName -ErrorAction SilentlyContinue
+                                $artifacts += [PSCustomObject]@{
+                                    FileName = $_.Name
+                                    FullPath = $_.FullName
+                                    Publisher = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject -replace 'CN=|,.*$','' } else { "Unknown" }
+                                    Computer = $env:COMPUTERNAME
+                                }
+                            }
+                    }
+                }
+                return $artifacts
+            } -ErrorAction Stop
+
+            $allArtifacts += $remoteArtifacts
+            $DiscoveryOutput.Text += " Found $($remoteArtifacts.Count) artifacts"
+            Write-Log "Scanned $comp : $($remoteArtifacts.Count) artifacts"
+        } catch {
+            $DiscoveryOutput.Text += " SCAN FAILED: $($_.Exception.Message)"
+            Write-Log "Scan failed on $comp : $($_.Exception.Message)" -Level "ERROR"
+        }
+        [System.Windows.Forms.Application]::DoEvents()
+    }
+
+    # Store artifacts
+    $script:CollectedArtifacts = $allArtifacts
+    $script:DiscoveredComputers = $winrmOK
+
+    $DiscoveryOutput.Text += "`n`n=== SCAN COMPLETE ==="
+    $DiscoveryOutput.Text += "`nTotal artifacts collected: $($allArtifacts.Count)"
+    $DiscoveryOutput.Text += "`nFrom computers: $($winrmOK -join ', ')"
+    $DiscoveryOutput.Text += "`n`nGo to Rule Generator to create rules from these artifacts."
+
+    if ($winrmFail.Count -gt 0) {
+        $DiscoveryOutput.Text += "`n`nFailed computers: $($winrmFail -join ', ')"
+    }
+
+    [System.Windows.MessageBox]::Show("Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`nFrom $($winrmOK.Count) computers`n`nGo to Rule Generator to create rules.", "Scan Complete", "OK", "Information")
+    Write-Log "Remote scan complete: $($allArtifacts.Count) artifacts from $($winrmOK.Count) computers"
 })
 
 # Group Management events
