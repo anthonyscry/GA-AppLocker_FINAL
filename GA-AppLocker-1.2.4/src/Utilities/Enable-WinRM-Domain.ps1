@@ -379,21 +379,98 @@ Revision=1
     # --- Configure Firewall Rules ---
     Write-Host "`n[4/6] Configuring firewall rules..." -ForegroundColor Cyan
 
-    # Firewall - Allow WinRM HTTP (5985)
+    # Method 1: Registry-based firewall rules (for newer Windows versions)
     $fwRegPath = "HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall\FirewallRules"
-    $winrmRule = "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5985|Name=WinRM-HTTP-In|Desc=Allow WinRM HTTP|"
+    $winrmRule = "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5985|Name=WinRM-HTTP-In-TCP|Desc=Allow WinRM HTTP|Profile=Domain|RA4=LocalSubnet|RA6=LocalSubnet|App=%SystemRoot%\system32\svchost.exe|Svc=WinRM|"
     Set-GPRegistryValue -Name $gpoName -Key $fwRegPath -ValueName "WinRM-HTTP-In-TCP" -Type String -Value $winrmRule | Out-Null
     Write-Host "  Added firewall rule: WinRM HTTP (5985)" -ForegroundColor Green
 
-    # Firewall - Allow WinRM HTTPS (5986)
-    $winrmRuleHttps = "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5986|Name=WinRM-HTTPS-In|Desc=Allow WinRM HTTPS|"
+    $winrmRuleHttps = "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5986|Name=WinRM-HTTPS-In-TCP|Desc=Allow WinRM HTTPS|Profile=Domain|RA4=LocalSubnet|RA6=LocalSubnet|App=%SystemRoot%\system32\svchost.exe|Svc=WinRM|"
     Set-GPRegistryValue -Name $gpoName -Key $fwRegPath -ValueName "WinRM-HTTPS-In-TCP" -Type String -Value $winrmRuleHttps | Out-Null
     Write-Host "  Added firewall rule: WinRM HTTPS (5986)" -ForegroundColor Green
 
     # Enable Windows Firewall domain profile (ensures rules apply)
     $fwDomainPath = "HKLM\SOFTWARE\Policies\Microsoft\WindowsFirewall\DomainProfile"
     Set-GPRegistryValue -Name $gpoName -Key $fwDomainPath -ValueName "EnableFirewall" -Type DWord -Value 1 | Out-Null
-    Write-Host "  Ensured domain firewall profile is enabled" -ForegroundColor Green
+    Set-GPRegistryValue -Name $gpoName -Key $fwDomainPath -ValueName "DefaultInboundAction" -Type DWord -Value 1 | Out-Null
+    Set-GPRegistryValue -Name $gpoName -Key $fwDomainPath -ValueName "DefaultOutboundAction" -Type DWord -Value 0 | Out-Null
+    Set-GPRegistryValue -Name $gpoName -Key $fwDomainPath -ValueName "DisableNotifications" -Type DWord -Value 0 | Out-Null
+    Write-Host "  Configured domain firewall profile" -ForegroundColor Green
+
+    # Method 2: Create startup script for reliable firewall rule creation
+    Write-Host "`n  Creating startup script for firewall rules..." -ForegroundColor Cyan
+
+    $scriptsDir = "$gpoPath\Machine\Scripts\Startup"
+    if (!(Test-Path $scriptsDir)) {
+        New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+    }
+
+    # Create the firewall configuration script
+    $firewallScript = @'
+@echo off
+REM WinRM Firewall Configuration Script - Created by Enable-WinRM-Domain.ps1
+REM This script ensures WinRM firewall rules exist on domain computers
+
+REM Check if rules already exist
+netsh advfirewall firewall show rule name="WinRM-HTTP-In-GPO" >nul 2>&1
+if %errorlevel% neq 0 (
+    REM Create WinRM HTTP rule (5985)
+    netsh advfirewall firewall add rule name="WinRM-HTTP-In-GPO" dir=in action=allow protocol=tcp localport=5985 profile=domain,private remoteip=localsubnet enable=yes
+)
+
+netsh advfirewall firewall show rule name="WinRM-HTTPS-In-GPO" >nul 2>&1
+if %errorlevel% neq 0 (
+    REM Create WinRM HTTPS rule (5986)
+    netsh advfirewall firewall add rule name="WinRM-HTTPS-In-GPO" dir=in action=allow protocol=tcp localport=5986 profile=domain,private remoteip=localsubnet enable=yes
+)
+
+REM Ensure WinRM service is running
+sc query WinRM | find "RUNNING" >nul 2>&1
+if %errorlevel% neq 0 (
+    net start WinRM
+)
+
+REM Ensure WinRM listener exists
+winrm enumerate winrm/config/listener >nul 2>&1
+if %errorlevel% neq 0 (
+    winrm quickconfig -quiet
+)
+'@
+
+    Set-Content -Path "$scriptsDir\Configure-WinRM-Firewall.cmd" -Value $firewallScript -Encoding ASCII
+    Write-Host "  Created: Configure-WinRM-Firewall.cmd" -ForegroundColor Green
+
+    # Create scripts.ini to register the startup script
+    $scriptsIniDir = "$gpoPath\Machine\Scripts"
+    $scriptsIniContent = @"
+[Startup]
+0CmdLine=Configure-WinRM-Firewall.cmd
+0Parameters=
+"@
+    Set-Content -Path "$scriptsIniDir\scripts.ini" -Value $scriptsIniContent -Encoding Unicode
+    Write-Host "  Registered startup script in GPO" -ForegroundColor Green
+
+    # Update GPT.ini to include Scripts extension
+    $scriptsExtension = "{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B6664F-4972-11D1-A7CA-0000F87571E3}"
+    if (Test-Path $gptIniPath) {
+        $gptContent = Get-Content $gptIniPath -Raw
+        if ($gptContent -match "gPCMachineExtensionNames=(.*)") {
+            $existingExt = $matches[1]
+            if ($existingExt -notlike "*$scriptsExtension*") {
+                $newExt = $existingExt + $scriptsExtension
+                $gptContent = $gptContent -replace "gPCMachineExtensionNames=.*", "gPCMachineExtensionNames=$newExt"
+            }
+        } else {
+            $gptContent = $gptContent -replace "(\[General\])", "`$1`r`ngPCMachineExtensionNames=$machineExtensions$scriptsExtension"
+        }
+        # Increment version again
+        if ($gptContent -match "Version=(\d+)") {
+            $newVersion = [int]$matches[1] + 1
+            $gptContent = $gptContent -replace "Version=\d+", "Version=$newVersion"
+        }
+        Set-Content -Path $gptIniPath -Value $gptContent
+    }
+    Write-Host "  Updated GPO extensions for startup scripts" -ForegroundColor Green
 
     # --- Link GPO to All Targets ---
     Write-Host "`n[5/6] Linking GPO to targets..." -ForegroundColor Cyan
