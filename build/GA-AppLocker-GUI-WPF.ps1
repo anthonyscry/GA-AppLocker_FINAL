@@ -142,7 +142,8 @@ function New-RulesFromArtifacts {
 }
 
 # Module 4: Domain Detection
-function Get-ADDomain {
+# NOTE: Named Get-DomainInfo to avoid conflict with ActiveDirectory\Get-ADDomain cmdlet
+function Get-DomainInfo {
     $computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
     # Check if actually part of a domain (PartOfDomain is a boolean)
     $isWorkgroup = -not $computerSystem -or -not $computerSystem.PartOfDomain
@@ -152,7 +153,8 @@ function Get-ADDomain {
     # We're domain-joined, try to get domain info
     try {
         Import-Module ActiveDirectory -ErrorAction SilentlyContinue
-        $domain = Get-ADDomain -ErrorAction Stop
+        # Use module-qualified cmdlet name to avoid recursive call
+        $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
         return @{ success = $true; isWorkgroup = $false; dnsRoot = $domain.DNSRoot; netBIOSName = $domain.NetBIOSName; message = "Domain: $($domain.DNSRoot)" }
     } catch {
         # AD module not available or failed, use environment variables
@@ -213,7 +215,7 @@ function New-WinRMGpo {
 
         # Detect current domain if OU not specified
         if (-not $OU) {
-            $domain = Get-ADDomain
+            $domain = ActiveDirectory\Get-ADDomain
             $OU = "DC=$($domain.DNSRoot -replace '\.', ',DC=')"
         }
 
@@ -587,10 +589,10 @@ function Initialize-AppLockerStructure {
 
         # Get domain info
         if (-not $DomainFQDN) {
-            $DomainFQDN = (Get-ADDomain -ErrorAction Stop).DNSRoot
+            $DomainFQDN = (ActiveDirectory\Get-ADDomain -ErrorAction Stop).DNSRoot
         }
 
-        $DomainDN = (Get-ADDomain $DomainFQDN -ErrorAction Stop).DistinguishedName
+        $DomainDN = (ActiveDirectory\Get-ADDomain $DomainFQDN -ErrorAction Stop).DistinguishedName
         $OUDN = "OU=$OUName,$DomainDN"
 
         $output = "=== APPLOCKER INITIALIZATION ===`n`n"
@@ -737,7 +739,7 @@ function New-BrowserDenyRules {
 
     try {
         if (-not $DomainFQDN) {
-            $domain = Get-ADDomain -ErrorAction Stop
+            $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
             $DomainFQDN = $domain.DNSRoot
         }
 
@@ -3081,7 +3083,7 @@ $window.add_Loaded({
     $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
 
     # Now do domain detection (fast with fixed logic)
-    $script:DomainInfo = Get-ADDomain
+    $script:DomainInfo = Get-DomainInfo
     $script:IsWorkgroup = $script:DomainInfo.isWorkgroup
 
     Write-Log "Application started - Mode: $($script:DomainInfo.message)"
