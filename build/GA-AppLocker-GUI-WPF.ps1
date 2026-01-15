@@ -1709,7 +1709,7 @@ $xamlString = @"
 
                     <!-- Output Area -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,10,0,0" Padding="15" Height="300">
+                            CornerRadius="8" Margin="0,10,0,0" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="DashboardOutput" Text="Loading dashboard..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -1757,7 +1757,7 @@ $xamlString = @"
 
                     <!-- Artifacts List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,0,0,0" Padding="15" Height="340">
+                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinMinHeight="200">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -1811,7 +1811,7 @@ $xamlString = @"
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Comparison Results" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="300">
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxMinHeight="200">
                                 <DataGrid x:Name="GapAnalysisGrid" Background="#0D1117" Foreground="#E6EDF3"
                                            BorderThickness="0" FontSize="11" FontFamily="Consolas"
                                            GridLinesVisibility="Horizontal" HeadersVisibility="Column"
@@ -1952,7 +1952,7 @@ $xamlString = @"
 
                     <!-- Rules Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="320">
+                            CornerRadius="8" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -1988,7 +1988,7 @@ $xamlString = @"
                     </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="440">
+                            CornerRadius="8" Padding="15" MinHeight="300">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="EventsOutput" Text="Click refresh to load events..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2035,7 +2035,7 @@ $xamlString = @"
                     </Border>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="320">
+                            CornerRadius="8" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock FontFamily="Consolas" FontSize="12" Foreground="#8B949E">
                                 <Run Text="Deployment Workflow:" Foreground="#E6EDF3"/>
@@ -2083,7 +2083,7 @@ $xamlString = @"
                             Margin="0,0,0,15"/>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="440">
+                            CornerRadius="8" Padding="15" MinHeight="300">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="ComplianceOutput" Text="Click 'Generate Evidence Package' to create compliance artifacts..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2131,7 +2131,7 @@ $xamlString = @"
                     </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="340">
+                            CornerRadius="8" Padding="15" MinMinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="WinRMOutput" Text="Click 'Full Workflow' to set up WinRM..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2191,7 +2191,7 @@ $xamlString = @"
 
                     <!-- Discovered Computers List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="320">
+                            CornerRadius="8" Padding="15" MinHeight="200">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -2276,7 +2276,7 @@ $xamlString = @"
 
                     <!-- Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="280">
+                            CornerRadius="8" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="GroupMgmtOutput" Text="Click 'Export Groups' to begin..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2352,7 +2352,7 @@ $xamlString = @"
 
                     <!-- Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="250">
+                            CornerRadius="8" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="AppLockerSetupOutput" Text="Click 'Initialize' to create AppLocker structure..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2623,6 +2623,46 @@ $script:BaselineSoftware = @()
 $script:TargetSoftware = @()
 
 # Logging function
+# Initialize GA-AppLocker folder structure
+function Initialize-AppLockerFolders {
+    $basePath = "C:\GA-AppLocker"
+    $subFolders = @(
+        "Scans",
+        "Artifacts",
+        "Rules",
+        "Imports",
+        "Exports",
+        "Logs"
+    )
+
+    try {
+        # Create base folder if it doesn't exist
+        if (-not (Test-Path $basePath)) {
+            New-Item -Path $basePath -ItemType Directory -Force | Out-Null
+        }
+
+        # Create subfolders
+        foreach ($folder in $subFolders) {
+            $fullPath = Join-Path $basePath $folder
+            if (-not (Test-Path $fullPath)) {
+                New-Item -Path $fullPath -ItemType Directory -Force | Out-Null
+            }
+        }
+
+        return @{
+            success = $true
+            basePath = $basePath
+            folders = $subFolders
+        }
+    }
+    catch {
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
 function Write-Log {
     param(
         [string]$Message,
@@ -4083,8 +4123,14 @@ $window.add_Closing({
 
 # Initialize on load - fast startup, defer slow operations
 $window.add_Loaded({
+    # Initialize folder structure first
+    $folderInit = Initialize-AppLockerFolders
+    if (-not $folderInit.success) {
+        Write-Log "Warning: Could not create folder structure: $($folderInit.error)" -Level "WARN"
+    }
+
     # Set version info first (instant)
-    $script:AppVersion = "1.2.4"
+    $script:AppVersion = "1.2.5"
     $AboutVersion.Text = "Version $script:AppVersion"
 
     # Show loading state
