@@ -4375,34 +4375,48 @@ $CreateRulesFromEventsBtn.Add_Click({
         return
     }
 
-    $RulesOutput.Text = "Creating artifacts from $($script:AllEvents.Count) events..."
+    $RulesOutput.Text = "Creating artifacts from $($script:AllEvents.Count) events...`n"
 
     # Convert events to artifacts format
     $eventArtifacts = @()
+    $noPathCount = 0
     foreach ($event in $script:AllEvents) {
-        # Parse event message to extract file info
-        $artifact = @{
-            FileName = $event.FileName
-            FullPath = $event.FilePath
-            Publisher = $event.Publisher
-            EventType = $event.EventType
-            Computer = $event.ComputerName
-        }
-        if ($artifact.FileName -or $artifact.FullPath) {
-            $eventArtifacts += [PSCustomObject]$artifact
+        if ($event.FilePath -or $event.FileName) {
+            $eventArtifacts += [PSCustomObject]@{
+                FileName = $event.FileName
+                FullPath = $event.FilePath
+                Publisher = $event.Publisher
+                EventType = $event.EventType
+                Computer = $event.ComputerName
+            }
+        } else {
+            $noPathCount++
         }
     }
 
     if ($eventArtifacts.Count -eq 0) {
-        $RulesOutput.Text = "ERROR: Could not extract file information from events."
+        $RulesOutput.Text = "ERROR: Could not extract file information from events.`n`n"
+        $RulesOutput.Text += "This can happen if:`n"
+        $RulesOutput.Text += "- Events don't contain file path data`n"
+        $RulesOutput.Text += "- Event log format is different than expected`n`n"
+        $RulesOutput.Text += "Try exporting events from Event Viewer manually and importing as CSV."
         return
     }
 
-    # Add to collected artifacts
-    $script:CollectedArtifacts = $eventArtifacts
+    # Deduplicate by file path
+    $uniqueArtifacts = $eventArtifacts | Group-Object FullPath | ForEach-Object { $_.Group[0] }
 
-    $RulesOutput.Text = "Loaded $($eventArtifacts.Count) artifacts from events.`n`nReady to generate rules - click 'Generate Rules'"
-    [System.Windows.MessageBox]::Show("Loaded $($eventArtifacts.Count) artifacts from Event Viewer.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+    # Add to collected artifacts
+    $script:CollectedArtifacts = $uniqueArtifacts
+
+    $RulesOutput.Text = "=== ARTIFACTS FROM EVENTS ===`n`n"
+    $RulesOutput.Text += "Total events: $($script:AllEvents.Count)`n"
+    $RulesOutput.Text += "Events with file paths: $($eventArtifacts.Count)`n"
+    $RulesOutput.Text += "Events without paths: $noPathCount`n"
+    $RulesOutput.Text += "Unique files: $($uniqueArtifacts.Count)`n`n"
+    $RulesOutput.Text += "Ready to generate rules - select type and click 'Generate Rules'"
+
+    [System.Windows.MessageBox]::Show("Loaded $($uniqueArtifacts.Count) unique artifacts from events.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
 })
 
 # Events events
@@ -4469,15 +4483,37 @@ $ScanLocalEventsBtn.Add_Click({
         try {
             $exeEvents = Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/EXE and DLL' -MaxEvents 500 -ErrorAction SilentlyContinue
             foreach ($evt in $exeEvents) {
+                # Try to parse from event XML first (more reliable)
+                $filePath = ""
+                $fileName = ""
+                $publisher = "Unknown"
+                try {
+                    $xml = [xml]$evt.ToXml()
+                    $eventData = $xml.Event.EventData.Data
+                    foreach ($data in $eventData) {
+                        if ($data.Name -eq "FilePath") { $filePath = $data.'#text' }
+                        if ($data.Name -eq "Fqbn" -and $data.'#text') {
+                            $fqbn = $data.'#text'
+                            if ($fqbn -match "O=([^,]+)") { $publisher = $Matches[1] }
+                        }
+                    }
+                } catch { }
+                # Fallback to message parsing
+                if (-not $filePath -and $evt.Message) {
+                    if ($evt.Message -match '([A-Z]:\\[^\s]+\.(exe|dll|com))') { $filePath = $Matches[1] }
+                    elseif ($evt.Message -match '(%[^%]+%\\[^\s]+\.(exe|dll|com))') { $filePath = $Matches[1] }
+                }
+                if ($filePath) { $fileName = Split-Path $filePath -Leaf -ErrorAction SilentlyContinue }
+
                 $events += [PSCustomObject]@{
                     ComputerName = $env:COMPUTERNAME
                     TimeCreated = $evt.TimeCreated
                     EventId = $evt.Id
                     EventType = switch ($evt.Id) { 8002 { "Allowed" } 8003 { "Audit" } 8004 { "Blocked" } default { "Other" } }
                     Message = $evt.Message
-                    FilePath = if ($evt.Message -match '([A-Z]:\\[^"]+\.(exe|dll))') { $Matches[1] } else { "" }
-                    FileName = if ($evt.Message -match '\\([^\\]+\.(exe|dll))') { $Matches[1] } else { "" }
-                    Publisher = if ($evt.Message -match 'was (allowed|blocked).*signed by ([^\.]+)') { $Matches[2] } else { "Unknown" }
+                    FilePath = $filePath
+                    FileName = $fileName
+                    Publisher = $publisher
                 }
             }
             $EventsOutput.Text += "EXE/DLL log: $($exeEvents.Count) events`n"
@@ -4490,15 +4526,35 @@ $ScanLocalEventsBtn.Add_Click({
         try {
             $msiEvents = Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/MSI and Script' -MaxEvents 500 -ErrorAction SilentlyContinue
             foreach ($evt in $msiEvents) {
+                $filePath = ""
+                $fileName = ""
+                $publisher = "Unknown"
+                try {
+                    $xml = [xml]$evt.ToXml()
+                    $eventData = $xml.Event.EventData.Data
+                    foreach ($data in $eventData) {
+                        if ($data.Name -eq "FilePath") { $filePath = $data.'#text' }
+                        if ($data.Name -eq "Fqbn" -and $data.'#text') {
+                            $fqbn = $data.'#text'
+                            if ($fqbn -match "O=([^,]+)") { $publisher = $Matches[1] }
+                        }
+                    }
+                } catch { }
+                if (-not $filePath -and $evt.Message) {
+                    if ($evt.Message -match '([A-Z]:\\[^\s]+\.(msi|msp|ps1|bat|cmd|vbs|js))') { $filePath = $Matches[1] }
+                    elseif ($evt.Message -match '(%[^%]+%\\[^\s]+\.(msi|msp|ps1|bat|cmd|vbs|js))') { $filePath = $Matches[1] }
+                }
+                if ($filePath) { $fileName = Split-Path $filePath -Leaf -ErrorAction SilentlyContinue }
+
                 $events += [PSCustomObject]@{
                     ComputerName = $env:COMPUTERNAME
                     TimeCreated = $evt.TimeCreated
                     EventId = $evt.Id
                     EventType = switch ($evt.Id) { 8002 { "Allowed" } 8003 { "Audit" } 8004 { "Blocked" } default { "Other" } }
                     Message = $evt.Message
-                    FilePath = if ($evt.Message -match '([A-Z]:\\[^"]+\.(msi|ps1|vbs|js))') { $Matches[1] } else { "" }
-                    FileName = if ($evt.Message -match '\\([^\\]+\.(msi|ps1|vbs|js))') { $Matches[1] } else { "" }
-                    Publisher = "Unknown"
+                    FilePath = $filePath
+                    FileName = $fileName
+                    Publisher = $publisher
                 }
             }
             $EventsOutput.Text += "MSI/Script log: $($msiEvents.Count) events`n"
