@@ -105,6 +105,70 @@ function Test-ComputerOnline {
     }
 }
 
+# Scan localhost for executable artifacts
+function Get-LocalExecutableArtifacts {
+    param(
+        [string[]]$Paths = @(
+            "C:\Program Files",
+            "C:\Program Files (x86)",
+            "$env:LOCALAPPDATA",
+            "$env:PROGRAMDATA"
+        ),
+        [int]$MaxFiles = 1000
+    )
+
+    $artifacts = @()
+    $extensions = @(".exe", ".msi", ".bat", ".cmd", ".ps1")
+
+    foreach ($basePath in $Paths) {
+        if (-not (Test-Path $basePath)) { continue }
+
+        try {
+            $files = Get-ChildItem -Path $basePath -Recurse -File -ErrorAction SilentlyContinue |
+                     Where-Object { $extensions -contains $_.Extension } |
+                     Select-Object -First $MaxFiles
+
+            foreach ($file in $files) {
+                try {
+                    # Get file version info for publisher
+                    $versionInfo = $file.VersionInfo
+                    $publisher = if ($versionInfo.CompanyName) { $versionInfo.CompanyName } else { "Unknown" }
+                    $version = if ($versionInfo.FileVersion) { $versionInfo.FileVersion } else { "Unknown" }
+
+                    # Skip system files
+                    if ($file.FullName -like "*Windows\*") { continue }
+
+                    $artifacts += @{
+                        name = $file.Name
+                        publisher = $publisher
+                        path = $file.FullName
+                        hash = "N/A"
+                        version = $version
+                        size = $file.Length
+                        modifiedDate = $file.LastWriteTime
+                    }
+
+                    if ($artifacts.Count -ge $MaxFiles) { break }
+                } catch {
+                    # Skip files that can't be accessed
+                    continue
+                }
+            }
+        } catch {
+            continue
+        }
+
+        if ($artifacts.Count -ge $MaxFiles) { break }
+    }
+
+    return @{
+        success = $true
+        artifacts = $artifacts
+        count = $artifacts.Count
+        scannedPaths = $Paths -join "; "
+    }
+}
+
 # Module 3: Rule Generator Functions
 function New-PublisherRule {
     param(
@@ -282,26 +346,61 @@ function New-AppLockerGroups {
     }
 }
 
-# Get auto-detected domain
+# Get auto-detected domain with workgroup detection
 function Get-ADDomain {
+    # Check if computer is joined to a domain
+    $computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
+    $isWorkgroup = $computerSystem -and ($computerSystem.Workgroup -eq "WORKGROUP" -or $null -eq $computerSystem.PartOfDomain)
+
+    if ($isWorkgroup) {
+        # Workgroup computer
+        return @{
+            success = $true
+            isWorkgroup = $true
+            dnsRoot = "WORKGROUP"
+            netBIOSName = $computerSystem.Name
+            distinguishedName = "N/A"
+            domainControllers = "N/A"
+            message = "Computer is in a WORKGROUP - AD/GPO features are disabled"
+        }
+    }
+
+    # Domain-joined computer
     try {
         Import-Module ActiveDirectory -ErrorAction SilentlyContinue
         $domain = Get-ADDomain -ErrorAction Stop
         return @{
             success = $true
+            isWorkgroup = $false
             dnsRoot = $domain.DNSRoot
             netBIOSName = $domain.NetBIOSName
             distinguishedName = $domain.DistinguishedName
             domainControllers = $domain.ReplicationDirectoryServer
+            message = "Computer is joined to domain: $($domain.DNSRoot)"
         }
     } catch {
         # Fallback to environment variables
+        $dnsDomain = $env:USERDNSDOMAIN
+        if ([string]::IsNullOrEmpty($dnsDomain)) {
+            # No domain detected - workgroup
+            return @{
+                success = $true
+                isWorkgroup = $true
+                dnsRoot = "WORKGROUP"
+                netBIOSName = $env:COMPUTERNAME
+                distinguishedName = "N/A"
+                domainControllers = "N/A"
+                message = "Computer is in a WORKGROUP - AD/GPO features are disabled"
+            }
+        }
         return @{
             success = $true
-            dnsRoot = $env:USERDNSDOMAIN
+            isWorkgroup = $false
+            dnsRoot = $dnsDomain
             netBIOSName = $env:USERDOMAIN
             distinguishedName = $null
             domainControllers = $env:LOGONSERVER -replace '\\\\', ''
+            message = "Domain detected from environment variables"
         }
     }
 }
@@ -528,6 +627,36 @@ $script:DiscoveredComputers = @()
 $script:CollectedArtifacts = @()
 $script:GeneratedRules = @()
 $script:CreatedGPOs = @()
+$script:DetectedDomain = $null
+$script:IsWorkgroup = $false
+
+# Function to disable AD/GPO buttons when in workgroup mode
+function Set-WorkgroupMode {
+    param([bool]$IsWorkgroup)
+
+    if ($IsWorkgroup) {
+        # Disable AD/GPO related buttons
+        if ($discoverBtn) { $discoverBtn.Enabled = $false }
+        if ($testConnectivityBtn) { $testConnectivityBtn.Enabled = $false }
+        if ($selectForScanBtn) { $selectForScanBtn.Enabled = $false }
+        if ($createGpoBtn) { $createGpoBtn.Enabled = $false }
+        if ($createWinRMGpoBtn) { $createWinRMGpoBtn.Enabled = $false }
+        if ($linkWinRMGpoBtn) { $linkWinRMGpoBtn.Enabled = $false }
+        if ($enableWinRMGpoBtn) { $enableWinRMGpoBtn.Enabled = $false }
+        if ($disableWinRMGpoBtn) { $disableWinRMGpoBtn.Enabled = $false }
+        if ($fullWinRMWorkflowBtn) { $fullWinRMWorkflowBtn.Enabled = $false }
+
+        # Update status
+        if ($statusLabel) {
+            $statusLabel.Text = "WORKGROUP MODE - AD/GPO features disabled. Local scanning available."
+        }
+    }
+}
+
+# Check domain status at startup
+$domainInfo = Get-ADDomain
+$script:IsWorkgroup = $domainInfo.isWorkgroup
+$script:DetectedDomain = $domainInfo.distinguishedName
 
 # Create main form
 $form = New-Object System.Windows.Forms.Form
@@ -765,36 +894,91 @@ $tabArtifacts.Controls.Add($maxFilesTextBox)
 # Run scan button
 $runScanBtn = New-Object System.Windows.Forms.Button
 $runScanBtn.Text = "Run Scan"
-$runScanBtn.Location = New-Object System.Drawing.Point(730, 40)
-$runScanBtn.Size = New-Object System.Drawing.Size(120, 30)
+$runScanBtn.Location = New-Object System.Drawing.Point(600, 40)
+$runScanBtn.Size = New-Object System.Drawing.Size(100, 30)
 $runScanBtn.BackColor = [System.Drawing.Color]::FromArgb(0, 120, 212)
 $runScanBtn.ForeColor = [System.Drawing.Color]::White
 $runScanBtn.Add_Click({
-    $dashboardOutput.AppendText("=== ARTIFACT SCAN STARTED ===`n")
-    $dashboardOutput.AppendText("Scanning path: $($pathTextBox.Text)`n")
-    $dashboardOutput.AppendText("Max files: $($maxFilesTextBox.Text)`n`n")
+    if ($script:IsWorkgroup) {
+        $dashboardOutput.Clear()
+        $dashboardOutput.AppendText("=== LOCALHOST ARTIFACT SCAN ===" + [Environment]::NewLine + [Environment]::NewLine)
+        $dashboardOutput.AppendText("Scanning localhost for executables..." + [Environment]::NewLine)
+        $dashboardOutput.AppendText("This may take a few minutes..." + [Environment]::NewLine + [Environment]::NewLine)
 
-    # Simulate scan (in real version, would call Get-ExecutableArtifacts)
-    $artifacts = @(
-        @{ name = "chrome.exe"; publisher = "Google LLC"; path = "C:\Program Files\Google\Chrome\Application\chrome.exe"; hash = "abc123..." }
-        @{ name = "firefox.exe"; publisher = "Mozilla Corporation"; path = "C:\Program Files\Mozilla Firefox\firefox.exe"; hash = "def456..." }
-        @{ name = "notepad++.exe"; publisher = "Notepad++ Team"; path = "C:\Program Files\Notepad++\notepad++.exe"; hash = "ghi789..." }
-    )
+        $result = Get-LocalExecutableArtifacts -MaxFiles ([int]$maxFilesTextBox.Text)
 
-    $script:CollectedArtifacts = $artifacts
-    $dashboardOutput.AppendText("Found $($artifacts.Count) artifacts:`n")
-    foreach ($art in $artifacts) {
-        $dashboardOutput.AppendText("  - $($art.name) | $($art.publisher) | $($art.path)`n")
+        if ($result.success) {
+            $script:CollectedArtifacts = $result.artifacts
+            $dashboardOutput.AppendText("Scan complete! Found $($result.count) artifacts." + [Environment]::NewLine + [Environment]::NewLine)
+
+            $artifactsListBox.Items.Clear()
+            foreach ($art in $result.artifacts) {
+                $artifactsListBox.Items.Add("$($art.name) | $($art.publisher)")
+            }
+
+            [System.Windows.Forms.MessageBox]::Show("Scan complete! Found $($result.count) artifacts.", "Scan Complete", "OK", "Information")
+        } else {
+            $dashboardOutput.AppendText("Scan failed: $($result.error)")
+        }
+    } else {
+        $dashboardOutput.Clear()
+        $dashboardOutput.AppendText("=== ARTIFACT SCAN STARTED ===" + [Environment]::NewLine)
+        $dashboardOutput.AppendText("Scanning path: $($pathTextBox.Text)" + [Environment]::NewLine)
+        $dashboardOutput.AppendText("Max files: $($maxFilesTextBox.Text)" + [Environment]::NewLine + [Environment]::NewLine)
+
+        # Simulate scan for domain mode
+        $artifacts = @(
+            @{ name = "chrome.exe"; publisher = "Google LLC"; path = "C:\Program Files\Google\Chrome\Application\chrome.exe"; hash = "abc123..." }
+            @{ name = "firefox.exe"; publisher = "Mozilla Corporation"; path = "C:\Program Files\Mozilla Firefox\firefox.exe"; hash = "def456..." }
+            @{ name = "notepad++.exe"; publisher = "Notepad++ Team"; path = "C:\Program Files\Notepad++\notepad++.exe"; hash = "ghi789..." }
+        )
+
+        $script:CollectedArtifacts = $artifacts
+        $dashboardOutput.AppendText("Found $($artifacts.Count) artifacts:" + [Environment]::NewLine)
+        foreach ($art in $artifacts) {
+            $dashboardOutput.AppendText("  - $($art.name) | $($art.publisher) | $($art.path)" + [Environment]::NewLine)
+        }
+
+        $artifactsListBox.Items.Clear()
+        foreach ($art in $artifacts) {
+            $artifactsListBox.Items.Add("$($art.name) | $($art.publisher)")
+        }
+
+        [System.Windows.Forms.MessageBox]::Show("Scan complete! Found $($artifacts.Count) artifacts.", "Scan Complete", "OK", "Information")
     }
-
-    $artifactsListBox.Items.Clear()
-    foreach ($art in $artifacts) {
-        $artifactsListBox.Items.Add("$($art.name) | $($art.publisher)")
-    }
-
-    [System.Windows.Forms.MessageBox]::Show("Scan complete! Found $($artifacts.Count) artifacts.", "Scan Complete", "OK", "Information")
 })
 $tabArtifacts.Controls.Add($runScanBtn)
+
+# Scan Localhost button (prominent in workgroup mode)
+$scanLocalhostBtn = New-Object System.Windows.Forms.Button
+$scanLocalhostBtn.Text = "Scan Localhost"
+$scanLocalhostBtn.Location = New-Object System.Drawing.Point(710, 40)
+$scanLocalhostBtn.Size = New-Object System.Drawing.Size(130, 30)
+$scanLocalhostBtn.BackColor = [System.Drawing.Color]::FromArgb(0, 150, 100)
+$scanLocalhostBtn.ForeColor = [System.Drawing.Color]::White
+$scanLocalhostBtn.Add_Click({
+    $dashboardOutput.Clear()
+    $dashboardOutput.AppendText("=== LOCALHOST ARTIFACT SCAN ===" + [Environment]::NewLine + [Environment]::NewLine)
+    $dashboardOutput.AppendText("Scanning localhost for executables..." + [Environment]::NewLine)
+    $dashboardOutput.AppendText("This may take a few minutes..." + [Environment]::NewLine + [Environment]::NewLine)
+
+    $result = Get-LocalExecutableArtifacts -MaxFiles ([int]$maxFilesTextBox.Text)
+
+    if ($result.success) {
+        $script:CollectedArtifacts = $result.artifacts
+        $dashboardOutput.AppendText("Scan complete! Found $($result.count) artifacts." + [Environment]::NewLine + [Environment]::NewLine)
+
+        $artifactsListBox.Items.Clear()
+        foreach ($art in $result.artifacts) {
+            $artifactsListBox.Items.Add("$($art.name) | $($art.publisher)")
+        }
+
+        [System.Windows.Forms.MessageBox]::Show("Scan complete! Found $($result.count) artifacts.", "Scan Complete", "OK", "Information")
+    } else {
+        $dashboardOutput.AppendText("Scan failed: $($result.error)")
+    }
+})
+$tabArtifacts.Controls.Add($scanLocalhostBtn)
 
 # Artifacts list box
 $artifactsListBox = New-Object System.Windows.Forms.ListBox
@@ -1403,12 +1587,30 @@ $form.Controls.Add($statusBar)
 
 # Form load event
 $form.Add_Load({
+    # Show domain/workgroup status
+    $domainInfo = Get-ADDomain
     $dashboardOutput.AppendText("=== GA-APPLOCKER DASHBOARD - FULL WORKFLOW ===" + [Environment]::NewLine)
     $dashboardOutput.AppendText("AaronLocker-aligned AppLocker Policy Management" + [Environment]::NewLine + [Environment]::NewLine)
+    $dashboardOutput.AppendText("Environment Status:" + [Environment]::NewLine)
+
+    if ($domainInfo.isWorkgroup) {
+        $dashboardOutput.AppendText("  Mode: WORKGROUP (Not domain-joined)" + [Environment]::NewLine)
+        $dashboardOutput.AppendText("  Computer: $($domainInfo.netBIOSName)" + [Environment]::NewLine)
+        $dashboardOutput.AppendText("  AD/GPO features are DISABLED" + [Environment]::NewLine + [Environment]::NewLine)
+        $dashboardOutput.AppendText("  Available: Localhost scanning, Rule generation, Event monitoring" + [Environment]::NewLine + [Environment]::NewLine)
+
+        # Apply workgroup mode (disable AD/GPO buttons)
+        Set-WorkgroupMode -IsWorkgroup $true
+    } else {
+        $dashboardOutput.AppendText("  Mode: DOMAIN-JOINED" + [Environment]::NewLine)
+        $dashboardOutput.AppendText("  Domain: $($domainInfo.dnsRoot)" + [Environment]::NewLine)
+        $dashboardOutput.AppendText("  All features available" + [Environment]::NewLine + [Environment]::NewLine)
+    }
+
     $dashboardOutput.AppendText("Workflow:" + [Environment]::NewLine)
     $dashboardOutput.AppendText("  1. WinRM Setup - Enable remote management (optional)" + [Environment]::NewLine)
     $dashboardOutput.AppendText("  2. AD Discovery - Find computers in AD" + [Environment]::NewLine)
-    $dashboardOutput.AppendText("  3. Artifact Collection - Scan for executables" + [Environment]::NewLine)
+    $dashboardOutput.AppendText("  3. Artifact Collection - Scan for executables (localhost or remote)" + [Environment]::NewLine)
     $dashboardOutput.AppendText("  4. Rule Generator - Create AppLocker rules" + [Environment]::NewLine)
     $dashboardOutput.AppendText("  5. Deployment - Create and link GPOs" + [Environment]::NewLine)
     $dashboardOutput.AppendText("  6. Event Monitor - View AppLocker events" + [Environment]::NewLine)
