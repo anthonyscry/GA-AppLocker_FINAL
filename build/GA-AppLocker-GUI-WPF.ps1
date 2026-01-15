@@ -4885,9 +4885,11 @@ $ScanLocalEventsBtn.Add_Click({
     }
 })
 
-# Scan Remote Events button
+# Scan Remote Events button - COMPREHENSIVE SCAN
+# Uses Get-RemoteAppLockerEvents from Module2-RemoteScan for full data collection
+# Collects: All 4 AppLocker logs, system info, policy status, parsed event XML
 $ScanRemoteEventsBtn.Add_Click({
-    Write-Log "Scanning remote AppLocker events"
+    Write-Log "Scanning remote AppLocker events (comprehensive)"
     $computerInput = $EventComputersText.Text.Trim()
 
     if ($computerInput -match "^\(|comma-separated") {
@@ -4902,54 +4904,105 @@ $ScanRemoteEventsBtn.Add_Click({
         return
     }
 
-    $EventsOutput.Text = "=== SCANNING REMOTE EVENTS ===`n`nScanning $($computers.Count) computers via WinRM...`n"
+    $EventsOutput.Text = "=== COMPREHENSIVE REMOTE SCAN ===`n`nScanning $($computers.Count) computers via WinRM...`n"
+    $EventsOutput.Text += "Collecting: All AppLocker logs, policy status, system info`n"
     [System.Windows.Forms.Application]::DoEvents()
 
     $allEvents = @()
+    $allArtifacts = @()
+    $successCount = 0
+    $failCount = 0
 
     foreach ($comp in $computers) {
         $EventsOutput.Text += "`n$comp : "
         [System.Windows.Forms.Application]::DoEvents()
 
         try {
-            $remoteEvents = Invoke-Command -ComputerName $comp -ScriptBlock {
-                $events = @()
-                try {
-                    $exeEvents = Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/EXE and DLL' -MaxEvents 100 -ErrorAction SilentlyContinue
-                    foreach ($evt in $exeEvents) {
-                        $events += [PSCustomObject]@{
-                            TimeCreated = $evt.TimeCreated
-                            EventId = $evt.Id
-                            Message = $evt.Message
+            # Use the comprehensive scan function from Module2-RemoteScan
+            $scanResult = Get-RemoteAppLockerEvents -ComputerName $comp -DaysBack 7 -MaxEvents 500
+
+            if ($scanResult.success) {
+                $successCount++
+                $evtCount = if ($scanResult.events) { $scanResult.events.Count } else { 0 }
+                $artCount = if ($scanResult.artifacts) { $scanResult.artifacts.Count } else { 0 }
+
+                $EventsOutput.Text += "$evtCount events, $artCount artifacts"
+
+                # Show policy status for this computer
+                if ($scanResult.hasPolicy) {
+                    $EventsOutput.Text += " [Policy: EXE=$($scanResult.policyMode.Exe)]"
+                } else {
+                    $EventsOutput.Text += " [No Policy]"
+                }
+
+                # Collect events with full details (parsed from XML)
+                if ($scanResult.events) {
+                    foreach ($evt in $scanResult.events) {
+                        $allEvents += [PSCustomObject]@{
+                            ComputerName = $comp
+                            TimeCreated  = $evt.TimeCreated
+                            EventId      = $evt.EventId
+                            EventType    = $evt.EventType
+                            FilePath     = $evt.FilePath
+                            FileName     = $evt.FileName
+                            Publisher    = if ($evt.Publisher) { $evt.Publisher } else { "Unknown" }
+                            FileHash     = $evt.FileHash
+                            ProductName  = $evt.ProductName
+                            UserSid      = $evt.UserSid
+                            LogName      = $evt.LogName
+                            Message      = $evt.Message
                         }
                     }
-                } catch {}
-                return $events
-            } -ErrorAction Stop
-
-            foreach ($evt in $remoteEvents) {
-                $allEvents += [PSCustomObject]@{
-                    ComputerName = $comp
-                    TimeCreated = $evt.TimeCreated
-                    EventId = $evt.EventId
-                    EventType = switch ($evt.EventId) { 8002 { "Allowed" } 8003 { "Audit" } 8004 { "Blocked" } default { "Other" } }
-                    Message = $evt.Message
-                    FilePath = if ($evt.Message -match '([A-Z]:\\[^"]+\.(exe|dll))') { $Matches[1] } else { "" }
-                    FileName = if ($evt.Message -match '\\([^\\]+\.(exe|dll))') { $Matches[1] } else { "" }
-                    Publisher = "Unknown"
                 }
+
+                # Collect pre-formatted artifacts for rule generator
+                if ($scanResult.artifacts) {
+                    foreach ($art in $scanResult.artifacts) {
+                        $allArtifacts += [PSCustomObject]@{
+                            name           = $art.name
+                            path           = $art.path
+                            publisher      = $art.publisher
+                            hash           = $art.hash
+                            productName    = $art.productName
+                            eventType      = $art.eventType
+                            eventId        = $art.eventId
+                            sourceComputer = $comp
+                            lastSeen       = $art.lastSeen
+                        }
+                    }
+                }
+
+                Write-Log "Comprehensive scan of $comp : $evtCount events, $artCount artifacts"
+            } else {
+                $failCount++
+                $EventsOutput.Text += "FAILED ($($scanResult.error -replace '\r?\n.*$',''))"
+                Write-Log "Comprehensive scan failed on $comp : $($scanResult.error)" -Level "ERROR"
             }
-            $EventsOutput.Text += "$($remoteEvents.Count) events"
-            Write-Log "Remote events from $comp : $($remoteEvents.Count)"
         } catch {
+            $failCount++
             $EventsOutput.Text += "FAILED ($($_.Exception.Message -replace '\r?\n.*$',''))"
-            Write-Log "Remote event scan failed on $comp : $($_.Exception.Message)" -Level "ERROR"
+            Write-Log "Comprehensive scan exception on $comp : $($_.Exception.Message)" -Level "ERROR"
         }
     }
 
+    # Store results in script-scope variables for export and rule generation
     $script:AllEvents = $allEvents
-    $EventsOutput.Text += "`n`n--- TOTAL: $($allEvents.Count) events from $($computers.Count) computers ---"
-    $EventsOutput.Text += "`n`nExport to CSV, then use Import Artifact in Rule Generator."
+    $script:CollectedArtifacts = $allArtifacts
+
+    # Summary statistics
+    $auditCount = ($allEvents | Where-Object { $_.EventType -eq 'Audit' }).Count
+    $blockedCount = ($allEvents | Where-Object { $_.EventType -eq 'Blocked' }).Count
+    $allowedCount = ($allEvents | Where-Object { $_.EventType -eq 'Allowed' }).Count
+
+    $EventsOutput.Text += "`n`n=== SCAN COMPLETE ===`n"
+    $EventsOutput.Text += "Computers: $successCount success, $failCount failed`n"
+    $EventsOutput.Text += "Events: $($allEvents.Count) total`n"
+    $EventsOutput.Text += "  Audit (would block): $auditCount`n"
+    $EventsOutput.Text += "  Blocked: $blockedCount`n"
+    $EventsOutput.Text += "  Allowed: $allowedCount`n"
+    $EventsOutput.Text += "Artifacts: $($allArtifacts.Count) unique files`n"
+    $EventsOutput.Text += "`nExport to CSV, then Import in Rule Generator.`n"
+    $EventsOutput.Text += "Or go to Rule Generator > From Events to create rules directly."
 })
 
 # Import Events button
