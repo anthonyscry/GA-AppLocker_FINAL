@@ -234,7 +234,7 @@ New-WinRMGPO -GpoName "Enable-WinRM"
 
 ```powershell
 # Create evidence folder structure
-New-EvidenceFolders -BasePath "C:\AppLocker\Evidence"
+New-EvidenceFolder -BasePath "C:\AppLocker\Evidence"
 
 # Export current policy
 Export-CurrentPolicy -OutputPath "C:\AppLocker\Evidence\Policies\CurrentPolicy.xml"

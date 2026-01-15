@@ -399,9 +399,9 @@ Describe "Module6-ADManager" {
 }
 
 Describe "Module7-Compliance" {
-    It "New-EvidenceFolders creates folder structure" {
+    It "New-EvidenceFolder creates folder structure" {
         $testPath = "$env:TEMP\GA-AppLocker-Test-Evidence"
-        $result = New-EvidenceFolders -BasePath $testPath
+        $result = New-EvidenceFolder -BasePath $testPath
         $result.success | Should -Be $true
         $result.basePath | Should -Be $testPath
 
@@ -411,9 +411,9 @@ Describe "Module7-Compliance" {
         }
     }
 
-    It "New-EvidenceFolders returns folder paths" {
+    It "New-EvidenceFolder returns folder paths" {
         $testPath = "$env:TEMP\GA-AppLocker-Test-Evidence2"
-        $result = New-EvidenceFolders -BasePath $testPath
+        $result = New-EvidenceFolder -BasePath $testPath
         $result.folders.Count | Should -BeGreaterOrEqual 5
 
         # Verify folders exist
@@ -427,9 +427,9 @@ Describe "Module7-Compliance" {
         }
     }
 
-    It "New-EvidenceFolders creates all expected subfolders" {
+    It "New-EvidenceFolder creates all expected subfolders" {
         $testPath = "$env:TEMP\GA-AppLocker-Test-Evidence3"
-        $result = New-EvidenceFolders -BasePath $testPath
+        $result = New-EvidenceFolder -BasePath $testPath
 
         $expectedFolders = @('Policies', 'Events', 'Inventory', 'Reports', 'Scans')
         foreach ($folder in $expectedFolders) {
@@ -603,7 +603,7 @@ Describe "Integration Tests" {
         $testPath = "$env:TEMP\GA-AppLocker-Integration-Test"
         try {
             # Create evidence folders
-            $folderResult = New-EvidenceFolders -BasePath $testPath
+            $folderResult = New-EvidenceFolder -BasePath $testPath
             $folderResult.success | Should -Be $true
 
             # Export policy

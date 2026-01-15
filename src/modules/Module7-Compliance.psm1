@@ -7,9 +7,12 @@
     Create Evidence Folder Structure
 .DESCRIPTION
     Creates the folder structure for storing compliance evidence
+.OUTPUTS
+    System.Collections.Hashtable
 #>
-function New-EvidenceFolders {
+function New-EvidenceFolder {
     [CmdletBinding()]
+    [OutputType([hashtable])]
     param(
         [string]$BasePath = 'C:\AppLocker\Evidence'
     )
@@ -57,9 +60,12 @@ function New-EvidenceFolders {
     Export Current AppLocker Policy
 .DESCRIPTION
     Saves the current AppLocker policy to a file
+.OUTPUTS
+    System.Collections.Hashtable
 #>
 function Export-CurrentPolicy {
     [CmdletBinding()]
+    [OutputType([hashtable])]
     param(
         [string]$OutputPath = 'C:\AppLocker\Evidence\Policies\CurrentPolicy.xml'
     )
@@ -101,9 +107,12 @@ function Export-CurrentPolicy {
     Export System Inventory
 .DESCRIPTION
     Collects and exports system software inventory
+.OUTPUTS
+    System.Collections.Hashtable
 #>
 function Export-SystemInventory {
     [CmdletBinding()]
+    [OutputType([hashtable])]
     param(
         [string]$OutputPath = 'C:\AppLocker\Evidence\Inventory\Inventory.json'
     )
@@ -151,9 +160,12 @@ function Export-SystemInventory {
     Generate Compliance Summary
 .DESCRIPTION
     Creates a summary of AppLocker compliance status
+.OUTPUTS
+    System.Collections.Hashtable
 #>
 function Get-ComplianceSummary {
     [CmdletBinding()]
+    [OutputType([hashtable])]
     param()
 
     try {
@@ -222,9 +234,12 @@ function Get-ComplianceSummary {
     Generate HTML Compliance Report
 .DESCRIPTION
     Creates an HTML report of compliance status
+.OUTPUTS
+    System.Collections.Hashtable
 #>
 function New-ComplianceReport {
     [CmdletBinding()]
+    [OutputType([hashtable])]
     param(
         [string]$OutputPath = 'C:\AppLocker\Evidence\Reports\ComplianceReport.html'
     )
@@ -343,15 +358,18 @@ function New-ComplianceReport {
     Export All Evidence
 .DESCRIPTION
     Collects all compliance evidence and exports to files
+.OUTPUTS
+    System.Collections.Hashtable
 #>
 function Export-AllEvidence {
     [CmdletBinding()]
+    [OutputType([hashtable])]
     param(
         [string]$BasePath = 'C:\AppLocker\Evidence'
     )
 
     try {
-        $folders = New-EvidenceFolders -BasePath $BasePath
+        $folders = New-EvidenceFolder -BasePath $BasePath
         if (-not $folders.success) {
             return $folders
         }
@@ -382,5 +400,5 @@ function Export-AllEvidence {
 }
 
 # Export functions
-Export-ModuleMember -Function New-EvidenceFolders, Export-CurrentPolicy, Export-SystemInventory,
+Export-ModuleMember -Function New-EvidenceFolder, Export-CurrentPolicy, Export-SystemInventory,
                               Get-ComplianceSummary, New-ComplianceReport, Export-AllEvidence
