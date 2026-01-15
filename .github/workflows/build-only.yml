@@ -40,43 +40,23 @@ jobs:
         run: |
           Write-Host "====================================" -ForegroundColor Cyan
           Write-Host "  GA-AppLocker Dashboard Build" -ForegroundColor Cyan
-          Write-Host "====================================`n" -ForegroundColor Cyan
+          Write-Host "====================================" -ForegroundColor Cyan
 
-          # Find the GUI script
-          $guiScript = $null
-          $searchPaths = @(
-            "./build/GA-AppLocker-GUI-WPF.ps1",
-            "./build/GA-AppLocker-GUI-Full.ps1",
-            "./GA-AppLocker-1.2.4/src/GUI/GA-AppLocker-Portable.ps1"
-          )
-
-          foreach ($path in $searchPaths) {
-            if (Test-Path $path) {
-              $guiScript = $path
-              Write-Host "Found GUI script: $path" -ForegroundColor Green
-              break
-            }
-          }
-
-          if (-not $guiScript) {
-            Write-Host "##[error]No GUI script found!" -ForegroundColor Red
+          $guiScript = "./build/GA-AppLocker-GUI-WPF.ps1"
+          if (-not (Test-Path $guiScript)) {
+            Write-Host "##[error]GUI script not found: $guiScript" -ForegroundColor Red
             exit 1
           }
 
-          # Copy to output
+          Write-Host "Found GUI script: $guiScript" -ForegroundColor Green
           Copy-Item -Path $guiScript -Destination "./output/GA-AppLocker-GUI.ps1" -Force
 
-          # Try to compile with PS2EXE
           try {
             Import-Module ps2exe
             $exePath = "./output/GA-AppLocker-Dashboard.exe"
             Write-Host "Compiling to EXE..." -ForegroundColor Cyan
 
-            ps2exe -InputFile "./output/GA-AppLocker-GUI.ps1" `
-                   -OutputFile $exePath `
-                   -Title "GA-AppLocker Dashboard" `
-                   -NoConsole `
-                   -NoOutput
+            ps2exe -InputFile "./output/GA-AppLocker-GUI.ps1" -OutputFile $exePath -Title "GA-AppLocker Dashboard" -NoConsole -NoOutput
 
             if (Test-Path $exePath) {
               $size = (Get-Item $exePath).Length / 1MB
@@ -87,7 +67,6 @@ jobs:
           }
           catch {
             Write-Host "PS2EXE compilation failed: $_" -ForegroundColor Yellow
-            Write-Host "Creating portable package instead..." -ForegroundColor Yellow
           }
 
       - name: Copy source modules
@@ -101,19 +80,19 @@ jobs:
       - name: Create batch launcher
         shell: pwsh
         run: |
-          $batchContent = @'
-@echo off
-title GA-AppLocker Dashboard
-if exist "%~dp0GA-AppLocker-Dashboard.exe" (
-  start "" "%~dp0GA-AppLocker-Dashboard.exe"
-) else if exist "%~dp0GA-AppLocker-GUI.ps1" (
-  powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0GA-AppLocker-GUI.ps1"
-) else (
-  echo ERROR: No executable found!
-  pause
-)
-'@
-          $batchContent | Out-File -FilePath "./output/Launch-GA-AppLocker.bat" -Encoding ASCII
+          $lines = @(
+            "@echo off",
+            "title GA-AppLocker Dashboard",
+            "if exist `"%~dp0GA-AppLocker-Dashboard.exe`" (",
+            "  start `"`" `"%~dp0GA-AppLocker-Dashboard.exe`"",
+            ") else if exist `"%~dp0GA-AppLocker-GUI.ps1`" (",
+            "  powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"%~dp0GA-AppLocker-GUI.ps1`"",
+            ") else (",
+            "  echo ERROR: No executable found!",
+            "  pause",
+            ")"
+          )
+          $lines -join "`r`n" | Out-File -FilePath "./output/Launch-GA-AppLocker.bat" -Encoding ASCII
           Write-Host "Created batch launcher" -ForegroundColor Green
 
       - name: Copy documentation
@@ -134,9 +113,7 @@ if exist "%~dp0GA-AppLocker-Dashboard.exe" (
       - name: Build Summary
         shell: pwsh
         run: |
-          Write-Host "`n====================================" -ForegroundColor Green
+          Write-Host "====================================" -ForegroundColor Green
           Write-Host "  BUILD COMPLETED SUCCESSFULLY" -ForegroundColor Green
-          Write-Host "====================================`n" -ForegroundColor Green
+          Write-Host "====================================" -ForegroundColor Green
           Write-Host "Artifact: GA-AppLocker-Dashboard" -ForegroundColor Cyan
-          Write-Host "Contents:" -ForegroundColor Cyan
-          Get-ChildItem ./output -Recurse | Select-Object FullName | ForEach-Object { Write-Host "  - $($_.FullName.Replace((Get-Location).Path + '\output\', ''))" }
