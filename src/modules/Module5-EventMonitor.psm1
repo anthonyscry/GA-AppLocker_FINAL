@@ -56,7 +56,7 @@ function Get-AppLockerEvents {
     }
 
     # Build XPath filter
-    $eventIdFilter = switch ($FilterType) {
+    $logEventIdFilter = switch ($FilterType) {
         'Allowed' { "$($script:EventIdMapping.ExeDllAllowed) or $($script:EventIdMapping.MsiScriptAllowed)" }
         'Audit'   { "$($script:EventIdMapping.ExeDllWarning) or $($script:EventIdMapping.MsiScriptWarning)" }
         'Blocked' { "$($script:EventIdMapping.ExeDllError) or $($script:EventIdMapping.MsiScriptError)" }
@@ -64,15 +64,15 @@ function Get-AppLockerEvents {
     }
 
     if ($IncludeMsiScript) {
-        $eventIdFilter = switch ($FilterType) {
-            'Allowed' { "$eventIdFilter or $($script:EventIdMapping.MsiScriptAllowed)" }
-            'Audit'   { "$eventIdFilter or $($script:EventIdMapping.MsiScriptWarning)" }
-            'Blocked' { "$eventIdFilter or $($script:EventIdMapping.MsiScriptError)" }
-            default   { "$eventIdFilter or $($script:EventIdMapping.MsiScriptAllowed) or $($script:EventIdMapping.MsiScriptWarning) or $($script:EventIdMapping.MsiScriptError)" }
+        $logEventIdFilter = switch ($FilterType) {
+            'Allowed' { "$logEventIdFilter or $($script:EventIdMapping.MsiScriptAllowed)" }
+            'Audit'   { "$logEventIdFilter or $($script:EventIdMapping.MsiScriptWarning)" }
+            'Blocked' { "$logEventIdFilter or $($script:EventIdMapping.MsiScriptError)" }
+            default   { "$logEventIdFilter or $($script:EventIdMapping.MsiScriptAllowed) or $($script:EventIdMapping.MsiScriptWarning) or $($script:EventIdMapping.MsiScriptError)" }
         }
     }
 
-    $filter = "*[System[(EventID=($eventIdFilter))]]"
+    $filter = "*[System[(EventID=($logEventIdFilter))]]"
 
     $results = @()
     $filteredOut = 0
@@ -92,9 +92,9 @@ function Get-AppLockerEvents {
                 $params['LogName'] = $logName
             }
 
-            $events = Get-WinEvent @params -MaxEvents $MaxEvents
+            $logEvents = Get-WinEvent @params -MaxEvents $MaxEvents
 
-            foreach ($event in $events) {
+            foreach ($logEvent in $logEvents) {
                 # Property selector for efficient extraction (from AaronLocker)
                 $selectorStrings = @(
                     'Event/UserData/RuleAndFileData/PolicyName',
@@ -106,12 +106,12 @@ function Get-AppLockerEvents {
                 )
 
                 $propertySelector = [System.Diagnostics.Eventing.Reader.EventLogPropertySelector]::new($selectorStrings)
-                $properties = $event.GetPropertyValues($propertySelector)
+                $properties = $logEvent.GetPropertyValues($propertySelector)
 
                 $fileType = if ($properties[0]) { $properties[0] } else { "EXE" }
                 $userSid = if ($properties[1]) { $properties[1].ToString() } else { "" }
                 $userName = ConvertFrom-SidCached -Sid $userSid
-                $pid = if ($properties[2]) { $properties[2].ToString() } else { "" }
+                $processId = if ($properties[2]) { $properties[2].ToString() } else { "" }
                 $filePath = if ($properties[4]) { $properties[4] } else { "" }
                 $hashRaw = $properties[5]
 
@@ -156,7 +156,7 @@ function Get-AppLockerEvents {
                 }
 
                 # Determine action type
-                $action = switch ($event.Id) {
+                $action = switch ($logEvent.Id) {
                     { $_ -in $script:EventIdMapping.ExeDllAllowed, $script:EventIdMapping.MsiScriptAllowed } { 'Allowed' }
                     { $_ -in $script:EventIdMapping.ExeDllWarning, $script:EventIdMapping.MsiScriptWarning } { 'Audit' }
                     { $_ -in $script:EventIdMapping.ExeDllError, $script:EventIdMapping.MsiScriptError } { 'Blocked' }
@@ -169,10 +169,10 @@ function Get-AppLockerEvents {
                 $fileExt = [System.IO.Path]::GetExtension($filePath)
 
                 $results += @{
-                    eventId = $event.Id
+                    eventId = $logEvent.Id
                     action = $action
-                    timestamp = $event.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')
-                    timestampSortable = $event.TimeCreated.ToString('yyyy-MM-ddTHH:mm:ss.fffffff')
+                    timestamp = $logEvent.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')
+                    timestampSortable = $logEvent.TimeCreated.ToString('yyyy-MM-ddTHH:mm:ss.fffffff')
                     filePath = $filePath
                     genericPath = $genericPath
                     fileName = $fileName
@@ -180,8 +180,8 @@ function Get-AppLockerEvents {
                     fileType = $fileType
                     userSid = $userSid
                     userName = $userName
-                    computerName = $event.MachineName
-                    pid = $pid
+                    computerName = $logEvent.MachineName
+                    pid = $processId
                     publisherName = $publisherName
                     productName = $productName
                     binaryName = $binaryName
@@ -259,8 +259,8 @@ function Filter-EventsByDateRange {
     }
 
     $filtered = $Events | Where-Object {
-        $eventDate = [DateTime]::Parse($_.timestamp)
-        $eventDate -ge $StartDate -and $eventDate -le $EndDate
+        $logEventDate = [DateTime]::Parse($_.timestamp)
+        $logEventDate -ge $StartDate -and $logEventDate -le $EndDate
     }
 
     return $filtered
@@ -308,9 +308,9 @@ function Backup-RemoteAppLockerEvents {
             }
         }
 
-        $events = Invoke-Command -ComputerName $ComputerName -ScriptBlock $scriptBlock -ErrorAction Stop
+        $logEvents = Invoke-Command -ComputerName $ComputerName -ScriptBlock $scriptBlock -ErrorAction Stop
 
-        if (-not $events -or $events.Count -eq 0) {
+        if (-not $logEvents -or $logEvents.Count -eq 0) {
             return @{
                 success = $true
                 message = 'No events found on remote computer'
@@ -323,12 +323,12 @@ function Backup-RemoteAppLockerEvents {
             New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
         }
 
-        $events | Export-Clixml -Path $OutputPath -Force
+        $logEvents | Export-Clixml -Path $OutputPath -Force
 
         return @{
             success = $true
             path = $OutputPath
-            count = $events.Count
+            count = $logEvents.Count
             computerName = $ComputerName
         }
     }
