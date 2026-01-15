@@ -179,7 +179,7 @@ function Get-AppLockerEvents {
 # Module 6: Compliance
 function New-EvidenceFolder {
     param([string]$BasePath)
-    if (-not $BasePath) { $BasePath = "$env:USERPROFILE\Desktop\GA-AppLocker-Evidence" }
+    if (-not $BasePath) { $BasePath = "C:\GA-AppLocker" }
     try {
         $folders = @{}
         $subfolders = @("Policies", "Events", "Inventory", "Reports", "Scans")
@@ -191,6 +191,94 @@ function New-EvidenceFolder {
         return @{ success = $true; basePath = $BasePath; folders = $folders }
     } catch {
         return @{ success = $false; error = "Failed to create evidence folder" }
+    }
+}
+
+# Module 7: WinRM GPO Functions
+function New-WinRMGpo {
+    param(
+        [string]$GpoName = "Enable WinRM",
+        [string]$OU = $null
+    )
+
+    try {
+        Import-Module GroupPolicy -ErrorAction Stop
+
+        # Detect current domain if OU not specified
+        if (-not $OU) {
+            $domain = Get-ADDomain
+            $OU = "DC=$($domain.DNSRoot -replace '\.', ',DC=')"
+        }
+
+        Write-Log "Creating WinRM GPO: $GpoName"
+
+        # 1. Create and link the GPO
+        $gpo = New-GPO -Name $GpoName -ErrorAction Stop
+        Write-Log "GPO created: $($gpo.Id)"
+
+        $link = New-GPLink -Name $GpoName -Target $OU -LinkEnabled Yes -ErrorAction Stop
+        Write-Log "GPO linked to: $OU"
+
+        # 2. Enable WinRM service via policy (XML-backed registry policy)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowAutoConfig" -Type DWord -Value 1 -ErrorAction Stop
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowUnencryptedTraffic" -Type DWord -Value 0 -ErrorAction Stop
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "IPv4Filter" -Type String -Value "*" -ErrorAction Stop
+        Write-Log "WinRM service policies configured"
+
+        # 3. Ensure WinRM service starts automatically
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\SYSTEM\CurrentControlSet\Services\WinRM" -ValueName "Start" -Type DWord -Value 2 -ErrorAction Stop
+        Write-Log "WinRM service startup type set to Automatic"
+
+        # 4. Enable Windows Firewall rules for WinRM
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\Services\WinRM" -ValueName "Enabled" -Type DWord -Value 1 -ErrorAction Stop
+        Write-Log "WinRM firewall rules configured"
+
+        return @{
+            success = $true
+            gpoName = $GpoName
+            gpoId = $gpo.Id
+            linkedTo = $OU
+            message = "WinRM GPO created and linked successfully"
+        }
+    }
+    catch {
+        Write-Log "Failed to create WinRM GPO: $($_.Exception.Message)" -Level "ERROR"
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
+function Set-WinRMGpoLink {
+    param(
+        [string]$GpoName = "Enable WinRM",
+        [string]$Target,
+        [bool]$Enabled = $true
+    )
+
+    try {
+        Import-Module GroupPolicy -ErrorAction Stop
+
+        if ($Enabled) {
+            $link = Set-GPLink -Name $GpoName -Target $Target -LinkEnabled Yes -ErrorAction Stop
+            Write-Log "GPO link enabled: $GpoName -> $Target"
+        } else {
+            $link = Set-GPLink -Name $GpoName -Target $Target -LinkEnabled No -ErrorAction Stop
+            Write-Log "GPO link disabled: $GpoName -> $Target"
+        }
+
+        return @{
+            success = $true
+            message = "GPO link updated successfully"
+        }
+    }
+    catch {
+        Write-Log "Failed to set GPO link: $($_.Exception.Message)" -Level "ERROR"
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
     }
 }
 
@@ -284,7 +372,6 @@ $xamlString = @"
         <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,0,1" Height="60" VerticalAlignment="Top">
             <Grid Margin="20,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="⚡" FontSize="24" Foreground="#58A6FF" Margin="0,0,10,0"/>
                     <TextBlock Text="GA-AppLocker Dashboard" FontSize="18" FontWeight="Bold"
                                Foreground="#E6EDF3" VerticalAlignment="Center"/>
                     <TextBlock Text="v1.0" FontSize="12" Foreground="#6E7681"
@@ -313,35 +400,35 @@ $xamlString = @"
             <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,0,1" Grid.Column="0">
                 <StackPanel Margin="0,10,0,10">
                     <!-- Dashboard Button -->
-                    <Button x:Name="NavDashboard" Content="📊 Dashboard" Style="{StaticResource SecondaryButton}"
+                    <Button x:Name="NavDashboard" Content="Dashboard" Style="{StaticResource SecondaryButton}"
                             HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- AD Discovery Button -->
-                    <Button x:Name="NavDiscovery" Content="🔍 AD Discovery" Style="{StaticResource SecondaryButton}"
+                    <Button x:Name="NavDiscovery" Content="AD Discovery" Style="{StaticResource SecondaryButton}"
                             HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Artifacts Button -->
-                    <Button x:Name="NavArtifacts" Content="📦 Artifacts" Style="{StaticResource SecondaryButton}"
+                    <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource SecondaryButton}"
                             HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Rules Button -->
-                    <Button x:Name="NavRules" Content="📜 Rule Generator" Style="{StaticResource SecondaryButton}"
+                    <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource SecondaryButton}"
                             HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Deployment Button -->
-                    <Button x:Name="NavDeployment" Content="🚀 Deployment" Style="{StaticResource SecondaryButton}"
+                    <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource SecondaryButton}"
                             HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Events Button -->
-                    <Button x:Name="NavEvents" Content="📋 Events" Style="{StaticResource SecondaryButton}"
+                    <Button x:Name="NavEvents" Content="Events" Style="{StaticResource SecondaryButton}"
                             HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Compliance Button -->
-                    <Button x:Name="NavCompliance" Content="✓ Compliance" Style="{StaticResource SecondaryButton}"
+                    <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource SecondaryButton}"
                             HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- WinRM Button -->
-                    <Button x:Name="NavWinRM" Content="🔧 WinRM Setup" Style="{StaticResource SecondaryButton}"
+                    <Button x:Name="NavWinRM" Content="WinRM Setup" Style="{StaticResource SecondaryButton}"
                             HorizontalAlignment="Stretch" Margin="10,5"/>
                 </StackPanel>
             </Border>
@@ -396,7 +483,7 @@ $xamlString = @"
 
                         <!-- Blocked Card -->
                         <Border Grid.Column="3" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Padding="20">
+                                CornerRadius="8" Margin="0,0,0,10" Padding="20">
                             <StackPanel>
                                 <TextBlock Text="Blocked" FontSize="12" Foreground="#8B949E"/>
                                 <TextBlock x:Name="BlockedEvents" Text="--" FontSize="32" FontWeight="Bold"
@@ -407,7 +494,7 @@ $xamlString = @"
                     </Grid>
 
                     <!-- Refresh Button -->
-                    <Button x:Name="RefreshDashboardBtn" Content="🔄 Refresh Dashboard"
+                    <Button x:Name="RefreshDashboardBtn" Content="Refresh Dashboard"
                             Style="{StaticResource PrimaryButton}" Width="180" HorizontalAlignment="Left"
                             Margin="0,20,0,0"/>
 
@@ -429,7 +516,8 @@ $xamlString = @"
                     <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="120"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
@@ -439,8 +527,10 @@ $xamlString = @"
                                      BorderThickness="1" FontSize="13" Padding="5"/>
                         </StackPanel>
 
-                        <Button x:Name="ScanLocalBtn" Content="🖥 Scan Localhost"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="1"/>
+                        <Button x:Name="ExportArtifactsBtn" Content="Export CSV"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="1" Margin="0,0,5,0"/>
+                        <Button x:Name="ScanLocalBtn" Content="Scan Localhost"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
                     <!-- Artifacts List -->
@@ -468,10 +558,10 @@ $xamlString = @"
                     <Grid Margin="0,0,0,15">
                         <TextBlock Text="Rule Type (Best Practice Order):" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center"/>
                         <ComboBox x:Name="RuleTypeCombo" Width="250" Height="32" HorizontalAlignment="Left" Margin="10,5,0,0"
-                                  Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="13">
-                            <ComboBoxItem Content="Publisher (Preferred)"/>
-                            <ComboBoxItem Content="Hash (Fallback)"/>
-                            <ComboBoxItem Content="Path (Exceptions Only)"/>
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="13">
+                            <ComboBoxItem Content="Publisher (Preferred)" Background="#21262D" Foreground="#E6EDF3"/>
+                            <ComboBoxItem Content="Hash (Fallback)" Background="#21262D" Foreground="#E6EDF3"/>
+                            <ComboBoxItem Content="Path (Exceptions Only)" Background="#21262D" Foreground="#E6EDF3"/>
                         </ComboBox>
                     </Grid>
 
@@ -482,10 +572,10 @@ $xamlString = @"
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button x:Name="ImportArtifactsBtn" Content="📂 Import Artifacts"
+                        <Button x:Name="ImportArtifactsBtn" Content="Import Artifacts"
                                 Style="{StaticResource SecondaryButton}"/>
 
-                        <Button x:Name="GenerateRulesBtn" Content="✨ Generate Rules"
+                        <Button x:Name="GenerateRulesBtn" Content="Generate Rules"
                                 Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
@@ -504,9 +594,27 @@ $xamlString = @"
                 <StackPanel x:Name="PanelEvents" Visibility="Collapsed">
                     <TextBlock Text="Event Monitor" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
-                    <Button x:Name="RefreshEventsBtn" Content="🔄 Refresh Events"
-                            Style="{StaticResource PrimaryButton}" Width="180" HorizontalAlignment="Left"
-                            Margin="0,0,0,15"/>
+                    <!-- Event Filters and Export -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="120"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="Filter by event type:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center"/>
+
+                        <Button x:Name="FilterAllBtn" Content="All" Style="{StaticResource SecondaryButton}" Grid.Column="1" Margin="5,0"/>
+                        <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="5,0"/>
+                        <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Grid.Column="3" Margin="5,0"/>
+                        <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Grid.Column="4" Margin="5,0"/>
+                        <Button x:Name="RefreshEventsBtn" Content="Refresh" Style="{StaticResource PrimaryButton}" Grid.Column="5" Margin="5,0"/>
+                        <Button x:Name="ExportEventsBtn" Content="Export" Style="{StaticResource PrimaryButton}" Grid.Column="6" Margin="5,0,0,0"/>
+                    </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="15" Height="440">
@@ -522,10 +630,22 @@ $xamlString = @"
                 <StackPanel x:Name="PanelDeployment" Visibility="Collapsed">
                     <TextBlock Text="Deployment" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
+                    <!-- Deployment Buttons (disabled in workgroup mode) -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="CreateGP0Btn" Content="Create GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="LinkGP0Btn" Content="Link GPO to Domain" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                    </Grid>
+
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="20" Margin="0,0,0,15">
                         <StackPanel>
-                            <TextBlock Text="📌 Deployment Status" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Deployment Status" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
                             <TextBlock x:Name="DeploymentStatus" Text="Ready to deploy policies..."
                                        FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
                         </StackPanel>
@@ -571,7 +691,7 @@ $xamlString = @"
                 <StackPanel x:Name="PanelCompliance" Visibility="Collapsed">
                     <TextBlock Text="Compliance" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
-                    <Button x:Name="GenerateEvidenceBtn" Content="📁 Generate Evidence Package"
+                    <Button x:Name="GenerateEvidenceBtn" Content="Generate Evidence Package"
                             Style="{StaticResource PrimaryButton}" Width="220" HorizontalAlignment="Left"
                             Margin="0,0,0,15"/>
 
@@ -592,16 +712,23 @@ $xamlString = @"
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="20" Margin="0,0,0,15">
                         <StackPanel>
-                            <TextBlock Text="🌐 WinRM (Windows Remote Management)" FontSize="14" FontWeight="Bold"
+                            <TextBlock Text="WinRM (Windows Remote Management)" FontSize="14" FontWeight="Bold"
                                        Foreground="#E6EDF3" Margin="0,0,0,10"/>
                             <TextBlock Text="WinRM is required for remote PowerShell and AppLocker scanning."
                                        FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
+                    <!-- WinRM Buttons (disabled when not on DC) -->
                     <Grid Margin="0,0,0,15">
-                        <Button x:Name="FullWorkflowBtn" Content="⚡ Full Workflow (1-Click)"
-                                Style="{StaticResource PrimaryButton}" Width="220"/>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="CreateWinRMGpoBtn" Content="Create WinRM GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="FullWorkflowBtn" Content="Full Workflow" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
@@ -703,15 +830,25 @@ $DashboardOutput = $window.FindName("DashboardOutput")
 # Other controls
 $MaxFilesText = $window.FindName("MaxFilesText")
 $ScanLocalBtn = $window.FindName("ScanLocalBtn")
+$ExportArtifactsBtn = $window.FindName("ExportArtifactsBtn")
 $ArtifactsList = $window.FindName("ArtifactsList")
 $RuleTypeCombo = $window.FindName("RuleTypeCombo")
 $ImportArtifactsBtn = $window.FindName("ImportArtifactsBtn")
 $GenerateRulesBtn = $window.FindName("GenerateRulesBtn")
 $RulesOutput = $window.FindName("RulesOutput")
+$FilterAllBtn = $window.FindName("FilterAllBtn")
+$FilterAllowedBtn = $window.FindName("FilterAllowedBtn")
+$FilterBlockedBtn = $window.FindName("FilterBlockedBtn")
+$FilterAuditBtn = $window.FindName("FilterAuditBtn")
 $RefreshEventsBtn = $window.FindName("RefreshEventsBtn")
+$ExportEventsBtn = $window.FindName("ExportEventsBtn")
 $EventsOutput = $window.FindName("EventsOutput")
+$CreateGP0Btn = $window.FindName("CreateGP0Btn")
+$LinkGP0Btn = $window.FindName("LinkGP0Btn")
+$DeploymentStatus = $window.FindName("DeploymentStatus")
 $GenerateEvidenceBtn = $window.FindName("GenerateEvidenceBtn")
 $ComplianceOutput = $window.FindName("ComplianceOutput")
+$CreateWinRMGpoBtn = $window.FindName("CreateWinRMGpoBtn")
 $FullWorkflowBtn = $window.FindName("FullWorkflowBtn")
 $WinRMOutput = $window.FindName("WinRMOutput")
 
@@ -719,6 +856,31 @@ $WinRMOutput = $window.FindName("WinRMOutput")
 $script:CollectedArtifacts = @()
 $script:IsWorkgroup = $false
 $script:DomainInfo = $null
+$script:EventFilter = "All"  # All, Allowed, Blocked, Audit
+$script:AllEvents = @()
+
+# Logging function
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+
+    $logDir = ".\Logs"
+    if (-not (Test-Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logFile = Join-Path $logDir "GA-AppLocker-$(Get-Date -Format 'yyyy-MM-dd').log"
+    $logEntry = "[$timestamp] [$Level] $Message"
+
+    try {
+        Add-Content -Path $logFile -Value $logEntry -ErrorAction Stop
+    } catch {
+        # Silently fail if logging fails
+    }
+}
 
 # Helper function to show panel
 function Show-Panel {
@@ -803,7 +965,32 @@ $RefreshDashboardBtn.Add_Click({
 })
 
 # Artifacts events
+$ExportArtifactsBtn.Add_Click({
+    if ($script:CollectedArtifacts.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("No artifacts to export. Run a scan first.", "No Data", "OK", "Information")
+        return
+    }
+
+    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json"
+    $saveDialog.Title = "Export Artifacts"
+    $saveDialog.FileName = "Artifacts-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+    $saveDialog.InitialDirectory = "C:\GA-AppLocker"
+
+    if ($saveDialog.ShowDialog() -eq "OK") {
+        $ext = [System.IO.Path]::GetExtension($saveDialog.FileName)
+        if ($ext -eq ".csv") {
+            $script:CollectedArtifacts | Export-Csv -Path $saveDialog.FileName -NoTypeInformation
+        } else {
+            $script:CollectedArtifacts | ConvertTo-Json -Depth 10 | Out-File -FilePath $saveDialog.FileName -Encoding UTF8
+        }
+        Write-Log "Exported $($script:CollectedArtifacts.Count) artifacts to $($saveDialog.FileName)"
+        [System.Windows.MessageBox]::Show("Exported $($script:CollectedArtifacts.Count) artifacts to $($saveDialog.FileName)", "Export Complete", "OK", "Information")
+    }
+})
+
 $ScanLocalBtn.Add_Click({
+    Write-Log "Starting localhost scan with max files: $($MaxFilesText.Text)"
     $ArtifactsList.Items.Clear()
     $RulesOutput.Text = "Scanning localhost for executables...`n`nThis may take a few minutes..."
     [System.Windows.Forms.Application]::DoEvents()
@@ -817,6 +1004,7 @@ $ScanLocalBtn.Add_Click({
     }
 
     $RulesOutput.Text = "Scan complete! Found $($result.count) artifacts.`n`nNow go to Rule Generator to create AppLocker rules."
+    Write-Log "Localhost scan complete: $($result.count) artifacts found"
 })
 
 # Rules events
@@ -857,10 +1045,71 @@ $GenerateRulesBtn.Add_Click({
 })
 
 # Events events
+$FilterAllBtn.Add_Click({
+    $script:EventFilter = "All"
+    Write-Log "Event filter set to: All"
+    $EventsOutput.Text = "Filter set to All. Click Refresh to load events."
+})
+
+$FilterAllowedBtn.Add_Click({
+    $script:EventFilter = "Allowed"
+    Write-Log "Event filter set to: Allowed"
+    $EventsOutput.Text = "Filter set to Allowed (ID 8002). Click Refresh to load events."
+})
+
+$FilterBlockedBtn.Add_Click({
+    $script:EventFilter = "Blocked"
+    Write-Log "Event filter set to: Blocked"
+    $EventsOutput.Text = "Filter set to Blocked (ID 8004). Click Refresh to load events."
+})
+
+$FilterAuditBtn.Add_Click({
+    $script:EventFilter = "Audit"
+    Write-Log "Event filter set to: Audit"
+    $EventsOutput.Text = "Filter set to Audit (ID 8003). Click Refresh to load events."
+})
+
+$ExportEventsBtn.Add_Click({
+    if ($script:AllEvents.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("No events to export. Click Refresh first.", "No Data", "OK", "Information")
+        return
+    }
+
+    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json|Text Files (*.txt)|*.txt"
+    $saveDialog.Title = "Export Events"
+    $saveDialog.FileName = "AppLockerEvents-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+    $saveDialog.InitialDirectory = "C:\GA-AppLocker\Scans"
+
+    if ($saveDialog.ShowDialog() -eq "OK") {
+        $ext = [System.IO.Path]::GetExtension($saveDialog.FileName)
+        if ($ext -eq ".csv") {
+            $script:AllEvents | Export-Csv -Path $saveDialog.FileName -NoTypeInformation
+        } elseif ($ext -eq ".json") {
+            $script:AllEvents | ConvertTo-Json -Depth 10 | Out-File -FilePath $saveDialog.FileName -Encoding UTF8
+        } else {
+            $script:AllEvents | ForEach-Object { "[$($_.time)] [$($_.type)] $($_.message)" } | Out-File -FilePath $saveDialog.FileName -Encoding UTF8
+        }
+        Write-Log "Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)"
+        [System.Windows.MessageBox]::Show("Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)", "Export Complete", "OK", "Information")
+    }
+})
+
 $RefreshEventsBtn.Add_Click({
-    $result = Get-AppLockerEvents -MaxEvents 50
-    $output = "=== APPLOCKER EVENTS ===`n`nTotal: $($result.count) events`n`n"
-    foreach ($evt in $result.data) {
+    Write-Log "Refreshing events with filter: $($script:EventFilter)"
+    $result = Get-AppLockerEvents -MaxEvents 1000
+    $script:AllEvents = $result.data
+
+    # Filter events based on selection
+    $filteredEvents = switch ($script:EventFilter) {
+        "Allowed" { $result.data | Where-Object { $_.eventId -eq 8002 } }
+        "Blocked" { $result.data | Where-Object { $_.eventId -eq 8004 } }
+        "Audit"   { $result.data | Where-Object { $_.eventId -eq 8003 } }
+        default   { $result.data }
+    }
+
+    $output = "=== APPLOCKER EVENTS (Filter: $($script:EventFilter)) ===`n`nShowing $($filteredEvents.Count) of $($result.count) total events`n`n"
+    foreach ($evt in $filteredEvents) {
         $type = switch ($evt.eventId) {
             8002 { "ALLOWED" }
             8003 { "AUDIT" }
@@ -870,29 +1119,93 @@ $RefreshEventsBtn.Add_Click({
         $output += "[$($evt.time)] [$type] $($evt.message)`n`n"
     }
     $EventsOutput.Text = $output
+    Write-Log "Events refreshed: $($filteredEvents.Count) events displayed"
 })
 
 # Compliance events
 $GenerateEvidenceBtn.Add_Click({
+    Write-Log "Generating evidence package"
     $result = New-EvidenceFolder
     if ($result.success) {
         $ComplianceOutput.Text = "Evidence package created at:`n$($result.basePath)`n`nSub-folders:`n"
         foreach ($folder in $result.folders.GetEnumerator()) {
             $ComplianceOutput.Text += "  - $($folder.Key): $($folder.Value)`n"
         }
+        Write-Log "Evidence package created at: $($result.basePath)"
     } else {
         $ComplianceOutput.Text = "ERROR: $($result.error)"
+        Write-Log "Failed to create evidence package: $($result.error)" -Level "ERROR"
+    }
+})
+
+# Deployment events
+$CreateGP0Btn.Add_Click({
+    Write-Log "Create GPO button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        return
+    }
+    $DeploymentStatus.Text = "GPO creation requires Domain Admin privileges. In production, this would create a new GPO in the domain."
+    Write-Log "GPO creation initiated (domain mode)"
+})
+
+$LinkGP0Btn.Add_Click({
+    Write-Log "Link GPO button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("GPO linking requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        return
+    }
+    $DeploymentStatus.Text = "GPO linking requires Domain Admin privileges. In production, this would link the GPO to an OU."
+    Write-Log "GPO linking initiated (domain mode)"
+})
+
+# WinRM events
+$CreateWinRMGpoBtn.Add_Click({
+    Write-Log "Create WinRM GPO button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("WinRM GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        return
+    }
+
+    $WinRMOutput.Text = "=== WINRM GPO CREATION ===`n`nCreating WinRM GPO...`n`nThis will:`n  • Create 'Enable WinRM' GPO`n  • Link to domain root`n  • Configure WinRM service settings`n  • Enable firewall rules`n`nPlease wait..."
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $result = New-WinRMGpo
+
+    if ($result.success) {
+        $WinRMOutput.Text = "=== WINRM GPO CREATED ===`n`nSUCCESS: GPO created and linked`n`nGPO Name: $($result.gpoName)`n`nGPO ID: $($result.gpoId)`n`nLinked to: $($result.linkedTo)`n`nConfigured Settings:`n  • WinRM service: Auto-config enabled`n  • Unencrypted traffic: Disabled`n  • IPv4 filter: * (all addresses)`n  • Service startup: Automatic`n  • Firewall rules: Enabled`n`n`nThe GPO will be applied during the next Group Policy refresh (typically every 90 minutes).`n`nTo force immediate update: gpupdate /force"
+        Write-Log "WinRM GPO created successfully: $($result.gpoName)"
+        [System.Windows.MessageBox]::Show("WinRM GPO created successfully!`n`nGPO: $($result.gpoName)`n`nLinked to: $($result.linkedTo)", "Success", "OK", "Information")
+    } else {
+        $WinRMOutput.Text = "=== WINRM GPO CREATION FAILED ===`n`nERROR: $($result.error)`n`n`nPossible causes:`n  • Not running as Domain Admin`n  • Group Policy module not available`n  • Insufficient permissions`n`n`nPlease run as Domain Administrator and try again."
+        Write-Log "Failed to create WinRM GPO: $($result.error)" -Level "ERROR"
+        [System.Windows.MessageBox]::Show("Failed to create WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
     }
 })
 
 # WinRM events
 $FullWorkflowBtn.Add_Click({
-    $WinRMOutput.Text = "=== WINRM SETUP WORKFLOW ===`n`nStep 1: Detecting domain..."
-    $domainInfo = Get-ADDomain
-    $WinRMOutput.Text += "`n  Mode: $($domainInfo.dnsRoot)`n`nStep 2: WinRM GPO creation..."
-    $WinRMOutput.Text += "`n  NOTE: GPO creation requires Domain Admin privileges"
-    $WinRMOutput.Text += "`n`nIn production, this would:`n  • Create WinRM GPO`n  • Link to domain`n  • Enable GPO"
-    $WinRMOutput.Text += "`n`n=== SETUP COMPLETE ===`n`nWinRM is typically enabled by default on Windows Server."
+    Write-Log "Full WinRM workflow button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("WinRM GPO deployment requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        $WinRMOutput.Text = "=== WINRM SETUP (WORKGROUP MODE) ===`n`nWinRM GPO deployment is only available in domain mode.`n`nIn workgroup mode, you can:`n  • Manually enable WinRM on each machine`n  • Use: `Enable-PSRemoting -Force` in PowerShell`n  • Configure firewall rules manually"
+        return
+    }
+
+    $WinRMOutput.Text = "=== WINRM FULL WORKFLOW ===`n`nStep 1: Creating and linking WinRM GPO...`n`nPlease wait..."
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $result = New-WinRMGpo
+
+    if ($result.success) {
+        $WinRMOutput.Text = "=== WINRM SETUP COMPLETE ===`n`nSUCCESS: WinRM GPO deployed!`n`nWhat was done:`n`n1. Created GPO: $($result.gpoName)`n`n2. Linked to: $($result.linkedTo)`n`n3. Configured registry policies:`n   • WinRM Auto-Config: Enabled`n   • Unencrypted Traffic: Disabled`n   • IPv4 Filter: * (all)`n`n4. Service startup: Automatic`n`n5. Firewall rules: Enabled (Domain profile)`n`n`n=== NEXT STEPS ===`n`n1. Wait for Group Policy refresh (up to 90 min)`n   Or run: gpupdate /force`n`n2. Test WinRM: Test-WsMan -ComputerName <target>`n`n3. Enter-PSSession to test remote access`n`n`nGPO will apply to all computers in the domain."
+        Write-Log "Full WinRM workflow completed successfully"
+        [System.Windows.MessageBox]::Show("WinRM GPO deployed successfully!`n`nGPO: $($result.gpoName)`n`nThe GPO will apply during the next Group Policy refresh.", "Success", "OK", "Information")
+    } else {
+        $WinRMOutput.Text = "=== WINRM SETUP FAILED ===`n`nERROR: $($result.error)`n`n`nPlease ensure you are running as Domain Administrator."
+        Write-Log "Full WinRM workflow failed: $($result.error)" -Level "ERROR"
+        [System.Windows.MessageBox]::Show("Failed to deploy WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
+    }
 })
 
 # Other events
@@ -910,13 +1223,31 @@ $window.add_Loaded({
     $script:DomainInfo = Get-ADDomain
     $script:IsWorkgroup = $script:DomainInfo.isWorkgroup
 
+    Write-Log "Application started - Mode: $($script:DomainInfo.message)"
+
     # Update environment banner
     if ($script:IsWorkgroup) {
-        $EnvironmentText.Text = "⚠️  WORKGROUP MODE - Localhost scanning available | AD/GPO features disabled"
+        $EnvironmentText.Text = "WORKGROUP MODE - Localhost scanning available | AD/GPO features disabled"
         $EnvironmentBanner.Background = "#21262D" # BgCard
+
+        # Disable AD/GPO related buttons in workgroup mode
+        $CreateGP0Btn.IsEnabled = $false
+        $LinkGP0Btn.IsEnabled = $false
+        $CreateWinRMGpoBtn.IsEnabled = $false
+        $FullWorkflowBtn.IsEnabled = $false
+
+        Write-Log "Workgroup mode: Deployment and WinRM buttons disabled"
     } else {
-        $EnvironmentText.Text = "🌐 DOMAIN: $($script:DomainInfo.dnsRoot) | Full features available"
+        $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | Full features available"
         $EnvironmentBanner.Background = "#238636" # Green
+
+        # Enable all buttons in domain mode
+        $CreateGP0Btn.IsEnabled = $true
+        $LinkGP0Btn.IsEnabled = $true
+        $CreateWinRMGpoBtn.IsEnabled = $true
+        $FullWorkflowBtn.IsEnabled = $true
+
+        Write-Log "Domain mode: All features enabled"
     }
 
     # Load dashboard
