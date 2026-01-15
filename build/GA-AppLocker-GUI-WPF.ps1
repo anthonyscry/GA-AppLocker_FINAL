@@ -2157,6 +2157,7 @@ $xamlString = @"
                     </Border>
 
                     <!-- WinRM Buttons (disabled when not on DC) -->
+                    <!-- Main WinRM Buttons -->
                     <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -2165,7 +2166,7 @@ $xamlString = @"
                         </Grid.ColumnDefinitions>
 
                         <Button x:Name="CreateWinRMGpoBtn" Content="Create/Update WinRM GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
-                        <Button x:Name="FullWorkflowBtn" Content="Full Workflow" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                        <Button x:Name="ForceGPUpdateBtn" Content="Force GPUpdate (All Computers)" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
                     <!-- Enable/Disable GPO Buttons -->
@@ -2181,9 +2182,9 @@ $xamlString = @"
                     </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinMinHeight="200">
+                            CornerRadius="8" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock x:Name="WinRMOutput" Text="Click 'Full Workflow' to set up WinRM..."
+                            <TextBlock x:Name="WinRMOutput" Text="Create/Update WinRM GPO: Creates and links WinRM policy to domain.`nForce GPUpdate: Runs gpupdate /force on all domain computers via WinRM."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
@@ -2606,9 +2607,9 @@ $DeploymentStatus = $window.FindName("DeploymentStatus")
 $GenerateEvidenceBtn = $window.FindName("GenerateEvidenceBtn")
 $ComplianceOutput = $window.FindName("ComplianceOutput")
 $CreateWinRMGpoBtn = $window.FindName("CreateWinRMGpoBtn")
-$FullWorkflowBtn = $window.FindName("FullWorkflowBtn")
 $EnableWinRMGpoBtn = $window.FindName("EnableWinRMGpoBtn")
 $DisableWinRMGpoBtn = $window.FindName("DisableWinRMGpoBtn")
+$ForceGPUpdateBtn = $window.FindName("ForceGPUpdateBtn")
 $WinRMOutput = $window.FindName("WinRMOutput")
 
 # AD Discovery controls
@@ -3701,31 +3702,6 @@ $CreateWinRMGpoBtn.Add_Click({
     }
 })
 
-# WinRM events
-$FullWorkflowBtn.Add_Click({
-    Write-Log "Full WinRM workflow button clicked"
-    if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("WinRM GPO deployment requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
-        $WinRMOutput.Text = "=== WINRM SETUP (WORKGROUP MODE) ===`n`nWinRM GPO deployment is only available in domain mode.`n`nIn workgroup mode, you can:`n  • Manually enable WinRM on each machine`n  • Use: `Enable-PSRemoting -Force` in PowerShell`n  • Configure firewall rules manually"
-        return
-    }
-
-    $WinRMOutput.Text = "=== WINRM FULL WORKFLOW ===`n`nStep 1: Creating and linking WinRM GPO...`n`nPlease wait..."
-    [System.Windows.Forms.Application]::DoEvents()
-
-    $result = New-WinRMGpo
-
-    if ($result.success) {
-        $WinRMOutput.Text = "=== WINRM SETUP COMPLETE ===`n`nSUCCESS: WinRM GPO deployed!`n`nWhat was configured:`n`n1. GPO: $($result.gpoName)`n2. Linked to: $($result.linkedTo)`n`n3. WinRM Service Settings:`n   • Auto-config: Enabled`n   • IPv4/IPv6 Filters: * (all)`n   • Basic Authentication: Enabled`n   • Unencrypted Traffic: Disabled`n`n4. WinRM Client Settings:`n   • Basic Authentication: Enabled`n   • TrustedHosts: * (all hosts)`n   • Unencrypted Traffic: Disabled`n`n5. Service: Automatic startup`n`n6. Firewall Rules:`n   • HTTP (5985): Allowed`n   • HTTPS (5986): Allowed`n`n=== NEXT STEPS ===`n1. Run: gpupdate /force (or wait 90 min)`n2. Test: Test-WsMan -ComputerName <target>`n3. Connect: Enter-PSSession -ComputerName <target>"
-        Write-Log "Full WinRM workflow completed successfully"
-        [System.Windows.MessageBox]::Show("WinRM GPO deployed successfully!`n`nGPO: $($result.gpoName)`n`nThe GPO will apply during the next Group Policy refresh.", "Success", "OK", "Information")
-    } else {
-        $WinRMOutput.Text = "=== WINRM SETUP FAILED ===`n`nERROR: $($result.error)`n`nPlease ensure you are running as Domain Administrator."
-        Write-Log "Full WinRM workflow failed: $($result.error)" -Level "ERROR"
-        [System.Windows.MessageBox]::Show("Failed to deploy WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
-    }
-})
-
 # Enable/Disable WinRM GPO Link
 $EnableWinRMGpoBtn.Add_Click({
     Write-Log "Enable WinRM GPO button clicked"
@@ -3764,6 +3740,75 @@ $DisableWinRMGpoBtn.Add_Click({
             $WinRMOutput.Text = "ERROR: $($result.error)"
             [System.Windows.MessageBox]::Show("Failed to disable GPO link:`n$($result.error)", "Error", "OK", "Error")
         }
+    }
+})
+
+# Force GPUpdate on all domain computers
+$ForceGPUpdateBtn.Add_Click({
+    Write-Log "Force GPUpdate button clicked"
+    if ($script:IsWorkgroup -or -not $script:HasRSAT) {
+        [System.Windows.MessageBox]::Show("This feature requires domain membership and RSAT tools.", "Not Available", "OK", "Information")
+        return
+    }
+
+    $confirm = [System.Windows.MessageBox]::Show(
+        "This will run 'gpupdate /force' on all domain computers.`n`nThis requires:`n  • WinRM already enabled on target machines`n  • Administrative access to remote computers`n`nContinue?",
+        "Confirm Force GPUpdate",
+        "YesNo",
+        "Question"
+    )
+
+    if ($confirm -ne "Yes") { return }
+
+    $WinRMOutput.Text = "=== FORCE GPUPDATE ===`n`nGathering domain computers...`n"
+    [System.Windows.Forms.Application]::DoEvents()
+
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop
+
+        # Get all enabled Windows computers
+        $computers = Get-ADComputer -Filter "Enabled -eq 'True' -and OperatingSystem -like '*Windows*'" |
+                     Select-Object -ExpandProperty Name |
+                     Sort-Object
+
+        $WinRMOutput.Text += "Found $($computers.Count) computers.`n`nRunning gpupdate /force...`n`n"
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $successCount = 0
+        $failCount = 0
+        $results = @()
+
+        foreach ($computer in $computers) {
+            try {
+                $WinRMOutput.Text += "[$computer] Running gpupdate..."
+                [System.Windows.Forms.Application]::DoEvents()
+
+                # Use Invoke-Command to run gpupdate remotely
+                $result = Invoke-Command -ComputerName $computer -ScriptBlock {
+                    gpupdate /force 2>&1
+                } -ErrorAction Stop -AsJob | Wait-Job -Timeout 60 | Receive-Job
+
+                $successCount++
+                $results += "[$computer] SUCCESS"
+                $WinRMOutput.Text = $WinRMOutput.Text -replace "\[$computer\] Running gpupdate...", "[$computer] SUCCESS"
+            }
+            catch {
+                $failCount++
+                $results += "[$computer] FAILED: $($_.Exception.Message)"
+                $WinRMOutput.Text = $WinRMOutput.Text -replace "\[$computer\] Running gpupdate...", "[$computer] FAILED"
+            }
+            [System.Windows.Forms.Application]::DoEvents()
+        }
+
+        $WinRMOutput.Text += "`n`n=== SUMMARY ===`nSuccess: $successCount`nFailed: $failCount`nTotal: $($computers.Count)"
+
+        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount", "Complete", "OK", "Information")
+        Write-Log "Force GPUpdate completed: $successCount success, $failCount failed"
+    }
+    catch {
+        $WinRMOutput.Text = "=== ERROR ===`n`n$($_.Exception.Message)`n`nMake sure Active Directory module is available."
+        [System.Windows.MessageBox]::Show("Failed to run GPUpdate:`n$($_.Exception.Message)", "Error", "OK", "Error")
+        Write-Log "Force GPUpdate failed: $($_.Exception.Message)" -Level "ERROR"
     }
 })
 
@@ -4213,7 +4258,7 @@ $window.add_Loaded({
         $CreateGP0Btn.IsEnabled = $false
         $LinkGP0Btn.IsEnabled = $false
         $CreateWinRMGpoBtn.IsEnabled = $false
-        $FullWorkflowBtn.IsEnabled = $false
+                $ForceGPUpdateBtn.IsEnabled = $false
         $ExportGroupsBtn.IsEnabled = $false
         $ImportGroupsBtn.IsEnabled = $false
         $BootstrapAppLockerBtn.IsEnabled = $false
@@ -4229,7 +4274,7 @@ $window.add_Loaded({
         $CreateGP0Btn.IsEnabled = $false
         $LinkGP0Btn.IsEnabled = $false
         $CreateWinRMGpoBtn.IsEnabled = $false
-        $FullWorkflowBtn.IsEnabled = $false
+                $ForceGPUpdateBtn.IsEnabled = $false
         $ExportGroupsBtn.IsEnabled = $false
         $ImportGroupsBtn.IsEnabled = $false
         $BootstrapAppLockerBtn.IsEnabled = $false
