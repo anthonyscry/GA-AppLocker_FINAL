@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pwsh -Command:*)",
+      "Bash(powershell -Command \"Get-Module -ListAvailable PS2EXE | Select-Object Name, Version\")",
+      "Bash(powershell -Command:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Projects\\\\GA-AppLocker\" -Force)",
+      "Bash(Select-Object Name, Mode, LastWriteTime)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Projects\\\\GA-AppLocker\" -Filter \"*.ps1\")",
+      "Bash(Select-Object Name)",
+      "Bash(ls:*)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Projects\\\\GA-AppLocker\\\\assets\" -Force)",
+      "Bash(Select-Object Name, Length, LastWriteTime)",
+      "Bash(cat:*)",
+      "Bash(powershell -File:*)",
+      "Bash(findstr:*)",
+      "Bash(wc -l:*)",
+      "Bash(dir /s /b /ad)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:\\\\Projects\\\\GA-AppLocker'' -Directory | Select-Object -ExpandProperty Name\")",
+      "Bash(git add:*)",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path ''C:\\\\Projects\\\\GA-AppLocker\\\\build'' -File | Select-Object Name\")",
+      "Bash(powershell.exe -Command \"Remove-Item ''C:\\\\Projects\\\\GA-AppLocker\\\\GUI\\\\Start-AppLockerGUI.ps1'' -Force\")",
+      "Bash(powershell.exe:*)",
+      "Bash(dir:*)",
+      "Bash(git commit:*)",
+      "Bash(git config:*)",
+      "Bash(git push:*)",
+      "Bash(tree:*)",
+      "Bash(done)"
+    ]
+  }
+}

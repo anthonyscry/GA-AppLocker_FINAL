@@ -1,0 +1,90 @@
+#!/usr/bin/env pwsh
+<#
+.SYNOPSIS
+    Git pre-commit hook for GA-AppLocker
+.DESCRIPTION
+    Runs PSScriptAnalyzer on staged PowerShell files and blocks commit if errors found.
+    Also validates XAML files.
+#>
+
+$ErrorActionPreference = 'Stop'
+
+Write-Host "Running pre-commit checks..." -ForegroundColor Cyan
+
+# Get staged PowerShell files
+$stagedFiles = git diff --cached --name-only --diff-filter=ACM | Where-Object { $_ -match '\.(ps1|psm1|psd1)$' }
+
+if ($stagedFiles) {
+    Write-Host "`nChecking PowerShell files..." -ForegroundColor Yellow
+
+    # Check if PSScriptAnalyzer is available
+    $analyzer = Get-Module -ListAvailable PSScriptAnalyzer
+    if (-not $analyzer) {
+        Write-Host "[WARN] PSScriptAnalyzer not installed. Skipping lint check." -ForegroundColor Yellow
+        Write-Host "       Install with: Install-Module PSScriptAnalyzer -Scope CurrentUser" -ForegroundColor Gray
+    } else {
+        $hasErrors = $false
+
+        foreach ($file in $stagedFiles) {
+            if (Test-Path $file) {
+                $results = Invoke-ScriptAnalyzer -Path $file -Severity Error -ErrorAction SilentlyContinue
+
+                if ($results) {
+                    Write-Host "[FAIL] $file" -ForegroundColor Red
+                    foreach ($result in $results) {
+                        Write-Host "  Line $($result.Line): $($result.RuleName)" -ForegroundColor Red
+                        Write-Host "  $($result.Message)" -ForegroundColor Gray
+                    }
+                    $hasErrors = $true
+                } else {
+                    Write-Host "[PASS] $file" -ForegroundColor Green
+                }
+            }
+        }
+
+        if ($hasErrors) {
+            Write-Host "`nCommit blocked: PSScriptAnalyzer found errors." -ForegroundColor Red
+            Write-Host "Fix the errors above and try again." -ForegroundColor Yellow
+            exit 1
+        }
+    }
+}
+
+# Get staged XAML files
+$stagedXaml = git diff --cached --name-only --diff-filter=ACM | Where-Object { $_ -match '\.xaml$' }
+
+if ($stagedXaml) {
+    Write-Host "`nChecking XAML files..." -ForegroundColor Yellow
+
+    try {
+        Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
+    } catch {
+        Write-Host "[WARN] WPF not available. Skipping XAML validation." -ForegroundColor Yellow
+    }
+
+    $hasXamlErrors = $false
+
+    foreach ($file in $stagedXaml) {
+        if (Test-Path $file) {
+            try {
+                $content = Get-Content -Path $file -Raw
+                $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]::new($content))
+                $null = [System.Windows.Markup.XamlReader]::Load($reader)
+                $reader.Dispose()
+                Write-Host "[PASS] $file" -ForegroundColor Green
+            } catch {
+                Write-Host "[FAIL] $file" -ForegroundColor Red
+                Write-Host "  $($_.Exception.Message)" -ForegroundColor Gray
+                $hasXamlErrors = $true
+            }
+        }
+    }
+
+    if ($hasXamlErrors) {
+        Write-Host "`nCommit blocked: XAML validation failed." -ForegroundColor Red
+        exit 1
+    }
+}
+
+Write-Host "`nAll pre-commit checks passed!" -ForegroundColor Green
+exit 0
