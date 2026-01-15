@@ -4779,11 +4779,25 @@ $ForceGPUpdateBtn.Add_Click({
 
         $successCount = 0
         $failCount = 0
+        $skippedCount = 0
         $results = @()
 
         foreach ($computer in $computers) {
+            # Quick ping check first - skip offline machines
+            $WinRMOutput.Text += "[$computer] Checking..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $pingResult = Test-Connection -ComputerName $computer -Count 1 -Quiet -ErrorAction SilentlyContinue
+            if (-not $pingResult) {
+                $skippedCount++
+                $results += "[$computer] OFFLINE"
+                $WinRMOutput.Text = $WinRMOutput.Text -replace "\[$computer\] Checking...", "[$computer] OFFLINE (skipped)"
+                [System.Windows.Forms.Application]::DoEvents()
+                continue
+            }
+
             try {
-                $WinRMOutput.Text += "[$computer] Running gpupdate..."
+                $WinRMOutput.Text = $WinRMOutput.Text -replace "\[$computer\] Checking...", "[$computer] Running gpupdate..."
                 [System.Windows.Forms.Application]::DoEvents()
 
                 # Use Invoke-Command to run gpupdate remotely
@@ -4803,9 +4817,9 @@ $ForceGPUpdateBtn.Add_Click({
             [System.Windows.Forms.Application]::DoEvents()
         }
 
-        $WinRMOutput.Text += "`n`n=== SUMMARY ===`nSuccess: $successCount`nFailed: $failCount`nTotal: $($computers.Count)"
+        $WinRMOutput.Text += "`n`n=== SUMMARY ===`nSuccess: $successCount`nFailed: $failCount`nOffline/Skipped: $skippedCount`nTotal: $($computers.Count)"
 
-        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount", "Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount`nOffline/Skipped: $skippedCount", "Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         Write-Log "Force GPUpdate completed: $successCount success, $failCount failed"
     }
     catch {
