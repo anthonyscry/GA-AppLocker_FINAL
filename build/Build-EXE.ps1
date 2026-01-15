@@ -108,8 +108,8 @@ if (-not (Get-Module -ListAvailable -Name ps2exe)) {
     Install-Module -Name ps2exe -Force -Scope CurrentUser
 }
 
-# Use the standalone GUI script as input (self-contained, no external dependencies)
-$guiScriptPath = ".\build\GA-AppLocker-GUI-Full.ps1"
+# Use the WPF GUI script as input (modern GitHub-style interface)
+$guiScriptPath = ".\build\GA-AppLocker-GUI-WPF.ps1"
 
 if (-not (Test-Path $guiScriptPath)) {
     throw "GUI script not found at: $guiScriptPath"
