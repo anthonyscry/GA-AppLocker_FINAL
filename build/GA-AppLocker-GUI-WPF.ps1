@@ -240,6 +240,15 @@ function New-WinRMGpo {
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\Services\WinRM" -ValueName "Enabled" -Type DWord -Value 1 -ErrorAction Stop
         Write-Log "WinRM firewall rules configured"
 
+        # 5. Set Domain Admins as owner with full control so they can delete/modify the GPO
+        try {
+            Set-GPPermission -Name $GpoName -PermissionLevel GpoEditDeleteModifySecurity -TargetName "Domain Admins" -TargetType Group -Replace -ErrorAction Stop
+            Write-Log "Set Domain Admins as owner of GPO: $GpoName"
+        }
+        catch {
+            Write-Log "Failed to set GPO permissions (GPO still created): $($_.Exception.Message)" -Level "WARN"
+        }
+
         return @{
             success = $true
             gpoName = $GpoName
@@ -528,6 +537,44 @@ function Import-ADGroupMembership {
 }
 
 # Module 9: AppLocker Setup Functions
+
+# Helper function to set Domain Admins as owner of AD objects
+function Set-ADObjectOwner {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$DistinguishedName,
+        [string]$OwnerGroup = "Domain Admins"
+    )
+
+    try {
+        # Get the AD object
+        $adObject = [ADSI]"LDAP://$DistinguishedName"
+
+        # Get the Domain Admins SID
+        $domainAdminsSID = (Get-ADGroup $OwnerGroup -ErrorAction Stop).SID
+
+        # Create security identifier
+        $identity = New-Object System.Security.Principal.SecurityIdentifier($domainAdminsSID)
+
+        # Get current ACL
+        $acl = $adObject.ObjectSecurity
+
+        # Set owner to Domain Admins
+        $acl.SetOwner($identity)
+
+        # Apply the modified ACL
+        $adObject.ObjectSecurity = $acl
+        $adObject.CommitChanges()
+
+        Write-Log "Set owner of '$DistinguishedName' to $OwnerGroup"
+        return $true
+    }
+    catch {
+        Write-Log "Failed to set owner on '$DistinguishedName': $($_.Exception.Message)" -Level "WARN"
+        return $false
+    }
+}
+
 function Initialize-AppLockerStructure {
     param(
         [string]$OUName = "AppLocker",
@@ -573,6 +620,11 @@ function Initialize-AppLockerStructure {
             New-ADOrganizationalUnit -Name $OUName -Path $DomainDN -ProtectedFromAccidentalDeletion $true -ErrorAction Stop | Out-Null
             $output += "[CREATED] OU: $OUDN`n"
             Write-Log "Created OU: $OUDN"
+
+            # Set Domain Admins as owner so they can manage/delete the OU
+            if (Set-ADObjectOwner -DistinguishedName $OUDN) {
+                $output += "[OWNER] Set Domain Admins as owner of OU`n"
+            }
         }
         else {
             $output += "[EXISTS] OU: $OUDN`n"
@@ -596,6 +648,12 @@ function Initialize-AppLockerStructure {
                 $output += "[CREATED] Group: $Group`n"
                 $groupsCreated++
                 Write-Log "Created group: $Group"
+
+                # Set Domain Admins as owner so they can manage/delete the group
+                $groupDN = "CN=$Group,$OUDN"
+                if (Set-ADObjectOwner -DistinguishedName $groupDN) {
+                    $output += "[OWNER] Set Domain Admins as owner of $Group`n"
+                }
             }
             else {
                 $output += "[EXISTS] Group: $Group`n"
