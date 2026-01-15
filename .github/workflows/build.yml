@@ -69,13 +69,7 @@ jobs:
         with:
           name: pester-results
           path: pester-results.xml
-
-      - name: Publish Test Results
-        if: always()
-        uses: EnricoMi/publish-unit-test-result-action@v2
-        with:
-          files: pester-results.xml
-          check_name: Pester Test Results
+          retention-days: 30
 
   build:
     name: Build Portable Package
