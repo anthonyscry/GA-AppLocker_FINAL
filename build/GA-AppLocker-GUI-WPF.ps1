@@ -2045,18 +2045,58 @@ $xamlString = @"
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Comparison Results" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="200">
-                                <DataGrid x:Name="GapAnalysisGrid" Background="#0D1117" Foreground="#E6EDF3"
-                                           BorderThickness="0" FontSize="11" FontFamily="Consolas"
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="250">
+                                <DataGrid x:Name="GapAnalysisGrid" Background="#161B22" Foreground="#E6EDF3"
+                                           BorderThickness="1" BorderBrush="#30363D" FontSize="11" FontFamily="Consolas"
                                            GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                                            AutoGenerateColumns="False" IsReadOnly="True"
-                                           CanUserAddRows="False" CanUserDeleteRows="False">
+                                           CanUserAddRows="False" CanUserDeleteRows="False"
+                                           RowBackground="#161B22" AlternatingRowBackground="#1C2128"
+                                           HorizontalGridLinesBrush="#30363D">
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#21262D"/>
+                                            <Setter Property="Foreground" Value="#E6EDF3"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Padding" Value="8,6"/>
+                                            <Setter Property="BorderBrush" Value="#30363D"/>
+                                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Padding" Value="6,4"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Foreground" Value="#E6EDF3"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#388BFD"/>
+                                                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.CellStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Software Name" Binding="{Binding Name}" Width="200"/>
-                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="100"/>
+                                        <DataGridTextColumn Header="Software Name" Binding="{Binding Name}" Width="200">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="100">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
                                         <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
+                                                    <Setter Property="Padding" Value="4,2"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding Status}" Value="Missing in Target">
                                                             <Setter Property="Foreground" Value="#F85149"/>
@@ -2072,13 +2112,28 @@ $xamlString = @"
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Match">
                                                             <Setter Property="Foreground" Value="#3FB950"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTextColumn Header="Baseline Version" Binding="{Binding BaselineVersion}" Width="100"/>
-                                        <DataGridTextColumn Header="Target Version" Binding="{Binding TargetVersion}" Width="100"/>
+                                        <DataGridTextColumn Header="Baseline Ver" Binding="{Binding BaselineVersion}" Width="100">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Target Ver" Binding="{Binding TargetVersion}" Width="100">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </ScrollViewer>
@@ -2219,7 +2274,7 @@ $xamlString = @"
 
                     <!-- Rules Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" MinHeight="180">
+                            CornerRadius="6" Padding="10" MinHeight="180" MaxHeight="350">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
                                        FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
@@ -2277,7 +2332,7 @@ $xamlString = @"
 
                     <!-- Events Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" MinHeight="200">
+                            CornerRadius="6" Padding="10" MinHeight="200" MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="EventsOutput"
                                        Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first."
@@ -2422,7 +2477,7 @@ $xamlString = @"
                     </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200">
+                            CornerRadius="8" Padding="15" MinHeight="200" MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="WinRMOutput" Text="Create/Update WinRM GPO to enable remote management. Force GPUpdate to push to all computers."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2472,17 +2527,17 @@ $xamlString = @"
 
                     <!-- Discovered Computers List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="8" Height="80">
+                            CornerRadius="6" Padding="8" Height="150">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Discovered Computers" FontSize="10" FontWeight="Bold"
+                            <TextBlock Grid.Row="0" Text="Discovered Computers (Ctrl+Click to multi-select)" FontSize="10" FontWeight="Bold"
                                        Foreground="#8B949E" Margin="0,0,0,4"/>
                             <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
                                      Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
-                                     SelectionMode="Multiple"/>
+                                     SelectionMode="Extended"/>
                         </Grid>
                     </Border>
 
@@ -2635,7 +2690,7 @@ $xamlString = @"
 
                     <!-- Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200">
+                            CornerRadius="8" Padding="15" MinHeight="200" MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="AppLockerSetupOutput" Text="Click 'Initialize' to create AppLocker structure..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -3626,23 +3681,24 @@ $ComprehensiveScanBtn.Add_Click({
     if ($result.success) {
         $ArtifactsList.Items.Add("=== COMPREHENSIVE SCAN COMPLETE ===")
         $ArtifactsList.Items.Add("")
-        $ArtifactsList.Items.Add("Output Folder: $($result.outputPath)")
+        $ArtifactsList.Items.Add("Output Folder: $($result.scanFolder)")
         $ArtifactsList.Items.Add("Computer: $($result.computerName)")
-        $ArtifactsList.Items.Add("Scan Time: $($result.scanTime)")
+        $ArtifactsList.Items.Add("Duration: $($result.duration) seconds")
         $ArtifactsList.Items.Add("")
         $ArtifactsList.Items.Add("=== ARTIFACTS CREATED ===")
-        foreach ($file in $result.files) {
-            $ArtifactsList.Items.Add("  $file")
+        foreach ($key in $result.files.Keys) {
+            $ArtifactsList.Items.Add("  $key.csv")
         }
         $ArtifactsList.Items.Add("")
         $ArtifactsList.Items.Add("=== COUNTS ===")
-        $ArtifactsList.Items.Add("  Executables: $($result.executableCount)")
-        $ArtifactsList.Items.Add("  Publishers: $($result.publisherCount)")
-        $ArtifactsList.Items.Add("  Installed Software: $($result.softwareCount)")
-        $ArtifactsList.Items.Add("  Running Processes: $($result.processCount)")
-        $ArtifactsList.Items.Add("  Writable Directories: $($result.writableDirCount)")
+        $ArtifactsList.Items.Add("  Executables: $($result.stats.Executables)")
+        $ArtifactsList.Items.Add("  Publishers: $($result.stats.Publishers)")
+        $ArtifactsList.Items.Add("  Installed Software: $($result.stats.InstalledSoftware)")
+        $ArtifactsList.Items.Add("  Running Processes: $($result.stats.RunningProcesses)")
+        $ArtifactsList.Items.Add("  Writable Directories: $($result.stats.WritableDirectories)")
 
-        [System.Windows.MessageBox]::Show("Comprehensive scan complete!`n`nArtifacts saved to:`n$($result.outputPath)`n`nFiles created:`n$($result.files -join "`n")", "Scan Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        $fileList = ($result.files.Keys | ForEach-Object { "$_.csv" }) -join "`n"
+        [System.Windows.MessageBox]::Show("Comprehensive scan complete!`n`nArtifacts saved to:`n$($result.scanFolder)`n`nFiles created:`n$fileList", "Scan Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $ArtifactsList.Items.Add("ERROR: $($result.error)")
         [System.Windows.MessageBox]::Show("Scan failed: $($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
@@ -3672,6 +3728,7 @@ $ImportFolderBtn.Add_Click({
     Write-Log "Import folder (recursive) clicked"
     $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $folderDialog.Description = "Select folder containing artifact CSV files (will search recursively)"
+    $folderDialog.SelectedPath = "C:\GA-AppLocker\Scans"
 
     if ($folderDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $folderPath = $folderDialog.SelectedPath
@@ -4959,6 +5016,7 @@ $window.add_Loaded({
         # Domain-joined but no RSAT - limited features
         $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | RSAT not installed - Install RSAT for GPO features"
         $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D29922")
+        $EnvironmentText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#000000")
 
         # Disable GPO-related buttons (need RSAT)
         $CreateGP0Btn.IsEnabled = $false
