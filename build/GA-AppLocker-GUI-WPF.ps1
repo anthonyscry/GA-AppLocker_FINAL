@@ -1819,6 +1819,40 @@ $xamlString = @"
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Global ComboBox Style for Dark Theme -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#21262D"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="BorderBrush" Value="#30363D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Style.Resources>
+                <!-- Fix selection colors in dropdown -->
+                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#21262D"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#388BFD"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#E6EDF3"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#30363D"/>
+                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#E6EDF3"/>
+            </Style.Resources>
+        </Style>
+
+        <!-- Global ComboBoxItem Style for Dark Theme -->
+        <Style TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="#21262D"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#388BFD"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#238636"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -2050,8 +2084,9 @@ $xamlString = @"
                             <ComboBoxItem Content="All Systems" IsSelected="True"/>
                         </ComboBox>
 
-                        <Button x:Name="RefreshDashboardBtn" Content="Refresh"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="4" Width="80" Height="26"/>
+                        <Button x:Name="RefreshDashboardBtn" Content="↻"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="4" Width="30" Height="26"
+                                FontSize="16" Padding="0" ToolTip="Refresh Dashboard"/>
                     </Grid>
 
                     <!-- Output Area -->
@@ -2188,7 +2223,7 @@ $xamlString = @"
                                         </Style>
                                     </DataGrid.CellStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Software Name" Binding="{Binding Name}" Width="200">
+                                        <DataGridTextColumn Header="Software Name" Binding="{Binding Name}" Width="*">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="#E6EDF3"/>
@@ -2196,15 +2231,7 @@ $xamlString = @"
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="100">
-                                            <DataGridTextColumn.ElementStyle>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="#8B949E"/>
-                                                    <Setter Property="Padding" Value="4,2"/>
-                                                </Style>
-                                            </DataGridTextColumn.ElementStyle>
-                                        </DataGridTextColumn>
-                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120">
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Padding" Value="4,2"/>
@@ -2229,7 +2256,7 @@ $xamlString = @"
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTextColumn Header="Baseline Ver" Binding="{Binding BaselineVersion}" Width="100">
+                                        <DataGridTextColumn Header="Baseline" Binding="{Binding BaselineVersion}" Width="80">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="#8B949E"/>
@@ -2237,7 +2264,7 @@ $xamlString = @"
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTextColumn Header="Target Ver" Binding="{Binding TargetVersion}" Width="100">
+                                        <DataGridTextColumn Header="Target" Binding="{Binding TargetVersion}" Width="80">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
                                                     <Setter Property="Foreground" Value="#8B949E"/>
@@ -2314,10 +2341,13 @@ $xamlString = @"
                         <!-- Rule Type -->
                         <TextBlock Text="Type:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
                         <StackPanel Orientation="Horizontal" Grid.Column="1">
-                            <RadioButton x:Name="RuleTypePublisher" Content="Publisher" IsChecked="True"
-                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                            <RadioButton x:Name="RuleTypeAuto" Content="Auto" IsChecked="True"
+                                         Foreground="#58A6FF" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"
+                                         ToolTip="Publisher for signed, Hash for unsigned"/>
+                            <RadioButton x:Name="RuleTypePublisher" Content="Publisher"
+                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
                             <RadioButton x:Name="RuleTypeHash" Content="Hash"
-                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
+                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
                             <RadioButton x:Name="RuleTypePath" Content="Path"
                                          Foreground="#E6EDF3" FontSize="11" VerticalContentAlignment="Center"/>
                         </StackPanel>
@@ -2483,7 +2513,7 @@ $xamlString = @"
                         </Grid.ColumnDefinitions>
 
                         <Button x:Name="CreateGP0Btn" Content="Create GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
-                        <Button x:Name="LinkGP0Btn" Content="Link GPO to Domain" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                        <Button x:Name="DisableGpoBtn" Content="Disable AppLocker GPO" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
                     </Grid>
 
                     <!-- Import/Export Rules Buttons -->
@@ -2841,12 +2871,12 @@ $xamlString = @"
                         </StackPanel>
                     </Border>
 
-                    <!-- Output -->
+                    <!-- Output - Fixed height with scrolling -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200" MaxHeight="400">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            CornerRadius="8" Padding="15" Height="280">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="AppLockerSetupOutput" Text="Click 'Initialize' to create AppLocker structure..."
-                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
@@ -3050,6 +3080,7 @@ $ScanLocalBtn = $window.FindName("ScanLocalBtn")
 $ExportArtifactsBtn = $window.FindName("ExportArtifactsBtn")
 $ComprehensiveScanBtn = $window.FindName("ComprehensiveScanBtn")
 $ArtifactsList = $window.FindName("ArtifactsList")
+$RuleTypeAuto = $window.FindName("RuleTypeAuto")
 $RuleTypePublisher = $window.FindName("RuleTypePublisher")
 $RuleTypeHash = $window.FindName("RuleTypeHash")
 $RuleTypePath = $window.FindName("RuleTypePath")
@@ -3077,7 +3108,7 @@ $FilterAuditBtn = $window.FindName("FilterAuditBtn")
 $RefreshEventsBtn = $window.FindName("RefreshEventsBtn")
 $EventsOutput = $window.FindName("EventsOutput")
 $CreateGP0Btn = $window.FindName("CreateGP0Btn")
-$LinkGP0Btn = $window.FindName("LinkGP0Btn")
+$DisableGpoBtn = $window.FindName("DisableGpoBtn")
 $DeploymentStatus = $window.FindName("DeploymentStatus")
 $GenerateEvidenceBtn = $window.FindName("GenerateEvidenceBtn")
 $ComplianceOutput = $window.FindName("ComplianceOutput")
@@ -3254,62 +3285,79 @@ function Get-HelpContent {
 
 Phase 1: SETUP
 1. AppLocker Setup - Initialize AD structure
-   • Creates AppLocker OU and groups
-   • Auto-populates Domain Admins to AppLocker-Admin
-   • Generates starter policy in audit mode
+   • Creates AppLocker OU and groups:
+     - AppLocker-Admins, AppLocker-StandardUsers
+     - AppLocker-Service-Accounts, AppLocker-Installers
+   • Sets Domain Admins as owner (for deletion)
+   • Click 'Remove OU Protection' if needed
 
 2. Group Management - Configure AD groups
-   • Export current group membership
+   • Export current group membership to CSV
    • Edit CSV to add/remove members
-   • Import changes (dry-run first, then apply)
+   • Import changes (preview first, then apply)
 
 3. AD Discovery - Find target computers
-   • Discover computers by OU
-   • Test connectivity
-   • Select hosts for scanning
+   • Auto-pings discovered computers
+   • Shows Online/Offline in separate lists
+   • Select only online hosts for scanning
 
 Phase 2: SCANNING
 4. Artifacts - Collect executable inventory
-   • Scan local or remote computers
-   • Collect publisher, hash, path info
-   • Export to CSV for review
+   • Scan Localhost - Quick local scan
+   • Comprehensive Scan - AaronLocker-style scan creates:
+     Executables.csv, Publishers.csv, InstalledSoftware.csv
+     RunningProcesses.csv, WritableDirectories.csv
+   • Output saved to C:\GA-AppLocker\Scans\
 
 5. Rule Generator - Create AppLocker rules
-   • Import artifacts from scan
-   • Generate Publisher rules (preferred)
-   • Generate Hash rules (fallback)
-   • Export rules for GPO deployment
+   • Import Artifact - Imports any CSV (scans or events)
+   • Import Folder - Recursively imports all CSVs
+
+   Rule Types:
+   • Auto (Recommended) - Publisher for signed, Hash for unsigned
+   • Publisher - Uses code signing certificate
+   • Hash - SHA256 hash (breaks on updates)
+   • Path - File path (least secure)
+
+   • Select Allow/Deny and target AppLocker group
+   • Default Deny Rules - Block TEMP, Downloads, AppData
 
 Phase 3: DEPLOYMENT
 6. Deployment - Deploy policies via GPO
-   • Create GPO with AppLocker policy
-   • Link to target OUs
-   • Start in Audit mode
-   • Monitor for 7-14 days
+   • Create GPO - Creates and links AppLocker GPO
+   • Disable GPO - Disables policy (doesn't delete)
+   • Export Rules - Save to C:\GA-AppLocker\Rules\
+   • Import Rules - Load existing AppLocker XML
 
 7. WinRM Setup - Enable remote management
-   • Create WinRM GPO
-   • Configure firewall rules
-   • Test remote connectivity
+   • Creates WinRM GPO with:
+     - Service auto-config, Basic auth, TrustedHosts *
+     - Firewall rules for ports 5985/5986
+   • Force GPUpdate - Push policy to all computers
+   • Enable/Disable GPO Link
 
 Phase 4: MONITORING
 8. Events - Monitor AppLocker events
-   • Filter by Allowed/Blocked/Audit
-   • Review false positives
-   • Export events for analysis
+   • Scan Local/Remote for AppLocker events
+   • Filter by Allowed (8002) / Audit (8003) / Blocked (8004)
+   • Export to CSV for analysis
+   • Import events into Rule Generator
 
-9. Compliance - Generate evidence packages
-   • Collect policies and events
-   • Create audit artifacts
-   • Document compliance status
+9. Dashboard - Overview and statistics
+   • Policy Health Score
+   • Event counts from C:\GA-AppLocker\Events\
+   • Filter by time range (7/30 days)
+   • Filter by computer system
+
+10. Compliance - Generate evidence packages
+    • Creates timestamped folder with policies and events
+    • Ready for audit documentation
 
 BEST PRACTICES:
-• Always start in Audit mode
-• Use Publisher rules first
-• Use Hash rules only for unsigned files
-• Avoid Path rules except for exceptions
-• Create deny rules for user-writable paths
-• Test in pilot group before full deployment
+• Always start in Audit mode (Event ID 8003)
+• Use Auto rule type (Publisher for signed, Hash for unsigned)
+• Add Default Deny Rules for bypass locations
+• Monitor events for 7-14 days before enforcing
 • Maintain break-glass admin access
 "@
         }
@@ -4531,7 +4579,9 @@ $GenerateRulesBtn.Add_Click({
         return
     }
 
-    $ruleType = if ($RuleTypePublisher.IsChecked) { "Publisher" }
+    # Determine rule type selection
+    $ruleType = if ($RuleTypeAuto.IsChecked) { "Automated" }
+                elseif ($RuleTypePublisher.IsChecked) { "Publisher" }
                 elseif ($RuleTypeHash.IsChecked) { "Hash" }
                 else { "Path" }
 
@@ -4539,23 +4589,140 @@ $GenerateRulesBtn.Add_Click({
     $sid = Get-SelectedSid
 
     $selectedGroup = $RuleGroupCombo.SelectedItem.Content
-    $RulesOutput.Text = "Generating $action $ruleType rules for $selectedGroup...`nProcessing $($script:CollectedArtifacts.Count) artifacts..."
+    $RulesOutput.Text = "Generating rules ($ruleType mode)...`nProcessing $($script:CollectedArtifacts.Count) artifacts...`n"
+    [System.Windows.Forms.Application]::DoEvents()
 
-    $result = New-RulesFromArtifacts -Artifacts $script:CollectedArtifacts -RuleType $ruleType -Action $action -UserOrGroupSid $sid
+    $script:GeneratedRules = @()
+    $publisherCount = 0
+    $hashCount = 0
+    $pathCount = 0
+    $skippedCount = 0
 
-    $script:GeneratedRules = $result.rules
+    $output = "=== RULE GENERATION ===`n"
+    $output += "Mode: $ruleType | Action: $action | Group: $selectedGroup`n"
+    $output += "Processing $($script:CollectedArtifacts.Count) artifacts...`n`n"
 
-    $output = "=== GENERATED $($result.count) $ruleType RULES ===`n"
-    $output += "Action: $action | Applied To: $selectedGroup`n"
-    $output += "SID: $sid`n`n"
+    foreach ($artifact in $script:CollectedArtifacts) {
+        # Get file info from various possible column names
+        $filePath = $artifact.FullPath
+        if (-not $filePath) { $filePath = $artifact.Path }
+        if (-not $filePath) { $filePath = $artifact.FilePath }
 
-    foreach ($rule in $result.rules) {
-        $output += "[$($rule.type)] $($rule.publisher)`n"
+        $fileName = $artifact.FileName
+        if (-not $fileName) { $fileName = $artifact.Name }
+        if (-not $fileName -and $filePath) { $fileName = [System.IO.Path]::GetFileName($filePath) }
+
+        $publisher = $artifact.Publisher
+        if (-not $publisher) { $publisher = $artifact.Vendor }
+        if (-not $publisher) { $publisher = $artifact.Company }
+        if (-not $publisher) { $publisher = $artifact.Signer }
+
+        $hash = $artifact.Hash
+        if (-not $hash) { $hash = $artifact.SHA256 }
+
+        # Skip if no useful data
+        if (-not $fileName -and -not $filePath -and -not $publisher) {
+            $skippedCount++
+            continue
+        }
+
+        # Determine rule type for this artifact
+        $thisRuleType = $ruleType
+        if ($ruleType -eq "Automated") {
+            # Best practice: Use Publisher if signed, Hash if not
+            if ($publisher -and $publisher -ne "Unknown" -and $publisher -ne "" -and $publisher -ne "(none)") {
+                $thisRuleType = "Publisher"
+            } else {
+                $thisRuleType = "Hash"
+            }
+        }
+
+        # Create the rule
+        $ruleResult = $null
+        $displayName = if ($fileName) { $fileName } elseif ($filePath) { [System.IO.Path]::GetFileName($filePath) } else { "Unknown" }
+        $displayPath = if ($filePath) { $filePath } else { "(no path)" }
+
+        switch ($thisRuleType) {
+            "Publisher" {
+                if ($publisher -and $publisher -ne "Unknown" -and $publisher -ne "") {
+                    $ruleResult = New-PublisherRule -PublisherName $publisher -Action $action -UserOrGroupSid $sid
+                    if ($ruleResult.success) {
+                        $output += "[PUB] $displayName`n"
+                        $output += "      Publisher: $publisher`n"
+                        $output += "      Path: $displayPath`n`n"
+                        $publisherCount++
+                    }
+                } else {
+                    # No publisher, fallback to hash in auto mode
+                    if ($ruleType -eq "Automated" -and $filePath -and (Test-Path $filePath -ErrorAction SilentlyContinue)) {
+                        $ruleResult = New-HashRule -FilePath $filePath -Action $action -UserOrGroupSid $sid
+                        if ($ruleResult.success) {
+                            $output += "[HASH] $displayName`n"
+                            $output += "       Hash: $($ruleResult.hash)`n"
+                            $output += "       Path: $displayPath`n`n"
+                            $hashCount++
+                        }
+                    } else {
+                        $output += "[SKIP] $displayName - No publisher and file not accessible`n"
+                        $skippedCount++
+                    }
+                }
+            }
+            "Hash" {
+                if ($filePath -and (Test-Path $filePath -ErrorAction SilentlyContinue)) {
+                    $ruleResult = New-HashRule -FilePath $filePath -Action $action -UserOrGroupSid $sid
+                    if ($ruleResult.success) {
+                        $output += "[HASH] $displayName`n"
+                        $output += "       Hash: $($ruleResult.hash)`n"
+                        $output += "       Path: $displayPath`n`n"
+                        $hashCount++
+                    }
+                } elseif ($hash) {
+                    # Use pre-computed hash from artifact
+                    $guid = "{" + (New-Guid).ToString() + "}"
+                    $xml = "<FileHashRule Id=`"$guid`" Name=`"$displayName`" UserOrGroupSid=`"$sid`" Action=`"$action`"><Conditions><FileHashCondition SourceFileName=`"$displayName`" SourceFileHash=`"$hash`" Type=`"SHA256`" /></Conditions></FileHashRule>"
+                    $ruleResult = @{ success = $true; id = $guid; type = "Hash"; hash = $hash; fileName = $displayName; xml = $xml }
+                    $output += "[HASH] $displayName`n"
+                    $output += "       Hash: $hash`n"
+                    $output += "       Path: $displayPath`n`n"
+                    $hashCount++
+                } else {
+                    $output += "[SKIP] $displayName - File not accessible for hashing`n"
+                    $skippedCount++
+                }
+            }
+            "Path" {
+                if ($filePath) {
+                    $ruleResult = New-PathRule -FilePath $filePath -Action $action -UserOrGroupSid $sid
+                    if ($ruleResult.success) {
+                        $output += "[PATH] $displayName`n"
+                        $output += "       Path: $displayPath`n`n"
+                        $pathCount++
+                    }
+                } else {
+                    $output += "[SKIP] $displayName - No path available`n"
+                    $skippedCount++
+                }
+            }
+        }
+
+        if ($ruleResult -and $ruleResult.success) {
+            $script:GeneratedRules += $ruleResult
+        }
     }
 
+    $totalRules = $publisherCount + $hashCount + $pathCount
+    $output += "`n=== SUMMARY ===`n"
+    $output += "Total Rules: $totalRules`n"
+    $output += "  Publisher: $publisherCount`n"
+    $output += "  Hash: $hashCount`n"
+    $output += "  Path: $pathCount`n"
+    $output += "  Skipped: $skippedCount`n"
     $output += "`n--- Use 'Export Rules' in Deployment to save ---"
+
     $RulesOutput.Text = $output
-    Write-Log "Generated $($result.count) $ruleType rules with Action=$action, SID=$sid"
+    Write-Log "Generated $totalRules rules (Pub=$publisherCount, Hash=$hashCount, Path=$pathCount) with Action=$action"
+    Write-OutputLog "Rule Generation" $output
 })
 
 # Events filters
@@ -4887,8 +5054,8 @@ $CreateGP0Btn.Add_Click({
             $DeploymentStatus.Text = "SUCCESS: AppLocker GPO created!`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nNext Steps:`n1. Export rules from Rule Generator`n2. Import rules to GPO via Group Policy Management`n3. Set enforcement mode (start with Audit)`n4. Monitor events before enforcing"
             [System.Windows.MessageBox]::Show("AppLocker GPO created successfully!`n`nGPO: $($result.gpoName)`nLinked to: $($result.linkedTo)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
-            $DeploymentStatus.Text = "GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs."
-            [System.Windows.MessageBox]::Show("GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs.", "GPO Exists", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            $DeploymentStatus.Text = "GPO '$($result.gpoName)' already exists.`n`nUse GPMC to manage GPO links."
+            [System.Windows.MessageBox]::Show("GPO '$($result.gpoName)' already exists.`n`nUse GPMC to manage GPO links.", "GPO Exists", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         }
         Write-Log "AppLocker GPO created/found: $($result.gpoName)"
     } else {
@@ -4898,12 +5065,21 @@ $CreateGP0Btn.Add_Click({
     }
 })
 
-$LinkGP0Btn.Add_Click({
-    Write-Log "Link GPO button clicked"
+$DisableGpoBtn.Add_Click({
+    Write-Log "Disable GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("GPO linking requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        [System.Windows.MessageBox]::Show("GPO management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
+
+    $confirm = [System.Windows.MessageBox]::Show(
+        "This will disable the AppLocker GPO link, which stops the policy from applying.`n`nThe GPO will not be deleted, just disabled.`n`nContinue?",
+        "Confirm Disable GPO",
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Warning
+    )
+
+    if ($confirm -ne [System.Windows.MessageBoxResult]::Yes) { return }
 
     try {
         Import-Module GroupPolicy -ErrorAction Stop
@@ -4916,27 +5092,27 @@ $LinkGP0Btn.Add_Click({
         # Check if AppLocker GPO exists
         $gpo = Get-GPO -Name "AppLocker Policy" -ErrorAction SilentlyContinue
         if (-not $gpo) {
-            [System.Windows.MessageBox]::Show("AppLocker GPO not found. Please create it first using 'Create GPO'.", "GPO Not Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-            $DeploymentStatus.Text = "ERROR: AppLocker GPO not found.`n`nPlease create it first using the 'Create GPO' button."
+            [System.Windows.MessageBox]::Show("AppLocker GPO not found.", "GPO Not Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+            $DeploymentStatus.Text = "INFO: AppLocker GPO not found - nothing to disable."
             return
         }
 
-        # Link to domain root
-        $existingLink = Get-GPInheritance -Target $domainDN | Select-Object -ExpandProperty GpoLinks | Where-Object { $_.DisplayName -eq "AppLocker Policy" }
-        if ($existingLink) {
-            $DeploymentStatus.Text = "GPO 'AppLocker Policy' is already linked to the domain root.`n`nLinked to: $domainDN"
-            [System.Windows.MessageBox]::Show("GPO is already linked to the domain root.", "Already Linked", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        # Find and disable the link
+        $gpoLink = Get-GPInheritance -Target $domainDN | Select-Object -ExpandProperty GpoLinks | Where-Object { $_.DisplayName -eq "AppLocker Policy" }
+        if ($gpoLink) {
+            Set-GPLink -Name "AppLocker Policy" -Target $domainDN -LinkEnabled No -ErrorAction Stop
+            $DeploymentStatus.Text = "SUCCESS: AppLocker GPO DISABLED`n`nGPO: AppLocker Policy`nDomain: $domainDN`n`nThe policy will no longer apply.`nTo re-enable, use Group Policy Management Console."
+            [System.Windows.MessageBox]::Show("AppLocker GPO has been disabled.`n`nThe policy will no longer apply after the next Group Policy refresh.", "GPO Disabled", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            Write-Log "AppLocker GPO disabled: $domainDN"
         } else {
-            New-GPLink -Name "AppLocker Policy" -Target $domainDN -LinkEnabled Yes -ErrorAction Stop
-            $DeploymentStatus.Text = "SUCCESS: GPO linked to domain!`n`nGPO: AppLocker Policy`nLinked to: $domainDN`n`nThe policy will apply during the next Group Policy refresh."
-            [System.Windows.MessageBox]::Show("GPO linked to domain successfully!`n`nLinked to: $domainDN", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            $DeploymentStatus.Text = "INFO: AppLocker GPO is not currently linked to the domain.`n`nNothing to disable."
+            [System.Windows.MessageBox]::Show("AppLocker GPO is not linked to the domain root.", "Not Linked", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         }
-        Write-Log "GPO linking complete: AppLocker Policy -> $domainDN"
     }
     catch {
-        $DeploymentStatus.Text = "ERROR: Failed to link GPO`n`n$($_.Exception.Message)"
-        [System.Windows.MessageBox]::Show("Failed to link GPO:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-        Write-Log "Failed to link GPO: $($_.Exception.Message)" -Level "ERROR"
+        $DeploymentStatus.Text = "ERROR: Failed to disable GPO`n`n$($_.Exception.Message)"
+        [System.Windows.MessageBox]::Show("Failed to disable GPO:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        Write-Log "Failed to disable GPO: $($_.Exception.Message)" -Level "ERROR"
     }
 })
 
@@ -5733,7 +5909,7 @@ $window.add_Loaded({
 
         # Disable AD/GPO related buttons
         $CreateGP0Btn.IsEnabled = $false
-        $LinkGP0Btn.IsEnabled = $false
+        $DisableGpoBtn.IsEnabled = $false
         $CreateWinRMGpoBtn.IsEnabled = $false
                 $ForceGPUpdateBtn.IsEnabled = $false
         $ExportGroupsBtn.IsEnabled = $false
@@ -5750,7 +5926,7 @@ $window.add_Loaded({
 
         # Disable GPO-related buttons (need RSAT)
         $CreateGP0Btn.IsEnabled = $false
-        $LinkGP0Btn.IsEnabled = $false
+        $DisableGpoBtn.IsEnabled = $false
         $CreateWinRMGpoBtn.IsEnabled = $false
                 $ForceGPUpdateBtn.IsEnabled = $false
         $ExportGroupsBtn.IsEnabled = $false
@@ -5767,7 +5943,7 @@ $window.add_Loaded({
 
         # Enable all buttons
         $CreateGP0Btn.IsEnabled = $true
-        $LinkGP0Btn.IsEnabled = $true
+        $DisableGpoBtn.IsEnabled = $true
         $CreateWinRMGpoBtn.IsEnabled = $true
 
         Write-Log "Domain mode with RSAT: All features enabled"
