@@ -1156,7 +1156,7 @@ $xamlString = @"
                                                             <Setter Property="Foreground" Value="#D29922"/>
                                                             <Setter Property="FontWeight" Value="Bold"/>
                                                         </DataTrigger>
-                                                        <DataTrigger Binding="{Binding Status}" value="Match">
+                                                        <DataTrigger Binding="{Binding Status}" Value="Match">
                                                             <Setter Property="Foreground" Value="#3FB950"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
