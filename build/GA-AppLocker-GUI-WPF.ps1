@@ -142,7 +142,8 @@ function New-RulesFromArtifacts {
 }
 
 # Module 4: Domain Detection
-function Get-ADDomain {
+# NOTE: Named Get-DomainInfo to avoid conflict with ActiveDirectory\Get-ADDomain cmdlet
+function Get-DomainInfo {
     $computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
     # Check if actually part of a domain (PartOfDomain is a boolean)
     $isWorkgroup = -not $computerSystem -or -not $computerSystem.PartOfDomain
@@ -152,7 +153,8 @@ function Get-ADDomain {
     # We're domain-joined, try to get domain info
     try {
         Import-Module ActiveDirectory -ErrorAction SilentlyContinue
-        $domain = Get-ADDomain -ErrorAction Stop
+        # Use module-qualified cmdlet name to avoid recursive call
+        $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
         return @{ success = $true; isWorkgroup = $false; dnsRoot = $domain.DNSRoot; netBIOSName = $domain.NetBIOSName; message = "Domain: $($domain.DNSRoot)" }
     } catch {
         # AD module not available or failed, use environment variables
@@ -213,7 +215,7 @@ function New-WinRMGpo {
 
         # Detect current domain if OU not specified
         if (-not $OU) {
-            $domain = Get-ADDomain
+            $domain = ActiveDirectory\Get-ADDomain
             $OU = "DC=$($domain.DNSRoot -replace '\.', ',DC=')"
         }
 
@@ -239,6 +241,15 @@ function New-WinRMGpo {
         # 4. Enable Windows Firewall rules for WinRM
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\Services\WinRM" -ValueName "Enabled" -Type DWord -Value 1 -ErrorAction Stop
         Write-Log "WinRM firewall rules configured"
+
+        # 5. Set Domain Admins as owner with full control so they can delete/modify the GPO
+        try {
+            Set-GPPermission -Name $GpoName -PermissionLevel GpoEditDeleteModifySecurity -TargetName "Domain Admins" -TargetType Group -Replace -ErrorAction Stop
+            Write-Log "Set Domain Admins as owner of GPO: $GpoName"
+        }
+        catch {
+            Write-Log "Failed to set GPO permissions (GPO still created): $($_.Exception.Message)" -Level "WARN"
+        }
 
         return @{
             success = $true
@@ -528,6 +539,44 @@ function Import-ADGroupMembership {
 }
 
 # Module 9: AppLocker Setup Functions
+
+# Helper function to set Domain Admins as owner of AD objects
+function Set-ADObjectOwner {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$DistinguishedName,
+        [string]$OwnerGroup = "Domain Admins"
+    )
+
+    try {
+        # Get the AD object
+        $adObject = [ADSI]"LDAP://$DistinguishedName"
+
+        # Get the Domain Admins SID
+        $domainAdminsSID = (Get-ADGroup $OwnerGroup -ErrorAction Stop).SID
+
+        # Create security identifier
+        $identity = New-Object System.Security.Principal.SecurityIdentifier($domainAdminsSID)
+
+        # Get current ACL
+        $acl = $adObject.ObjectSecurity
+
+        # Set owner to Domain Admins
+        $acl.SetOwner($identity)
+
+        # Apply the modified ACL
+        $adObject.ObjectSecurity = $acl
+        $adObject.CommitChanges()
+
+        Write-Log "Set owner of '$DistinguishedName' to $OwnerGroup"
+        return $true
+    }
+    catch {
+        Write-Log "Failed to set owner on '$DistinguishedName': $($_.Exception.Message)" -Level "WARN"
+        return $false
+    }
+}
+
 function Initialize-AppLockerStructure {
     param(
         [string]$OUName = "AppLocker",
@@ -540,10 +589,10 @@ function Initialize-AppLockerStructure {
 
         # Get domain info
         if (-not $DomainFQDN) {
-            $DomainFQDN = (Get-ADDomain -ErrorAction Stop).DNSRoot
+            $DomainFQDN = (ActiveDirectory\Get-ADDomain -ErrorAction Stop).DNSRoot
         }
 
-        $DomainDN = (Get-ADDomain $DomainFQDN -ErrorAction Stop).DistinguishedName
+        $DomainDN = (ActiveDirectory\Get-ADDomain $DomainFQDN -ErrorAction Stop).DistinguishedName
         $OUDN = "OU=$OUName,$DomainDN"
 
         $output = "=== APPLOCKER INITIALIZATION ===`n`n"
@@ -573,6 +622,11 @@ function Initialize-AppLockerStructure {
             New-ADOrganizationalUnit -Name $OUName -Path $DomainDN -ProtectedFromAccidentalDeletion $true -ErrorAction Stop | Out-Null
             $output += "[CREATED] OU: $OUDN`n"
             Write-Log "Created OU: $OUDN"
+
+            # Set Domain Admins as owner so they can manage/delete the OU
+            if (Set-ADObjectOwner -DistinguishedName $OUDN) {
+                $output += "[OWNER] Set Domain Admins as owner of OU`n"
+            }
         }
         else {
             $output += "[EXISTS] OU: $OUDN`n"
@@ -596,6 +650,12 @@ function Initialize-AppLockerStructure {
                 $output += "[CREATED] Group: $Group`n"
                 $groupsCreated++
                 Write-Log "Created group: $Group"
+
+                # Set Domain Admins as owner so they can manage/delete the group
+                $groupDN = "CN=$Group,$OUDN"
+                if (Set-ADObjectOwner -DistinguishedName $groupDN) {
+                    $output += "[OWNER] Set Domain Admins as owner of $Group`n"
+                }
             }
             else {
                 $output += "[EXISTS] Group: $Group`n"
@@ -679,7 +739,7 @@ function New-BrowserDenyRules {
 
     try {
         if (-not $DomainFQDN) {
-            $domain = Get-ADDomain -ErrorAction Stop
+            $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
             $DomainFQDN = $domain.DNSRoot
         }
 
@@ -3023,7 +3083,7 @@ $window.add_Loaded({
     $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
 
     # Now do domain detection (fast with fixed logic)
-    $script:DomainInfo = Get-ADDomain
+    $script:DomainInfo = Get-DomainInfo
     $script:IsWorkgroup = $script:DomainInfo.isWorkgroup
 
     Write-Log "Application started - Mode: $($script:DomainInfo.message)"

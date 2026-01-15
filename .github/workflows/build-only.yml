@@ -1,4 +1,8 @@
-name: Build Only (No Tests)
+name: Build Only (Priority)
+
+# PRIORITY WORKFLOW - Fast builds without tests
+# Runs on every push and PR for quick feedback
+# For full testing with PSScriptAnalyzer and Pester, use build.yml
 
 on:
   push:
@@ -6,12 +10,6 @@ on:
   pull_request:
     branches: [ master, main, develop ]
   workflow_dispatch:
-    inputs:
-      skip_analysis:
-        description: 'Skip PSScriptAnalyzer'
-        required: false
-        default: 'false'
-        type: boolean
 
 env:
   POWERSHELL_TELEMETRY_OPTOUT: 1
@@ -71,9 +69,7 @@ jobs:
           # Try to compile with PS2EXE
           try {
             Import-Module ps2exe
-
             $exePath = "./output/GA-AppLocker-Dashboard.exe"
-
             Write-Host "Compiling to EXE..." -ForegroundColor Cyan
 
             ps2exe -InputFile "./output/GA-AppLocker-GUI.ps1" `
@@ -97,13 +93,10 @@ jobs:
       - name: Copy source modules
         shell: pwsh
         run: |
-          # Copy src modules
           if (Test-Path "./src") {
             Copy-Item -Path "./src" -Destination "./output/modules" -Recurse -Force
             Write-Host "Copied src modules" -ForegroundColor Green
           }
-
-          # Copy GA-AppLocker-1.2.4 if exists
           if (Test-Path "./GA-AppLocker-1.2.4") {
             Copy-Item -Path "./GA-AppLocker-1.2.4" -Destination "./output/GA-AppLocker-1.2.4" -Recurse -Force
             Write-Host "Copied GA-AppLocker-1.2.4" -ForegroundColor Green
@@ -115,17 +108,9 @@ jobs:
           $batchContent = @'
           @echo off
           title GA-AppLocker Dashboard
-          echo.
-          echo  ======================================
-          echo   GA-AppLocker Dashboard v1.2.4
-          echo  ======================================
-          echo.
-
           if exist "%~dp0GA-AppLocker-Dashboard.exe" (
-            echo Starting EXE...
             start "" "%~dp0GA-AppLocker-Dashboard.exe"
           ) else if exist "%~dp0GA-AppLocker-GUI.ps1" (
-            echo Starting PowerShell GUI...
             powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0GA-AppLocker-GUI.ps1"
           ) else (
             echo ERROR: No executable found!
@@ -149,13 +134,6 @@ jobs:
           $zipName = "GA-AppLocker-Dashboard-v$version.zip"
           Compress-Archive -Path ./output/* -DestinationPath "./$zipName" -Force
           Write-Host "Created: $zipName" -ForegroundColor Green
-
-          # List contents
-          Write-Host "`nPackage contents:" -ForegroundColor Cyan
-          Get-ChildItem ./output -Recurse -File | ForEach-Object {
-            $size = if ($_.Length -gt 1MB) { "$([math]::Round($_.Length/1MB, 2)) MB" } else { "$([math]::Round($_.Length/1KB, 1)) KB" }
-            Write-Host "  $($_.Name) ($size)"
-          }
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -181,8 +159,6 @@ jobs:
           Write-Host "`n====================================" -ForegroundColor Green
           Write-Host "  BUILD COMPLETED SUCCESSFULLY" -ForegroundColor Green
           Write-Host "====================================`n" -ForegroundColor Green
-
           Write-Host "Artifacts uploaded:" -ForegroundColor Cyan
           Write-Host "  - GA-AppLocker-Dashboard (EXE + Scripts)"
           Write-Host "  - GA-AppLocker-Dashboard-Full (Complete ZIP)"
-          Write-Host ""
