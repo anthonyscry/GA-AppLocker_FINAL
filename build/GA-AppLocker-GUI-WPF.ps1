@@ -2289,8 +2289,12 @@ $xamlString = @"
 
                         <!-- AD Group -->
                         <TextBlock Text="Apply To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="6" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="180"
+                        <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="200"
                                   Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
+                            <ComboBox.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#21262D"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#30363D"/>
+                            </ComboBox.Resources>
                             <ComboBox.ItemContainerStyle>
                                 <Style TargetType="ComboBoxItem">
                                     <Setter Property="Background" Value="#21262D"/>
@@ -2298,21 +2302,16 @@ $xamlString = @"
                                     <Setter Property="Padding" Value="8,4"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsHighlighted" Value="True">
-                                            <Setter Property="Background" Value="#388BFD"/>
-                                            <Setter Property="Foreground" Value="#FFFFFF"/>
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#238636"/>
+                                            <Setter Property="Background" Value="#30363D"/>
                                             <Setter Property="Foreground" Value="#FFFFFF"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </ComboBox.ItemContainerStyle>
-                            <ComboBoxItem Content="Everyone (S-1-1-0)" IsSelected="True" Tag="S-1-1-0"/>
-                            <ComboBoxItem Content="Administrators (S-1-5-32-544)" Tag="S-1-5-32-544"/>
-                            <ComboBoxItem Content="Users (S-1-5-32-545)" Tag="S-1-5-32-545"/>
-                            <ComboBoxItem Content="Domain Users" Tag="DomainUsers"/>
-                            <ComboBoxItem Content="Domain Admins" Tag="DomainAdmins"/>
+                            <ComboBoxItem Content="AppLocker-Admins" IsSelected="True" Tag="AppLocker-Admins"/>
+                            <ComboBoxItem Content="AppLocker-StandardUsers" Tag="AppLocker-StandardUsers"/>
+                            <ComboBoxItem Content="AppLocker-Service-Accounts" Tag="AppLocker-Service-Accounts"/>
+                            <ComboBoxItem Content="AppLocker-Installers" Tag="AppLocker-Installers"/>
                             <ComboBoxItem Content="Custom (Enter SID below)" Tag="Custom"/>
                         </ComboBox>
                     </Grid>
@@ -4293,22 +4292,39 @@ function Get-SelectedSid {
 
     $tag = $selectedItem.Tag
     switch ($tag) {
-        "S-1-1-0" { return "S-1-1-0" }
-        "S-1-5-32-544" { return "S-1-5-32-544" }
-        "S-1-5-32-545" { return "S-1-5-32-545" }
-        "DomainUsers" {
+        "AppLocker-Admins" {
             try {
-                $domainSid = (Get-ADDomain -ErrorAction Stop).DomainSID.Value
-                return "$domainSid-513"
+                $group = Get-ADGroup "AppLocker-Admins" -ErrorAction Stop
+                return $group.SID.Value
             } catch {
+                Write-Log "AppLocker-Admins group not found, using Everyone" -Level "WARN"
                 return "S-1-1-0"
             }
         }
-        "DomainAdmins" {
+        "AppLocker-StandardUsers" {
             try {
-                $domainSid = (Get-ADDomain -ErrorAction Stop).DomainSID.Value
-                return "$domainSid-512"
+                $group = Get-ADGroup "AppLocker-StandardUsers" -ErrorAction Stop
+                return $group.SID.Value
             } catch {
+                Write-Log "AppLocker-StandardUsers group not found, using Everyone" -Level "WARN"
+                return "S-1-1-0"
+            }
+        }
+        "AppLocker-Service-Accounts" {
+            try {
+                $group = Get-ADGroup "AppLocker-Service-Accounts" -ErrorAction Stop
+                return $group.SID.Value
+            } catch {
+                Write-Log "AppLocker-Service-Accounts group not found, using Everyone" -Level "WARN"
+                return "S-1-1-0"
+            }
+        }
+        "AppLocker-Installers" {
+            try {
+                $group = Get-ADGroup "AppLocker-Installers" -ErrorAction Stop
+                return $group.SID.Value
+            } catch {
+                Write-Log "AppLocker-Installers group not found, using Everyone" -Level "WARN"
                 return "S-1-1-0"
             }
         }
