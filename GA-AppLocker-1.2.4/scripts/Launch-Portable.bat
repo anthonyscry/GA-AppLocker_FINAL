@@ -1,14 +1,18 @@
 @echo off
-REM GA-AppLocker Portable Launcher
-REM Runs the portable GUI without compilation
+REM =====================================================
+REM GA-AppLocker Portable Launcher (Scripts Folder)
+REM Redirects to the main GUI launcher
+REM =====================================================
 
-title GA-AppLocker Toolkit
+title GA-AppLocker Toolkit v1.2.4
 cd /d "%~dp0"
 
-REM Check for PowerShell
-where pwsh >nul 2>&1
-if %ERRORLEVEL% EQU 0 (
-    pwsh -NoProfile -ExecutionPolicy Bypass -File "GA-AppLocker-Portable.ps1"
+REM Go up to parent and launch from GUI folder
+if exist "..\src\GUI\Launch-Portable.bat" (
+    call "..\src\GUI\Launch-Portable.bat"
+) else if exist "..\src\GUI\GA-AppLocker-Portable.ps1" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "..\src\GUI\GA-AppLocker-Portable.ps1"
 ) else (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "GA-AppLocker-Portable.ps1"
+    echo [ERROR] Could not find GA-AppLocker GUI!
+    pause
 )

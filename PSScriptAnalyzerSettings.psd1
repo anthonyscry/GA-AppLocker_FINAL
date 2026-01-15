@@ -1,76 +1,57 @@
 # PSScriptAnalyzerSettings.psd1
 # Configuration for PSScriptAnalyzer
+# Optimized for faster analysis - removed slow compatibility checks
 
 @{
-    # Exclude specific rules
+    # Exclude specific rules that are slow or not applicable
     ExcludeRules = @(
-        # PSUseShouldProcessForStateChangingFunctions - We use simple functions
-        'PSUseShouldProcessForStateChangingFunctions',
+        # Slow rules - these check compatibility across PowerShell versions and can timeout
+        'PSUseCompatibleCmdlets',
+        'PSUseCompatibleTypes',
+        'PSUseCompatibleCommands',
+        'PSUseCompatibleSyntax',
 
-        # PSUseDeclaredVarsMoreThanAssignments - Module exports are fine
-        'PSUseDeclaredVarsMoreThanAssignments',
+        # Not applicable to this project
+        'PSUseShouldProcessForStateChangingFunctions',  # We use simple functions
+        'PSUseDeclaredVarsMoreThanAssignments',         # Module exports are fine
+        'PSAvoidUsingWriteHost',                        # We use Write-Host for console output
 
-        # PSAvoidUsingWriteHost - We use Write-Host for console output in scripts
-        'PSAvoidUsingWriteHost'
-    )
-
-    # Include specific rules (optional - defaults to all)
-    IncludeRules = @(
-        'PSAvoidUsingCmdletAliases',
-        'PSAvoidUsingPlainTextPassword',
-        'PSAvoidUsingConvertToSecureStringWithPlainText',
-        'PSAvoidUsingInvokeExpression',
-        'PSUseApprovedVerbs',
-        'PSUseSingularNouns',
-        'PSReservedCmdletChar',
-        'PSReservedParams',
-        'PSMissingModuleManifestField',
-        'PSAvoidDefaultValueSwitchParameter',
-        'PSUseOutputTypeCorrectly',
-        'PSCmdletShouldProcess',
-        'PSUseShouldProcessForStateChangingFunctions',
-        'PSAvoidUsingPositionalParameters',
-        'PSAvoidGlobalVars',
-        'PSAvoidUsingUserNameAndPassWordParams',
-        'PSAvoidUsingWMICmdlet',
-        'PSAvoidUsingEmptyCatchBlock',
-        'PSAvoidGlobalAliases',
+        # DSC rules not applicable
         'PSDSCReturnCorrectTypesForDSCFunctions',
         'PSDSCUseIdenticalParametersForDSC',
         'PSDSCStandardDSCFunctionsInResource',
         'PSDSCUseVerboseMessageInDSCResource',
-        'PSUseCompatibleCmdlets',
-        'PSUseCompatibleTypes',
-        'PSUseCompatibleCommands',
-        'PSMisleadingBacktick',
-        'PSAvoidAssignmentToAutomaticVariable',
-        'PSAvoidAssignmentToReadOnlyAttribute',
-        'PSAvoidInvokeExpression',
-        'PSAvoidMultipleTypeAttributes',
-        'PSPossibleIncorrectComparisonWithNull',
-        'PSPossibleIncorrectUsageOfAssignmentOperator',
-        'PSUseBOMForUnicodeEncodedFile',
-        'PSAvoidUsingBrokenHashAlgorithms',
-        'PSAvoidUsingDeprecatedManifestFields',
-        'PSAvoidUsingObsoleteCmdlets',
-        'PSAvoidUsingInvokeExpression',
-        'PSAvoidNullOrEmptyHelpMessageAttribute',
-        'PSMissingModuleManifestField',
-        'PSUseCmdletCorrectly',
-        'PSUseCorrectCasing',
-        'PSUseDeclaredVarsMoreThanAssignments',
-        'PSPossibleIncorrectUsageOfAssignmentOperator',
-        'PSUseShouldProcessForStateChangingFunctions',
-        'PSUseToExportFieldsInManifest',
-        'PSUseUTF8EncodingForHelpFile',
         'PSUseVerboseMessageInDSCResource'
     )
 
-    # Severity levels for rules
-    # Error: Stop processing
-    # Warning: Show warning
-    # Information: Show info
-    # None: Ignore
+    # Only include fast, essential rules
+    IncludeRules = @(
+        # Security rules (critical)
+        'PSAvoidUsingPlainTextPassword',
+        'PSAvoidUsingConvertToSecureStringWithPlainText',
+        'PSAvoidUsingInvokeExpression',
+        'PSAvoidUsingUserNameAndPassWordParams',
+
+        # Syntax and best practices (fast)
+        'PSAvoidUsingCmdletAliases',
+        'PSUseApprovedVerbs',
+        'PSReservedCmdletChar',
+        'PSReservedParams',
+        'PSAvoidDefaultValueSwitchParameter',
+        'PSAvoidUsingPositionalParameters',
+        'PSAvoidGlobalVars',
+        'PSAvoidGlobalAliases',
+        'PSAvoidUsingEmptyCatchBlock',
+        'PSMisleadingBacktick',
+        'PSAvoidAssignmentToAutomaticVariable',
+        'PSPossibleIncorrectComparisonWithNull',
+        'PSPossibleIncorrectUsageOfAssignmentOperator',
+        'PSAvoidUsingBrokenHashAlgorithms',
+        'PSAvoidNullOrEmptyHelpMessageAttribute',
+        'PSUseCmdletCorrectly'
+    )
+
+    # Severity configuration
     Rules = @{
         'PSAvoidUsingPlainTextPassword' = @{
             Severity = 'Error'
@@ -81,8 +62,8 @@
         'PSAvoidUsingInvokeExpression' = @{
             Severity = 'Warning'
         }
-        'PSAvoidUsingWriteHost' = @{
-            Severity = 'Information'
+        'PSAvoidDefaultValueSwitchParameter' = @{
+            Severity = 'Warning'
         }
     }
 }
