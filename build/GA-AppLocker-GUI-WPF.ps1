@@ -879,37 +879,89 @@ $xamlString = @"
                             <Button x:Name="NavDashboard" Content="Dashboard" Style="{StaticResource SecondaryButton}"
                                     HorizontalAlignment="Stretch" Margin="10,5"/>
 
-                            <!-- SETUP Section -->
-                            <TextBlock Text="SETUP" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
-                            <Button x:Name="NavAppLockerSetup" Content="AppLocker Setup" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
-                            <Button x:Name="NavGroupMgmt" Content="Group Management" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
-                            <Button x:Name="NavDiscovery" Content="AD Discovery" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <!-- SETUP Section (Collapsible) -->
+                            <Expander x:Name="SetupSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
+                                <Expander.Header>
+                                    <Grid>
+                                        <TextBlock Text="SETUP" FontSize="11" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
+                                    <Path x:Name="SetupSectionArrow" Data="M 0 0 L 4 4 L 8 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="10" Height="6" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                        <Path.RenderTransform>
+                                            <RotateTransform Angle="-90"/>
+                                        </Path.RenderTransform>
+                                    </Path>
+                                    </Grid>
+                                </Expander.Header>
+                                <StackPanel Margin="8,0,0,0">
+                                    <Button x:Name="NavAppLockerSetup" Content="AppLocker Setup" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                    <Button x:Name="NavGroupMgmt" Content="Group Management" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                    <Button x:Name="NavDiscovery" Content="AD Discovery" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                </StackPanel>
+                            </Expander>
 
-                            <!-- SCANNING Section -->
-                            <TextBlock Text="SCANNING" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
-                            <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
-                            <Button x:Name="NavGapAnalysis" Content="Software Gap Analysis" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
-                            <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <!-- SCANNING Section (Collapsible) -->
+                            <Expander x:Name="ScanningSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
+                                <Expander.Header>
+                                    <Grid>
+                                        <TextBlock Text="SCANNING" FontSize="11" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
+                                        <Path x:Name="ScanningSectionArrow" Data="M 0 0 L 4 4 L 8 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="10" Height="6" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                            <Path.RenderTransform>
+                                                <RotateTransform Angle="-90"/>
+                                            </Path.RenderTransform>
+                                        </Path>
+                                    </Grid>
+                                </Expander.Header>
+                                <StackPanel Margin="8,0,0,0">
+                                    <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                    <Button x:Name="NavGapAnalysis" Content="Software Gap Analysis" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                    <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                </StackPanel>
+                            </Expander>
 
-                            <!-- DEPLOYMENT Section -->
-                            <TextBlock Text="DEPLOYMENT" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
-                            <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
-                            <Button x:Name="NavWinRM" Content="WinRM Setup" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <!-- DEPLOYMENT Section (Collapsible) -->
+                            <Expander x:Name="DeploymentSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
+                                <Expander.Header>
+                                    <Grid>
+                                        <TextBlock Text="DEPLOYMENT" FontSize="11" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
+                                        <Path x:Name="DeploymentSectionArrow" Data="M 0 0 L 4 4 L 8 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="10" Height="6" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                            <Path.RenderTransform>
+                                                <RotateTransform Angle="-90"/>
+                                            </Path.RenderTransform>
+                                        </Path>
+                                    </Grid>
+                                </Expander.Header>
+                                <StackPanel Margin="8,0,0,0">
+                                    <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                    <Button x:Name="NavWinRM" Content="WinRM Setup" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                </StackPanel>
+                            </Expander>
 
-                            <!-- MONITORING Section -->
-                            <TextBlock Text="MONITORING" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
-                            <Button x:Name="NavEvents" Content="Events" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
-                            <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <!-- MONITORING Section (Collapsible) -->
+                            <Expander x:Name="MonitoringSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
+                                <Expander.Header>
+                                    <Grid>
+                                        <TextBlock Text="MONITORING" FontSize="11" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
+                                        <Path x:Name="MonitoringSectionArrow" Data="M 0 0 L 4 4 L 8 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="10" Height="6" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                            <Path.RenderTransform>
+                                                <RotateTransform Angle="-90"/>
+                                            </Path.RenderTransform>
+                                        </Path>
+                                    </Grid>
+                                </Expander.Header>
+                                <StackPanel Margin="8,0,0,0">
+                                    <Button x:Name="NavEvents" Content="Events" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                    <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource SecondaryButton}"
+                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
@@ -1693,6 +1745,16 @@ $NavGapAnalysis = $window.FindName("NavGapAnalysis")
 $NavHelp = $window.FindName("NavHelp")
 $NavAbout = $window.FindName("NavAbout")
 
+# Expander controls
+$SetupSection = $window.FindName("SetupSection")
+$ScanningSection = $window.FindName("ScanningSection")
+$DeploymentSection = $window.FindName("DeploymentSection")
+$MonitoringSection = $window.FindName("MonitoringSection")
+$SetupSectionArrow = $window.FindName("SetupSectionArrow")
+$ScanningSectionArrow = $window.FindName("ScanningSectionArrow")
+$DeploymentSectionArrow = $window.FindName("DeploymentSectionArrow")
+$MonitoringSectionArrow = $window.FindName("MonitoringSectionArrow")
+
 $StatusText = $window.FindName("StatusText")
 $EnvironmentText = $window.FindName("EnvironmentText")
 $EnvironmentBanner = $window.FindName("EnvironmentBanner")
@@ -2356,6 +2418,39 @@ $NavHelp.Add_Click({
 $NavAbout.Add_Click({
     Show-Panel "About"
     Update-StatusBar
+})
+
+# Expander event handlers - animate arrows on expand/collapse
+$SetupSection.Add_Expanded({
+    if ($_.NewValue -eq $true) {
+        $SetupSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(90)
+    } else {
+        $SetupSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(-90)
+    }
+})
+
+$ScanningSection.Add_Expanded({
+    if ($_.NewValue -eq $true) {
+        $ScanningSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(90)
+    } else {
+        $ScanningSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(-90)
+    }
+})
+
+$DeploymentSection.Add_Expanded({
+    if ($_.NewValue -eq $true) {
+        $DeploymentSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(90)
+    } else {
+        $DeploymentSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(-90)
+    }
+})
+
+$MonitoringSection.Add_Expanded({
+    if ($_.NewValue -eq $true) {
+        $MonitoringSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(90)
+    } else {
+        $MonitoringSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(-90)
+    }
 })
 
 # Dashboard events
