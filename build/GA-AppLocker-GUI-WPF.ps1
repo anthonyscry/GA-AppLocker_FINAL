@@ -275,7 +275,7 @@ function New-AppLockerGpo {
     }
 }
 
-# Create WinRM GPO
+# Create WinRM GPO with full configuration
 function New-WinRMGpo {
     param(
         [string]$GpoName = "Enable WinRM",
@@ -284,59 +284,165 @@ function New-WinRMGpo {
 
     try {
         Import-Module GroupPolicy -ErrorAction Stop
+        Import-Module ActiveDirectory -ErrorAction SilentlyContinue
 
         # Detect current domain if OU not specified
         if (-not $OU) {
             $domain = ActiveDirectory\Get-ADDomain
-            $OU = "DC=$($domain.DNSRoot -replace '\.', ',DC=')"
+            $OU = $domain.DistinguishedName
         }
 
-        Write-Log "Creating WinRM GPO: $GpoName"
+        Write-Log "Creating/Updating WinRM GPO: $GpoName"
 
-        # 1. Create and link the GPO
-        $gpo = New-GPO -Name $GpoName -ErrorAction Stop
-        Write-Log "GPO created: $($gpo.Id)"
+        # Check if GPO already exists
+        $existingGpo = Get-GPO -Name $GpoName -ErrorAction SilentlyContinue
+        $isNew = $false
 
-        $link = New-GPLink -Name $GpoName -Target $OU -LinkEnabled Yes -ErrorAction Stop
-        Write-Log "GPO linked to: $OU"
+        if ($existingGpo) {
+            Write-Log "GPO '$GpoName' already exists, updating settings..."
+            $gpo = $existingGpo
+        } else {
+            # Create new GPO
+            $gpo = New-GPO -Name $GpoName -Comment "WinRM Configuration for Remote Management - Created by GA-AppLocker" -ErrorAction Stop
+            Write-Log "GPO created: $($gpo.Id)"
+            $isNew = $true
 
-        # 2. Enable WinRM service via policy (XML-backed registry policy)
+            # Link to domain
+            try {
+                New-GPLink -Name $GpoName -Target $OU -LinkEnabled Yes -ErrorAction Stop | Out-Null
+                Write-Log "GPO linked to: $OU"
+            }
+            catch {
+                if ($_.Exception.Message -notlike "*already linked*") {
+                    throw $_
+                }
+                Write-Log "GPO already linked to $OU"
+            }
+        }
+
+        # ============================================
+        # WinRM SERVICE Configuration
+        # ============================================
+
+        # Allow automatic configuration of listeners (required)
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowAutoConfig" -Type DWord -Value 1 -ErrorAction Stop
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowUnencryptedTraffic" -Type DWord -Value 0 -ErrorAction Stop
+
+        # IPv4 Filter - allow all
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "IPv4Filter" -Type String -Value "*" -ErrorAction Stop
-        Write-Log "WinRM service policies configured"
 
-        # 3. Ensure WinRM service starts automatically
+        # IPv6 Filter - allow all
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "IPv6Filter" -Type String -Value "*" -ErrorAction Stop
+
+        # Allow Basic Authentication for WinRM Service
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowBasic" -Type DWord -Value 1 -ErrorAction Stop
+
+        # Allow unencrypted traffic (set to 0 for security, 1 if needed for compatibility)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowUnencryptedTraffic" -Type DWord -Value 0 -ErrorAction Stop
+
+        Write-Log "WinRM Service policies configured"
+
+        # ============================================
+        # WinRM CLIENT Configuration
+        # ============================================
+
+        # Allow Basic Authentication for WinRM Client
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Client" -ValueName "AllowBasic" -Type DWord -Value 1 -ErrorAction Stop
+
+        # TrustedHosts - allow all (wildcard *)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Client" -ValueName "TrustedHosts" -Type String -Value "*" -ErrorAction Stop
+
+        # Allow unencrypted traffic for client
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Client" -ValueName "AllowUnencryptedTraffic" -Type DWord -Value 0 -ErrorAction Stop
+
+        Write-Log "WinRM Client policies configured"
+
+        # ============================================
+        # WinRM Service Startup
+        # ============================================
+
+        # Set WinRM service to start automatically
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\SYSTEM\CurrentControlSet\Services\WinRM" -ValueName "Start" -Type DWord -Value 2 -ErrorAction Stop
-        Write-Log "WinRM service startup type set to Automatic"
+        Write-Log "WinRM service startup set to Automatic"
 
-        # 4. Enable Windows Firewall rules for WinRM
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\Services\WinRM" -ValueName "Enabled" -Type DWord -Value 1 -ErrorAction Stop
+        # ============================================
+        # Windows Firewall Rules for WinRM
+        # ============================================
+
+        # Enable Windows Firewall - Domain Profile - Allow WinRM
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\FirewallRules" -ValueName "WINRM-HTTP-In-TCP" -Type String -Value "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5985|App=System|Name=Windows Remote Management (HTTP-In)|Desc=Inbound rule for WinRM HTTP|EmbedCtxt=Windows Remote Management|" -ErrorAction SilentlyContinue
+
+        # Enable WinRM HTTPS (port 5986)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\FirewallRules" -ValueName "WINRM-HTTPS-In-TCP" -Type String -Value "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5986|App=System|Name=Windows Remote Management (HTTPS-In)|Desc=Inbound rule for WinRM HTTPS|EmbedCtxt=Windows Remote Management|" -ErrorAction SilentlyContinue
+
         Write-Log "WinRM firewall rules configured"
 
-        # 5. Set Domain Admins as owner with full control so they can delete/modify the GPO
+        # ============================================
+        # Set GPO Permissions
+        # ============================================
         try {
             Set-GPPermission -Name $GpoName -PermissionLevel GpoEditDeleteModifySecurity -TargetName "Domain Admins" -TargetType Group -Replace -ErrorAction Stop
             Write-Log "Set Domain Admins as owner of GPO: $GpoName"
         }
         catch {
-            Write-Log "Failed to set GPO permissions (GPO still created): $($_.Exception.Message)" -Level "WARN"
+            Write-Log "Failed to set GPO permissions: $($_.Exception.Message)" -Level "WARN"
         }
 
+        $action = if ($isNew) { "created and linked" } else { "updated" }
         return @{
             success = $true
             gpoName = $GpoName
             gpoId = $gpo.Id
             linkedTo = $OU
-            message = "WinRM GPO created and linked successfully"
+            isNew = $isNew
+            message = "WinRM GPO $action successfully"
         }
     }
     catch {
-        Write-Log "Failed to create WinRM GPO: $($_.Exception.Message)" -Level "ERROR"
+        Write-Log "Failed to create/update WinRM GPO: $($_.Exception.Message)" -Level "ERROR"
         return @{
             success = $false
             error = $_.Exception.Message
         }
+    }
+}
+
+# Disable/Enable WinRM GPO Link
+function Set-WinRMGpoState {
+    param(
+        [string]$GpoName = "Enable WinRM",
+        [bool]$Enabled = $true
+    )
+
+    try {
+        Import-Module GroupPolicy -ErrorAction Stop
+        Import-Module ActiveDirectory -ErrorAction SilentlyContinue
+
+        $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
+        $domainDN = $domain.DistinguishedName
+
+        # Get GPO
+        $gpo = Get-GPO -Name $GpoName -ErrorAction Stop
+
+        # Get existing link
+        $links = (Get-GPInheritance -Target $domainDN).GpoLinks | Where-Object { $_.DisplayName -eq $GpoName }
+
+        if ($links) {
+            if ($Enabled) {
+                Set-GPLink -Name $GpoName -Target $domainDN -LinkEnabled Yes -ErrorAction Stop
+                Write-Log "GPO '$GpoName' link ENABLED"
+                return @{ success = $true; message = "GPO link enabled"; state = "Enabled" }
+            } else {
+                Set-GPLink -Name $GpoName -Target $domainDN -LinkEnabled No -ErrorAction Stop
+                Write-Log "GPO '$GpoName' link DISABLED"
+                return @{ success = $true; message = "GPO link disabled"; state = "Disabled" }
+            }
+        } else {
+            return @{ success = $false; error = "GPO '$GpoName' is not linked to domain" }
+        }
+    }
+    catch {
+        Write-Log "Failed to change GPO state: $($_.Exception.Message)" -Level "ERROR"
+        return @{ success = $false; error = $_.Exception.Message }
     }
 }
 
@@ -1239,26 +1345,15 @@ $xamlString = @"
                         </StackPanel>
                     </Border>
 
-                    <!-- Baseline Selection -->
+                    <!-- Import Buttons (Scan removed per user request) -->
                     <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="10"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <Button x:Name="ScanBaselineBtn" Content="Scan Baseline Host" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
-                        <Button x:Name="ImportBaselineBtn" Content="Import Baseline" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
-                    </Grid>
-
-                    <!-- Target Selection -->
-                    <Grid Margin="0,0,0,15">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <Button x:Name="ScanTargetBtn" Content="Scan Target Host" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
-                        <Button x:Name="ImportTargetBtn" Content="Import Target" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                        <Button x:Name="ImportBaselineBtn" Content="Import Baseline CSV" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ImportTargetBtn" Content="Import Target CSV" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
                     <!-- Compare Button -->
@@ -1568,12 +1663,24 @@ $xamlString = @"
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button x:Name="CreateWinRMGpoBtn" Content="Create WinRM GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="CreateWinRMGpoBtn" Content="Create/Update WinRM GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
                         <Button x:Name="FullWorkflowBtn" Content="Full Workflow" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
+                    <!-- Enable/Disable GPO Buttons -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="EnableWinRMGpoBtn" Content="Enable GPO Link" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="DisableWinRMGpoBtn" Content="Disable GPO Link" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                    </Grid>
+
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="380">
+                            CornerRadius="8" Padding="15" Height="340">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="WinRMOutput" Text="Click 'Full Workflow' to set up WinRM..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -1991,6 +2098,8 @@ $GenerateEvidenceBtn = $window.FindName("GenerateEvidenceBtn")
 $ComplianceOutput = $window.FindName("ComplianceOutput")
 $CreateWinRMGpoBtn = $window.FindName("CreateWinRMGpoBtn")
 $FullWorkflowBtn = $window.FindName("FullWorkflowBtn")
+$EnableWinRMGpoBtn = $window.FindName("EnableWinRMGpoBtn")
+$DisableWinRMGpoBtn = $window.FindName("DisableWinRMGpoBtn")
 $WinRMOutput = $window.FindName("WinRMOutput")
 
 # AD Discovery controls
@@ -2923,13 +3032,14 @@ $CreateWinRMGpoBtn.Add_Click({
     $result = New-WinRMGpo
 
     if ($result.success) {
-        $WinRMOutput.Text = "=== WINRM GPO CREATED ===`n`nSUCCESS: GPO created and linked`n`nGPO Name: $($result.gpoName)`n`nGPO ID: $($result.gpoId)`n`nLinked to: $($result.linkedTo)`n`nConfigured Settings:`n  • WinRM service: Auto-config enabled`n  • Unencrypted traffic: Disabled`n  • IPv4 filter: * (all addresses)`n  • Service startup: Automatic`n  • Firewall rules: Enabled`n`n`nThe GPO will be applied during the next Group Policy refresh (typically every 90 minutes).`n`nTo force immediate update: gpupdate /force"
-        Write-Log "WinRM GPO created successfully: $($result.gpoName)"
-        [System.Windows.MessageBox]::Show("WinRM GPO created successfully!`n`nGPO: $($result.gpoName)`n`nLinked to: $($result.linkedTo)", "Success", "OK", "Information")
+        $action = if ($result.isNew) { "CREATED" } else { "UPDATED" }
+        $WinRMOutput.Text = "=== WINRM GPO $action ===`n`nSUCCESS: GPO $($result.message)`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nConfigured Settings:`n`nWinRM Service:`n  • Auto-config: Enabled`n  • IPv4 Filter: * (all)`n  • IPv6 Filter: * (all)`n  • Basic Auth: Enabled`n  • Unencrypted Traffic: Disabled`n`nWinRM Client:`n  • Basic Auth: Enabled`n  • TrustedHosts: * (all)`n  • Unencrypted Traffic: Disabled`n`nFirewall Rules:`n  • WinRM HTTP (5985): Allowed`n  • WinRM HTTPS (5986): Allowed`n`nService: Automatic startup`n`nTo force immediate update: gpupdate /force"
+        Write-Log "WinRM GPO $action successfully: $($result.gpoName)"
+        [System.Windows.MessageBox]::Show("WinRM GPO $action successfully!`n`nGPO: $($result.gpoName)`n`nLinked to: $($result.linkedTo)", "Success", "OK", "Information")
     } else {
-        $WinRMOutput.Text = "=== WINRM GPO CREATION FAILED ===`n`nERROR: $($result.error)`n`n`nPossible causes:`n  • Not running as Domain Admin`n  • Group Policy module not available`n  • Insufficient permissions`n`n`nPlease run as Domain Administrator and try again."
-        Write-Log "Failed to create WinRM GPO: $($result.error)" -Level "ERROR"
-        [System.Windows.MessageBox]::Show("Failed to create WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
+        $WinRMOutput.Text = "=== WINRM GPO FAILED ===`n`nERROR: $($result.error)`n`nPossible causes:`n  • Not running as Domain Admin`n  • Group Policy module not available`n  • Insufficient permissions`n`nPlease run as Domain Administrator and try again."
+        Write-Log "Failed to create/update WinRM GPO: $($result.error)" -Level "ERROR"
+        [System.Windows.MessageBox]::Show("Failed to create/update WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
     }
 })
 
@@ -2948,13 +3058,54 @@ $FullWorkflowBtn.Add_Click({
     $result = New-WinRMGpo
 
     if ($result.success) {
-        $WinRMOutput.Text = "=== WINRM SETUP COMPLETE ===`n`nSUCCESS: WinRM GPO deployed!`n`nWhat was done:`n`n1. Created GPO: $($result.gpoName)`n`n2. Linked to: $($result.linkedTo)`n`n3. Configured registry policies:`n   • WinRM Auto-Config: Enabled`n   • Unencrypted Traffic: Disabled`n   • IPv4 Filter: * (all)`n`n4. Service startup: Automatic`n`n5. Firewall rules: Enabled (Domain profile)`n`n`n=== NEXT STEPS ===`n`n1. Wait for Group Policy refresh (up to 90 min)`n   Or run: gpupdate /force`n`n2. Test WinRM: Test-WsMan -ComputerName <target>`n`n3. Enter-PSSession to test remote access`n`n`nGPO will apply to all computers in the domain."
+        $WinRMOutput.Text = "=== WINRM SETUP COMPLETE ===`n`nSUCCESS: WinRM GPO deployed!`n`nWhat was configured:`n`n1. GPO: $($result.gpoName)`n2. Linked to: $($result.linkedTo)`n`n3. WinRM Service Settings:`n   • Auto-config: Enabled`n   • IPv4/IPv6 Filters: * (all)`n   • Basic Authentication: Enabled`n   • Unencrypted Traffic: Disabled`n`n4. WinRM Client Settings:`n   • Basic Authentication: Enabled`n   • TrustedHosts: * (all hosts)`n   • Unencrypted Traffic: Disabled`n`n5. Service: Automatic startup`n`n6. Firewall Rules:`n   • HTTP (5985): Allowed`n   • HTTPS (5986): Allowed`n`n=== NEXT STEPS ===`n1. Run: gpupdate /force (or wait 90 min)`n2. Test: Test-WsMan -ComputerName <target>`n3. Connect: Enter-PSSession -ComputerName <target>"
         Write-Log "Full WinRM workflow completed successfully"
         [System.Windows.MessageBox]::Show("WinRM GPO deployed successfully!`n`nGPO: $($result.gpoName)`n`nThe GPO will apply during the next Group Policy refresh.", "Success", "OK", "Information")
     } else {
-        $WinRMOutput.Text = "=== WINRM SETUP FAILED ===`n`nERROR: $($result.error)`n`n`nPlease ensure you are running as Domain Administrator."
+        $WinRMOutput.Text = "=== WINRM SETUP FAILED ===`n`nERROR: $($result.error)`n`nPlease ensure you are running as Domain Administrator."
         Write-Log "Full WinRM workflow failed: $($result.error)" -Level "ERROR"
         [System.Windows.MessageBox]::Show("Failed to deploy WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
+    }
+})
+
+# Enable/Disable WinRM GPO Link
+$EnableWinRMGpoBtn.Add_Click({
+    Write-Log "Enable WinRM GPO button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        return
+    }
+
+    $result = Set-WinRMGpoState -Enabled $true
+
+    if ($result.success) {
+        $WinRMOutput.Text = "=== GPO LINK ENABLED ===`n`nWinRM GPO link has been ENABLED.`n`nThe policy will now apply to computers in the domain.`n`nRun 'gpupdate /force' on target machines to apply immediately."
+        [System.Windows.MessageBox]::Show("WinRM GPO link enabled!", "Success", "OK", "Information")
+    } else {
+        $WinRMOutput.Text = "ERROR: $($result.error)"
+        [System.Windows.MessageBox]::Show("Failed to enable GPO link:`n$($result.error)", "Error", "OK", "Error")
+    }
+})
+
+$DisableWinRMGpoBtn.Add_Click({
+    Write-Log "Disable WinRM GPO button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        return
+    }
+
+    $confirm = [System.Windows.MessageBox]::Show("Are you sure you want to disable the WinRM GPO link?`n`nThis will prevent the GPO from applying to new computers.", "Confirm Disable", "YesNo", "Warning")
+
+    if ($confirm -eq "Yes") {
+        $result = Set-WinRMGpoState -Enabled $false
+
+        if ($result.success) {
+            $WinRMOutput.Text = "=== GPO LINK DISABLED ===`n`nWinRM GPO link has been DISABLED.`n`nThe policy will no longer apply to computers.`n`nNote: Already applied settings may remain until manually removed."
+            [System.Windows.MessageBox]::Show("WinRM GPO link disabled!", "Success", "OK", "Information")
+        } else {
+            $WinRMOutput.Text = "ERROR: $($result.error)"
+            [System.Windows.MessageBox]::Show("Failed to disable GPO link:`n$($result.error)", "Error", "OK", "Error")
+        }
     }
 })
 
