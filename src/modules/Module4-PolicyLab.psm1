@@ -257,11 +257,27 @@ function Set-GPOAppLockerPolicy {
 
         # Better LDAP path construction (from AaronLocker)
         # Note: Correct namespace capitalization is critical - DirectoryServices.ActiveDirectory
-        $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
+        try {
+            $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
+        }
+        catch {
+            return @{
+                success = $false
+                error = "Computer is not domain-joined or domain is unreachable: $($_.Exception.Message)"
+            }
+        }
+
+        if ($null -eq $domain) {
+            return @{
+                success = $false
+                error = "Unable to determine computer domain"
+            }
+        }
+
         $ldapPath = "LDAP://{0}" -f $gpo.Path.Replace("LDAP://", "")
 
         Write-Verbose "Applying policy to GPO '$GpoName' in domain '$($domain.Name)'"
-        Set-AppLockerPolicy -AppLockerPolicy $policy -LDAP $ldapPath -ErrorAction Stop
+        Set-AppLockerPolicy -PolicyObject $policy -Ldap $ldapPath -ErrorAction Stop
 
         return @{
             success = $true
@@ -340,13 +356,28 @@ function Set-LatestAppLockerPolicy {
     }
 
     # Note: Correct namespace capitalization is critical - DirectoryServices.ActiveDirectory
-    $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
+    try {
+        $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
+    }
+    catch {
+        return @{
+            success = $false
+            error = "Computer is not domain-joined or domain is unreachable: $($_.Exception.Message)"
+        }
+    }
+
+    if ($null -eq $domain) {
+        return @{
+            success = $false
+            error = "Unable to determine computer domain"
+        }
+    }
 
     if ($PSCmdlet.ShouldProcess($gpo.DisplayName, "Set AppLocker policy using $($latestPolicy.Name)")) {
         $policy = [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.AppLockerPolicy]::Load($latestPolicy.FullName)
         $ldapPath = "LDAP://{0}" -f $gpo.Path.Replace("LDAP://", "")
 
-        Set-AppLockerPolicy -AppLockerPolicy $policy -LDAP $ldapPath -ErrorAction Stop
+        Set-AppLockerPolicy -PolicyObject $policy -Ldap $ldapPath -ErrorAction Stop
 
         return @{
             success = $true

@@ -269,6 +269,31 @@ function Add-UserToAppLockerGroup {
         [string]$GroupName
     )
 
+    # Tier-0 Protected Groups - these CANNOT be modified through this function
+    $protectedGroups = @(
+        'Domain Admins',
+        'Enterprise Admins',
+        'Schema Admins',
+        'Administrators',
+        'Backup Operators',
+        'Account Operators',
+        'Server Operators',
+        'Print Operators',
+        'Cert Publishers',
+        'Group Policy Creator Owners'
+    )
+
+    # Allowed AppLocker groups whitelist
+    $allowedGroups = @(
+        'AppLocker-Admins',
+        'AppLocker-StandardUsers',
+        'AppLocker-PowerUsers',
+        'AppLocker-RestrictedUsers',
+        'AppLocker-Service-Accounts',
+        'AppLocker-Installers',
+        'AppLocker-Developers'
+    )
+
     # Validate parameters
     if ([string]::IsNullOrWhiteSpace($SamAccountName)) {
         return @{ success = $false; error = 'SamAccountName is required' }
@@ -276,6 +301,19 @@ function Add-UserToAppLockerGroup {
 
     if ([string]::IsNullOrWhiteSpace($GroupName)) {
         return @{ success = $false; error = 'GroupName is required' }
+    }
+
+    # SECURITY: Block Tier-0 group modifications
+    if ($protectedGroups -contains $GroupName) {
+        return @{
+            success = $false
+            error = "SECURITY: Cannot modify Tier-0 protected group '$GroupName'. Use native AD tools with proper authorization."
+        }
+    }
+
+    # SECURITY: Only allow AppLocker groups (optional strict mode - currently warning only)
+    if ($allowedGroups -notcontains $GroupName -and $GroupName -notlike 'AppLocker-*') {
+        Write-Warning "Group '$GroupName' is not a standard AppLocker group. Proceeding with caution."
     }
 
     try {
@@ -347,6 +385,20 @@ function Remove-UserFromAppLockerGroup {
         [string]$GroupName
     )
 
+    # Tier-0 Protected Groups - these CANNOT be modified through this function
+    $protectedGroups = @(
+        'Domain Admins',
+        'Enterprise Admins',
+        'Schema Admins',
+        'Administrators',
+        'Backup Operators',
+        'Account Operators',
+        'Server Operators',
+        'Print Operators',
+        'Cert Publishers',
+        'Group Policy Creator Owners'
+    )
+
     # Validate parameters
     if ([string]::IsNullOrWhiteSpace($SamAccountName)) {
         return @{ success = $false; error = 'SamAccountName is required' }
@@ -354,6 +406,14 @@ function Remove-UserFromAppLockerGroup {
 
     if ([string]::IsNullOrWhiteSpace($GroupName)) {
         return @{ success = $false; error = 'GroupName is required' }
+    }
+
+    # SECURITY: Block Tier-0 group modifications
+    if ($protectedGroups -contains $GroupName) {
+        return @{
+            success = $false
+            error = "SECURITY: Cannot modify Tier-0 protected group '$GroupName'. Use native AD tools with proper authorization."
+        }
     }
 
     try {
