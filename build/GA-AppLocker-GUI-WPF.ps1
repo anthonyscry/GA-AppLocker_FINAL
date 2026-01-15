@@ -198,7 +198,7 @@ function New-EvidenceFolder {
 # WPF XAML - Modern GitHub Dark Theme
 # ============================================================
 
-[xml]$xaml = @"
+$xamlString = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="GA-AppLocker Dashboard" Height="720" Width="1280" MinHeight="600" MinWidth="1000"
@@ -314,35 +314,35 @@ function New-EvidenceFolder {
                 <StackPanel Margin="0,10,0,10">
                     <!-- Dashboard Button -->
                     <Button x:Name="NavDashboard" Content="📊 Dashboard" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5" Click="NavDashboard_Click"/>
+                            HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- AD Discovery Button -->
                     <Button x:Name="NavDiscovery" Content="🔍 AD Discovery" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5" Click="NavDiscovery_Click"/>
+                            HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Artifacts Button -->
                     <Button x:Name="NavArtifacts" Content="📦 Artifacts" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5" Click="NavArtifacts_Click"/>
+                            HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Rules Button -->
                     <Button x:Name="NavRules" Content="📜 Rule Generator" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5" Click="NavRules_Click"/>
+                            HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Deployment Button -->
                     <Button x:Name="NavDeployment" Content="🚀 Deployment" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5" Click="NavDeployment_Click"/>
+                            HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Events Button -->
                     <Button x:Name="NavEvents" Content="📋 Events" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5" Click="NavEvents_Click"/>
+                            HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- Compliance Button -->
                     <Button x:Name="NavCompliance" Content="✓ Compliance" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5" Click="NavCompliance_Click"/>
+                            HorizontalAlignment="Stretch" Margin="10,5"/>
 
                     <!-- WinRM Button -->
                     <Button x:Name="NavWinRM" Content="🔧 WinRM Setup" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5" Click="NavWinRM_Click"/>
+                            HorizontalAlignment="Stretch" Margin="10,5"/>
                 </StackPanel>
             </Border>
 
@@ -409,7 +409,7 @@ function New-EvidenceFolder {
                     <!-- Refresh Button -->
                     <Button x:Name="RefreshDashboardBtn" Content="🔄 Refresh Dashboard"
                             Style="{StaticResource PrimaryButton}" Width="180" HorizontalAlignment="Left"
-                            Margin="0,20,0,0" Click="RefreshDashboard_Click"/>
+                            Margin="0,20,0,0"/>
 
                     <!-- Output Area -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
@@ -440,8 +440,7 @@ function New-EvidenceFolder {
                         </StackPanel>
 
                         <Button x:Name="ScanLocalBtn" Content="🖥 Scan Localhost"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="1"
-                                Click="ScanLocal_Click"/>
+                                Style="{StaticResource PrimaryButton}" Grid.Column="1"/>
                     </Grid>
 
                     <!-- Artifacts List -->
@@ -484,10 +483,10 @@ function New-EvidenceFolder {
                         </Grid.ColumnDefinitions>
 
                         <Button x:Name="ImportArtifactsBtn" Content="📂 Import Artifacts"
-                                Style="{StaticResource SecondaryButton}" Click="ImportArtifacts_Click"/>
+                                Style="{StaticResource SecondaryButton}"/>
 
                         <Button x:Name="GenerateRulesBtn" Content="✨ Generate Rules"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="2" Click="GenerateRules_Click"/>
+                                Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
                     <!-- Rules Output -->
@@ -507,7 +506,7 @@ function New-EvidenceFolder {
 
                     <Button x:Name="RefreshEventsBtn" Content="🔄 Refresh Events"
                             Style="{StaticResource PrimaryButton}" Width="180" HorizontalAlignment="Left"
-                            Margin="0,0,0,15" Click="RefreshEvents_Click"/>
+                            Margin="0,0,0,15"/>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="15" Height="440">
@@ -574,7 +573,7 @@ function New-EvidenceFolder {
 
                     <Button x:Name="GenerateEvidenceBtn" Content="📁 Generate Evidence Package"
                             Style="{StaticResource PrimaryButton}" Width="220" HorizontalAlignment="Left"
-                            Margin="0,0,0,15" Click="GenerateEvidence_Click"/>
+                            Margin="0,0,0,15"/>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="15" Height="440">
@@ -602,7 +601,7 @@ function New-EvidenceFolder {
 
                     <Grid Margin="0,0,0,15">
                         <Button x:Name="FullWorkflowBtn" Content="⚡ Full Workflow (1-Click)"
-                                Style="{StaticResource PrimaryButton}" Width="220" Click="FullWorkflow_Click"/>
+                                Style="{StaticResource PrimaryButton}" Width="220"/>
                     </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
@@ -660,11 +659,11 @@ function New-EvidenceFolder {
 # ============================================================
 
 try {
-    $reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]::new($xaml.OuterXml))
-    $window = [Windows.Markup.XamlReader]::Load($reader)
-    $reader.Close()
+    $window = [Windows.Markup.XamlReader]::Parse($xamlString)
 } catch {
-    [System.Windows.MessageBox]::Show("Failed to load WPF GUI: $_", "Error", "OK", "Error")
+    Write-Host "ERROR: Failed to load WPF GUI: $_" -ForegroundColor Red
+    Write-Host "Press any key to exit..." -ForegroundColor Yellow
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     exit 1
 }
 
@@ -906,7 +905,7 @@ function Update-StatusBar {
 }
 
 # Initialize on load
-$window.Add_Load({
+$window.add_Loaded({
     # Detect domain/workgroup
     $script:DomainInfo = Get-ADDomain
     $script:IsWorkgroup = $script:DomainInfo.isWorkgroup
