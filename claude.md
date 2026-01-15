@@ -61,7 +61,7 @@ GA-AppLocker_FINAL/
 
 ### Module 2: Remote Scan (`Module2-RemoteScan.psm1`)
 
-**Purpose:** Discovers AD computers and scans for software artifacts.
+**Purpose:** Discovers AD computers and scans for software artifacts and AppLocker event logs.
 
 **Key Functions:**
 - `Get-DirectorySafetyClassification` - Classifies paths as Safe/Unsafe/Unknown
@@ -71,9 +71,53 @@ GA-AppLocker_FINAL/
 - `Test-ComputerOnline` - Ping test with configurable timeout
 - `Get-ExecutableArtifacts` - Comprehensive local EXE scanning
 - `Get-RemoteArtifacts` - Remote scanning via WinRM
+- `Get-RemoteAppLockerEvents` - **NEW** Comprehensive remote AppLocker event log collection
+- `Get-RemoteAppLockerEventsMultiple` - **NEW** Multi-computer event log scanning
+- `ConvertTo-RuleGeneratorArtifacts` - **NEW** Convert events to rule generator format
+
+**Remote Event Log Scanning (Audit-Compliant):**
+
+The new event log scanning functions provide comprehensive remote AppLocker data collection:
+
+```powershell
+# Single computer scan
+$result = Get-RemoteAppLockerEvents -ComputerName "WORKSTATION01" -DaysBack 7
+
+# Access collected data
+$result.PolicyMode        # Enforcement modes (Exe, Dll, Msi, Script, Appx)
+$result.RuleCounts        # Rule counts per collection
+$result.Events            # Raw event data with parsed details
+$result.artifacts         # Pre-formatted for rule generator
+
+# Multi-computer scan
+$computers = @("WS01", "WS02", "SERVER01")
+$multi = Get-RemoteAppLockerEventsMultiple -ComputerNames $computers -DaysBack 14
+$multi.uniqueArtifacts    # Deduplicated artifacts across all computers
+$multi.publisherSummary   # Publisher breakdown across environment
+
+# Generate rules from audit/block events
+$artifacts = ConvertTo-RuleGeneratorArtifacts -Events $result.events -IncludeEventTypes @('Audit', 'Blocked')
+$rules = New-RulesFromArtifacts -Artifacts $artifacts -RuleType Publisher -Action Allow
+```
+
+**What Gets Collected:**
+- System info (OS, Build, Architecture)
+- AppIDSvc status (required for enforcement)
+- Effective policy modes and rule counts
+- Full policy XML (optional, via -IncludePolicyXml)
+- Events from all 4 AppLocker log channels (last N days)
+- Parsed event data (FilePath, Publisher, Hash, UserSid)
+- Pre-formatted artifacts for rule generation
+
+**Audit Compliance:**
+- Uses WinRM only (Invoke-Command)
+- No local execution on targets
+- No registry scraping
+- Pulls effective state via Get-AppLockerPolicy -Effective
+- Works under least privilege (Remote Management Users)
 
 **Known Issues:**
-- Remote scanning collects fewer data points than local scanning
+- Remote artifact scanning collects fewer data points than local scanning
 - `Get-AllADComputers` has silent pagination limit (500)
 - No PE verification in remote scanning
 
