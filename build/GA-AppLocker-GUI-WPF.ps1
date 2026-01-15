@@ -4127,16 +4127,11 @@ $ComprehensiveScanBtn.Add_Click({
     Write-Log "Starting comprehensive AaronLocker-style scan"
     $ArtifactsList.Items.Clear()
 
-    # Ask for output folder
-    $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-    $folderDialog.Description = "Select output folder for scan artifacts"
-    $folderDialog.SelectedPath = "C:\GA-AppLocker\Scans"
-
-    if ($folderDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
-        return
+    # Use default output folder directly (no dialog)
+    $outputPath = "C:\GA-AppLocker\Scans"
+    if (-not (Test-Path $outputPath)) {
+        New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
     }
-
-    $outputPath = $folderDialog.SelectedPath
     $max = [int]$MaxFilesText.Text
 
     $ArtifactsList.Items.Add("Starting comprehensive scan...")
