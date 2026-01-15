@@ -1698,20 +1698,21 @@ $xamlString = @"
         <SolidColorBrush x:Key="Text3" Color="#6E7681"/>
         <SolidColorBrush x:Key="Hover" Color="#30363D"/>
 
-        <!-- Button Styles -->
+        <!-- Button Styles - Compact design for more content space -->
         <Style x:Key="PrimaryButton" TargetType="Button">
             <Setter Property="Background" Value="#238636"/>
             <Setter Property="Foreground" Value="White"/>
             <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="24"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
                                 BorderThickness="0"
-                                CornerRadius="6"
+                                CornerRadius="4"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -1734,16 +1735,17 @@ $xamlString = @"
             <Setter Property="Foreground" Value="#E6EDF3"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="BorderBrush" Value="#30363D"/>
-            <Setter Property="Padding" Value="16,8"/>
-            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="FontSize" Value="11"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="MinHeight" Value="24"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="1"
-                                CornerRadius="6"
+                                CornerRadius="4"
                                 Padding="{TemplateBinding Padding}">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
@@ -1832,8 +1834,6 @@ $xamlString = @"
                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#388BFD"/>
                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#FFFFFF"/>
                 <SolidColorBrush x:Key="{x:Static SystemColors.ControlTextBrushKey}" Color="#E6EDF3"/>
-                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#30363D"/>
-                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#E6EDF3"/>
             </Style.Resources>
         </Style>
 
@@ -1852,6 +1852,52 @@ $xamlString = @"
                     <Setter Property="Foreground" Value="#FFFFFF"/>
                 </Trigger>
             </Style.Triggers>
+        </Style>
+
+        <!-- Global ListBox Style for Dark Theme with Scrolling -->
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="#0D1117"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="BorderBrush" Value="#30363D"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled"/>
+            <Setter Property="ScrollViewer.VerticalScrollBarVisibility" Value="Auto"/>
+            <Setter Property="VirtualizingStackPanel.IsVirtualizing" Value="True"/>
+        </Style>
+
+        <!-- Global ListBoxItem Style for Dark Theme -->
+        <Style TargetType="ListBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="Padding" Value="6,3"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#21262D"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#388BFD"/>
+                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Global TextBox Style for Dark Theme -->
+        <Style TargetType="TextBox">
+            <Setter Property="Background" Value="#0D1117"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="BorderBrush" Value="#30363D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="CaretBrush" Value="#E6EDF3"/>
+            <Setter Property="SelectionBrush" Value="#388BFD"/>
+        </Style>
+
+        <!-- Global ScrollBar Style for Dark Theme -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="#161B22"/>
+            <Setter Property="Width" Value="10"/>
         </Style>
     </Window.Resources>
 
@@ -1884,9 +1930,9 @@ $xamlString = @"
         </Border>
 
         <!-- Main Content Area -->
-        <Grid Margin="0,104,0,0">
+        <Grid Margin="0,100,0,0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="180"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
@@ -1964,7 +2010,7 @@ $xamlString = @"
                 <StackPanel x:Name="PanelDashboard" Visibility="Collapsed">
                     <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
-                    <!-- Stats Cards -->
+                    <!-- Stats Cards - Compact layout -->
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -1976,56 +2022,56 @@ $xamlString = @"
 
                         <!-- Policy Health Card -->
                         <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                                CornerRadius="4" Margin="0,0,6,8" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Policy Health" FontSize="11" Foreground="#8B949E"/>
-                                <TextBlock x:Name="HealthScore" Text="--" FontSize="26" FontWeight="Bold"
-                                           Foreground="#3FB950" Margin="0,8,0,0"/>
-                                <TextBlock x:Name="HealthStatus" Text="Loading..." FontSize="10" Foreground="#6E7681"/>
+                                <TextBlock Text="Policy Health" FontSize="10" Foreground="#8B949E"/>
+                                <TextBlock x:Name="HealthScore" Text="--" FontSize="20" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,4,0,0"/>
+                                <TextBlock x:Name="HealthStatus" Text="Loading..." FontSize="9" Foreground="#6E7681"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Events Card -->
                         <Border Grid.Column="1" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                                CornerRadius="4" Margin="0,0,6,8" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Total Events" FontSize="11" Foreground="#8B949E"/>
-                                <TextBlock x:Name="TotalEvents" Text="--" FontSize="26" FontWeight="Bold"
-                                           Foreground="#58A6FF" Margin="0,8,0,0"/>
-                                <TextBlock x:Name="EventsStatus" Text="Loading..." FontSize="10" Foreground="#6E7681"/>
+                                <TextBlock Text="Total Events" FontSize="10" Foreground="#8B949E"/>
+                                <TextBlock x:Name="TotalEvents" Text="--" FontSize="20" FontWeight="Bold"
+                                           Foreground="#58A6FF" Margin="0,4,0,0"/>
+                                <TextBlock x:Name="EventsStatus" Text="Loading..." FontSize="9" Foreground="#6E7681"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Allowed Card -->
                         <Border Grid.Column="2" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                                CornerRadius="4" Margin="0,0,6,8" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Allowed" FontSize="11" Foreground="#8B949E"/>
-                                <TextBlock x:Name="AllowedEvents" Text="--" FontSize="26" FontWeight="Bold"
-                                           Foreground="#3FB950" Margin="0,8,0,0"/>
-                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8002</TextBlock>
+                                <TextBlock Text="Allowed" FontSize="10" Foreground="#8B949E"/>
+                                <TextBlock x:Name="AllowedEvents" Text="--" FontSize="20" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,4,0,0"/>
+                                <TextBlock FontSize="9" Foreground="#6E7681">ID 8002</TextBlock>
                             </StackPanel>
                         </Border>
 
                         <!-- Audited Card -->
                         <Border Grid.Column="3" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                                CornerRadius="4" Margin="0,0,6,8" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Audited" FontSize="11" Foreground="#8B949E"/>
-                                <TextBlock x:Name="AuditedEvents" Text="--" FontSize="26" FontWeight="Bold"
-                                           Foreground="#D29922" Margin="0,8,0,0"/>
-                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8003</TextBlock>
+                                <TextBlock Text="Audited" FontSize="10" Foreground="#8B949E"/>
+                                <TextBlock x:Name="AuditedEvents" Text="--" FontSize="20" FontWeight="Bold"
+                                           Foreground="#D29922" Margin="0,4,0,0"/>
+                                <TextBlock FontSize="9" Foreground="#6E7681">ID 8003</TextBlock>
                             </StackPanel>
                         </Border>
 
                         <!-- Blocked Card -->
                         <Border Grid.Column="4" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="6" Margin="0,0,0,10" Padding="12">
+                                CornerRadius="4" Margin="0,0,0,8" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Blocked" FontSize="11" Foreground="#8B949E"/>
-                                <TextBlock x:Name="BlockedEvents" Text="--" FontSize="26" FontWeight="Bold"
-                                           Foreground="#F85149" Margin="0,8,0,0"/>
-                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8004</TextBlock>
+                                <TextBlock Text="Blocked" FontSize="10" Foreground="#8B949E"/>
+                                <TextBlock x:Name="BlockedEvents" Text="--" FontSize="20" FontWeight="Bold"
+                                           Foreground="#F85149" Margin="0,4,0,0"/>
+                                <TextBlock FontSize="9" Foreground="#6E7681">ID 8004</TextBlock>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -2102,10 +2148,10 @@ $xamlString = @"
 
                 <!-- Artifacts Panel -->
                 <StackPanel x:Name="PanelArtifacts" Visibility="Collapsed">
-                    <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,15"/>
+                    <TextBlock Text="Artifact Collection" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
-                    <!-- Row 1: Max Files and basic buttons -->
-                    <Grid Margin="0,0,0,10">
+                    <!-- Row 1: Max Files and basic buttons - compact -->
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -2114,71 +2160,69 @@ $xamlString = @"
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
-                            <TextBlock Text="Max Files:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBox x:Name="MaxFilesText" Text="50000" Width="80" Height="32"
-                                     Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                     BorderThickness="1" FontSize="13" Padding="5"/>
+                            <TextBlock Text="Max Files:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox x:Name="MaxFilesText" Text="50000" Width="70" Height="24"/>
                         </StackPanel>
 
-                        <Button x:Name="ScanLocalBtn" Content="Scan Localhost"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="0,0,10,0"/>
-                        <Button x:Name="ExportArtifactsBtn" Content="Export CSV"
+                        <Button x:Name="ScanLocalBtn" Content="Scan Local"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="0,0,6,0"/>
+                        <Button x:Name="ExportArtifactsBtn" Content="Export"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="3"/>
                     </Grid>
 
                     <!-- Row 2: Comprehensive Scan (full width) -->
                     <Button x:Name="ComprehensiveScanBtn" Content="Comprehensive Scan (AaronLocker-style)"
-                            Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Margin="0,0,0,10"/>
+                            Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Margin="0,0,0,8"/>
 
-                    <!-- Info about Comprehensive Scan -->
+                    <!-- Info about Comprehensive Scan - more compact -->
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                            CornerRadius="4" Padding="8" Margin="0,0,0,8">
                         <TextBlock Text="Creates: Executables.csv, InstalledSoftware.csv, Publishers.csv, RunningProcesses.csv, SystemInfo.csv, WritableDirectories.csv, AppLockerPolicy.xml"
-                                   FontSize="10" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                   FontSize="9" Foreground="#8B949E" TextWrapping="Wrap"/>
                     </Border>
 
-                    <!-- Artifacts List -->
+                    <!-- Artifacts List - expanded height -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinHeight="200">
+                            CornerRadius="4" Padding="10" MinHeight="280">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <TextBlock Grid.Row="0" Text="Discovered Artifacts" FontSize="13" FontWeight="Bold"
-                                       Foreground="#8B949E" Margin="0,0,0,10"/>
+                            <TextBlock Grid.Row="0" Text="Discovered Artifacts" FontSize="11" FontWeight="Bold"
+                                       Foreground="#8B949E" Margin="0,0,0,6"/>
 
-                            <ListBox x:Name="ArtifactsList" Grid.Row="1" Background="#0D1117"
-                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="11"/>
+                            <ListBox x:Name="ArtifactsList" Grid.Row="1" FontFamily="Consolas" FontSize="10"
+                                     SelectionMode="Extended"/>
                         </Grid>
                     </Border>
                 </StackPanel>
 
                 <!-- Software Gap Analysis Panel -->
                 <StackPanel x:Name="PanelGapAnalysis" Visibility="Collapsed">
-                    <TextBlock Text="Software Gap Analysis" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Software Gap Analysis" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
 
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                            CornerRadius="4" Padding="10" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="Compare Software Baselines" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Compare Software Baselines" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,4"/>
                             <TextBlock Text="Select a baseline software list and compare against another host or imported list."
-                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                       FontSize="10" Foreground="#8B949E" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Import and Compare Buttons -->
-                    <Grid Margin="0,0,0,15">
+                    <!-- Import and Compare Buttons - compact -->
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <Button x:Name="ImportBaselineBtn" Content="Import Baseline CSV" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
-                        <Button x:Name="ImportTargetBtn" Content="Import Target CSV" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                        <Button x:Name="ImportBaselineBtn" Content="Import Baseline" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ImportTargetBtn" Content="Import Target" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                         <Button x:Name="CompareSoftwareBtn" Content="Compare Lists" Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
                     </Grid>
 
@@ -2278,93 +2322,76 @@ $xamlString = @"
                         </Grid>
                     </Border>
 
-                    <!-- Summary Stats -->
-                    <Grid Margin="0,0,0,15">
+                    <!-- Summary Stats - compact -->
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Total" FontSize="10" Foreground="#8B949E"/>
-                                <TextBlock x:Name="GapTotalCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Total" FontSize="9" Foreground="#8B949E"/>
+                                <TextBlock x:Name="GapTotalCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#E6EDF3" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="2" Background="#21262D" BorderBrush="#F85149" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <Border Grid.Column="2" Background="#21262D" BorderBrush="#F85149" BorderThickness="1" CornerRadius="4" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Missing" FontSize="10" Foreground="#E6EDF3"/>
-                                <TextBlock x:Name="GapMissingCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#F85149" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Missing" FontSize="9" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapMissingCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#F85149" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="4" Background="#21262D" BorderBrush="#58A6FF" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <Border Grid.Column="4" Background="#21262D" BorderBrush="#58A6FF" BorderThickness="1" CornerRadius="4" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Extra" FontSize="10" Foreground="#E6EDF3"/>
-                                <TextBlock x:Name="GapExtraCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#58A6FF" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Extra" FontSize="9" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapExtraCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#58A6FF" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
-                        <Border Grid.Column="6" Background="#21262D" BorderBrush="#D29922" BorderThickness="1" CornerRadius="6" Padding="10">
+                        <Border Grid.Column="6" Background="#21262D" BorderBrush="#D29922" BorderThickness="1" CornerRadius="4" Padding="8">
                             <StackPanel>
-                                <TextBlock Text="Version Diff" FontSize="10" Foreground="#E6EDF3"/>
-                                <TextBlock x:Name="GapVersionCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#D29922" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Version" FontSize="9" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapVersionCount" Text="0" FontSize="16" FontWeight="Bold" Foreground="#D29922" HorizontalAlignment="Center"/>
                             </StackPanel>
                         </Border>
                     </Grid>
 
                     <!-- Export Button -->
-                    <Grid>
-                        <Button x:Name="ExportGapAnalysisBtn" Content="Export Comparison" Style="{StaticResource SecondaryButton}" Width="180" HorizontalAlignment="Left"/>
-                    </Grid>
+                    <Button x:Name="ExportGapAnalysisBtn" Content="Export Comparison" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left"/>
                 </StackPanel>
 
                 <!-- Rules Panel -->
                 <StackPanel x:Name="PanelRules" Visibility="Collapsed">
-                    <TextBlock Text="Rule Generator" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                    <TextBlock Text="Rule Generator" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
 
-                    <!-- Rule Options Row -->
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
+                    <!-- Rule Options Row - compact wrap layout -->
+                    <WrapPanel Margin="0,0,0,8">
                         <!-- Rule Type -->
-                        <TextBlock Text="Type:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <StackPanel Orientation="Horizontal" Grid.Column="1">
-                            <RadioButton x:Name="RuleTypeAuto" Content="Auto" IsChecked="True"
-                                         Foreground="#58A6FF" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"
-                                         ToolTip="Publisher for signed, Hash for unsigned"/>
-                            <RadioButton x:Name="RuleTypePublisher" Content="Publisher"
-                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="RuleTypeHash" Content="Hash"
-                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="RuleTypePath" Content="Path"
-                                         Foreground="#E6EDF3" FontSize="11" VerticalContentAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="Type:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                        <RadioButton x:Name="RuleTypeAuto" Content="Auto" IsChecked="True"
+                                     Foreground="#58A6FF" FontSize="10" Margin="0,0,6,4" VerticalContentAlignment="Center"
+                                     ToolTip="Publisher for signed, Hash for unsigned"/>
+                        <RadioButton x:Name="RuleTypePublisher" Content="Pub"
+                                     Foreground="#E6EDF3" FontSize="10" Margin="0,0,6,4" VerticalContentAlignment="Center"/>
+                        <RadioButton x:Name="RuleTypeHash" Content="Hash"
+                                     Foreground="#E6EDF3" FontSize="10" Margin="0,0,6,4" VerticalContentAlignment="Center"/>
+                        <RadioButton x:Name="RuleTypePath" Content="Path"
+                                     Foreground="#E6EDF3" FontSize="10" Margin="0,0,15,4" VerticalContentAlignment="Center"/>
 
                         <!-- Action -->
-                        <TextBlock Text="Action:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="3" Margin="0,0,8,0"/>
-                        <StackPanel Orientation="Horizontal" Grid.Column="4">
-                            <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
-                                         Foreground="#3FB950" FontSize="11" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="RuleActionDeny" Content="Deny"
-                                         Foreground="#F85149" FontSize="11" VerticalContentAlignment="Center"/>
-                        </StackPanel>
+                        <TextBlock Text="Action:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                        <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
+                                     Foreground="#3FB950" FontSize="10" Margin="0,0,6,4" VerticalContentAlignment="Center"/>
+                        <RadioButton x:Name="RuleActionDeny" Content="Deny"
+                                     Foreground="#F85149" FontSize="10" Margin="0,0,15,4" VerticalContentAlignment="Center"/>
 
                         <!-- AD Group -->
-                        <TextBlock Text="Apply To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="6" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="200"
-                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
+                        <TextBlock Text="Apply:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                        <ComboBox x:Name="RuleGroupCombo" Height="22" MinWidth="160"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="10" Margin="0,0,0,4">
                             <ComboBox.Resources>
                                 <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#21262D"/>
                                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#30363D"/>
@@ -2373,7 +2400,7 @@ $xamlString = @"
                                 <Style TargetType="ComboBoxItem">
                                     <Setter Property="Background" Value="#21262D"/>
                                     <Setter Property="Foreground" Value="#E6EDF3"/>
-                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Setter Property="Padding" Value="6,3"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsHighlighted" Value="True">
                                             <Setter Property="Background" Value="#30363D"/>
@@ -2386,56 +2413,54 @@ $xamlString = @"
                             <ComboBoxItem Content="AppLocker-StandardUsers" Tag="AppLocker-StandardUsers"/>
                             <ComboBoxItem Content="AppLocker-Service-Accounts" Tag="AppLocker-Service-Accounts"/>
                             <ComboBoxItem Content="AppLocker-Installers" Tag="AppLocker-Installers"/>
-                            <ComboBoxItem Content="Custom (Enter SID below)" Tag="Custom"/>
+                            <ComboBoxItem Content="Custom (Enter SID)" Tag="Custom"/>
                         </ComboBox>
-                    </Grid>
+                    </WrapPanel>
 
                     <!-- Custom SID Input (hidden by default) -->
-                    <Grid x:Name="CustomSidPanel" Margin="0,0,0,10" Visibility="Collapsed">
+                    <Grid x:Name="CustomSidPanel" Margin="0,0,0,6" Visibility="Collapsed">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Custom SID:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox x:Name="CustomSidText" Grid.Column="1" Height="26"
-                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                 BorderThickness="1" FontSize="11" Padding="5"
+                        <TextBlock Text="Custom SID:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="CustomSidText" Grid.Column="1" Height="22"
                                  Text="S-1-5-21-..."/>
                     </Grid>
 
-                    <!-- Action Buttons -->
-                    <Grid Margin="0,0,0,10">
+                    <!-- Action Buttons - compact -->
+                    <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button x:Name="ImportArtifactsBtn" Content="Import Artifact"
+                        <Button x:Name="ImportArtifactsBtn" Content="Import CSV"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
-                        <Button x:Name="ImportFolderBtn" Content="Import Folder"
+                        <Button x:Name="ImportFolderBtn" Content="Folder"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
-                        <Button x:Name="MergeRulesBtn" Content="Merge Rules"
+                        <Button x:Name="MergeRulesBtn" Content="Merge"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
-                        <Button x:Name="GenerateRulesBtn" Content="Generate Rules"
+                        <Button x:Name="GenerateRulesBtn" Content="Generate"
                                 Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
                     </Grid>
 
-                    <!-- Default Deny Rules Button -->
-                    <Button x:Name="DefaultDenyRulesBtn" Content="Add Default Deny Rules (Block Bypass Locations)"
-                            Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,10"
+                    <!-- Default Deny Rules Button - compact -->
+                    <Button x:Name="DefaultDenyRulesBtn" Content="Add Default Deny Rules (Bypass Locations)"
+                            Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,8"
                             ToolTip="Adds deny rules for TEMP, Downloads, AppData and other bypass locations"/>
 
-                    <!-- Rules Output -->
+                    <!-- Rules Output - expanded -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" MinHeight="180" MaxHeight="350">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            CornerRadius="4" Padding="10" MinHeight="260">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
-                                       FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
@@ -2443,17 +2468,17 @@ $xamlString = @"
 
                 <!-- Events Panel -->
                 <StackPanel x:Name="PanelEvents" Visibility="Collapsed">
-                    <TextBlock Text="Event Monitor" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                    <TextBlock Text="Event Monitor" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
 
-                    <!-- Scan Buttons Row -->
-                    <Grid Margin="0,0,0,8">
+                    <!-- Scan Buttons Row - compact -->
+                    <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="ScanLocalEventsBtn" Content="Scan Local" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
@@ -2463,35 +2488,33 @@ $xamlString = @"
                     </Grid>
 
                     <!-- Remote Computer Input -->
-                    <Grid Margin="0,0,0,8">
+                    <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Computers:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox x:Name="EventComputersText" Grid.Column="1" Height="24"
-                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                 BorderThickness="1" FontSize="10" Padding="4"
+                        <TextBlock Text="Computers:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                        <TextBox x:Name="EventComputersText" Grid.Column="1" Height="22"
                                  Text="(comma-separated or use Load from Discovery)"/>
-                        <Button x:Name="LoadFromDiscoveryBtn" Content="Load from Discovery"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="8,0,0,0"/>
+                        <Button x:Name="LoadFromDiscoveryBtn" Content="Load Discovery"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="6,0,0,0"/>
                     </Grid>
 
-                    <!-- Event Filters -->
-                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                        <TextBlock Text="Filter:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                    <!-- Event Filters - wrap-friendly -->
+                    <WrapPanel Margin="0,0,0,8">
+                        <TextBlock Text="Filter:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,0"/>
                         <Button x:Name="FilterAllBtn" Content="All" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
                         <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
                         <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
                         <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Margin="0,0,4,0"/>
-                        <Button x:Name="RefreshEventsBtn" Content="Refresh" Style="{StaticResource PrimaryButton}" Margin="15,0,0,0"/>
-                    </StackPanel>
+                        <Button x:Name="RefreshEventsBtn" Content="Refresh" Style="{StaticResource PrimaryButton}" Margin="10,0,0,0"/>
+                    </WrapPanel>
 
-                    <!-- Events Output -->
+                    <!-- Events Output - expanded -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" MinHeight="200" MaxHeight="400">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            CornerRadius="4" Padding="10" MinHeight="280">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="EventsOutput"
                                        Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first.&#x0a;Export events to CSV, then use Import CSV in Rule Generator to create rules."
                                        FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
@@ -2502,25 +2525,25 @@ $xamlString = @"
 
                 <!-- Deployment Panel -->
                 <StackPanel x:Name="PanelDeployment" Visibility="Collapsed">
-                    <TextBlock Text="Deployment" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Deployment" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
-                    <!-- Deployment Buttons (disabled in workgroup mode) -->
-                    <Grid Margin="0,0,0,15">
+                    <!-- Deployment Buttons - compact -->
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <Button x:Name="CreateGP0Btn" Content="Create GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
-                        <Button x:Name="DisableGpoBtn" Content="Disable AppLocker GPO" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                        <Button x:Name="DisableGpoBtn" Content="Disable GPO" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
                     </Grid>
 
                     <!-- Import/Export Rules Buttons -->
-                    <Grid Margin="0,0,0,15">
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
@@ -2529,11 +2552,11 @@ $xamlString = @"
                     </Grid>
 
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                            CornerRadius="4" Padding="12" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="Deployment Status" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Deployment Status" FontSize="12" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,6"/>
                             <TextBlock x:Name="DeploymentStatus" Text="Ready to deploy policies..."
-                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                       FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
@@ -2579,17 +2602,17 @@ $xamlString = @"
 
                 <!-- Compliance Panel -->
                 <StackPanel x:Name="PanelCompliance" Visibility="Collapsed">
-                    <TextBlock Text="Compliance" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Compliance" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
                     <Button x:Name="GenerateEvidenceBtn" Content="Generate Evidence Package"
-                            Style="{StaticResource PrimaryButton}" Width="220" HorizontalAlignment="Left"
-                            Margin="0,0,0,15"/>
+                            Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"
+                            Margin="0,0,0,10"/>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="300">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            CornerRadius="4" Padding="10" MinHeight="320">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="ComplianceOutput" Text="Click 'Generate Evidence Package' to create compliance artifacts..."
-                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
@@ -2597,36 +2620,35 @@ $xamlString = @"
 
                 <!-- WinRM Panel -->
                 <StackPanel x:Name="PanelWinRM" Visibility="Collapsed">
-                    <TextBlock Text="WinRM Setup" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="WinRM Setup" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                            CornerRadius="4" Padding="12" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="WinRM (Windows Remote Management)" FontSize="14" FontWeight="Bold"
-                                       Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="WinRM (Windows Remote Management)" FontSize="12" FontWeight="Bold"
+                                       Foreground="#E6EDF3" Margin="0,0,0,6"/>
                             <TextBlock Text="WinRM is required for remote PowerShell and AppLocker scanning."
-                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                       FontSize="10" Foreground="#8B949E" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- WinRM Buttons (disabled when not on DC) -->
                     <!-- Main WinRM Buttons -->
-                    <Grid Margin="0,0,0,15">
+                    <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <Button x:Name="CreateWinRMGpoBtn" Content="Create/Update WinRM GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
-                        <Button x:Name="ForceGPUpdateBtn" Content="Force GPUpdate (All Computers)" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                        <Button x:Name="ForceGPUpdateBtn" Content="Force GPUpdate (All)" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
                     <!-- Enable/Disable GPO Buttons -->
-                    <Grid Margin="0,0,0,15">
+                    <Grid Margin="0,0,0,8">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
@@ -2635,10 +2657,10 @@ $xamlString = @"
                     </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200" MaxHeight="400">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            CornerRadius="4" Padding="10" MinHeight="280">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="WinRMOutput" Text="Create/Update WinRM GPO to enable remote management. Force GPUpdate to push to all computers."
-                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
@@ -2646,33 +2668,31 @@ $xamlString = @"
 
                 <!-- AD Discovery Panel -->
                 <StackPanel x:Name="PanelDiscovery" Visibility="Collapsed">
-                    <TextBlock Text="AD Discovery" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                    <TextBlock Text="AD Discovery" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
 
-                    <!-- Search and Discover Row -->
-                    <Grid Margin="0,0,0,8">
+                    <!-- Search and Discover Row - compact -->
+                    <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Filter:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                        <TextBox x:Name="ADSearchFilter" Grid.Column="2" Text="*" Height="26"
-                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                 BorderThickness="1" FontSize="11" Padding="5"
+                        <TextBlock Text="Filter:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ADSearchFilter" Grid.Column="2" Text="*" Height="22"
                                  ToolTip="Use * for all, or enter computer name filter"/>
                         <Button x:Name="DiscoverComputersBtn" Content="Discover"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="4" MinWidth="80"/>
+                                Style="{StaticResource PrimaryButton}" Grid.Column="4"/>
                     </Grid>
 
-                    <!-- Action Buttons Row -->
-                    <Grid Margin="0,0,0,8">
+                    <!-- Action Buttons Row - compact -->
+                    <Grid Margin="0,0,0,6">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="TestConnectivityBtn" Content="Test Connectivity"
@@ -2683,55 +2703,53 @@ $xamlString = @"
                                 Style="{StaticResource PrimaryButton}" Grid.Column="4"/>
                     </Grid>
 
-                    <!-- Online/Offline Computers Grid -->
+                    <!-- Online/Offline Computers Grid - expanded height -->
                     <Grid Margin="0,0,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="6"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Online Computers List -->
                         <Border Grid.Column="0" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="6" Padding="8" Height="140">
+                                CornerRadius="4" Padding="6" Height="160">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Online Computers (Ctrl+Click to multi-select)" FontSize="10" FontWeight="Bold"
+                                <TextBlock Grid.Row="0" Text="Online (Ctrl+Click multi-select)" FontSize="9" FontWeight="Bold"
                                            Foreground="#3FB950" Margin="0,0,0,4"/>
-                                <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
-                                         Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
+                                <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" FontFamily="Consolas" FontSize="9"
                                          SelectionMode="Extended"/>
                             </Grid>
                         </Border>
 
                         <!-- Offline Computers List -->
                         <Border Grid.Column="2" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="6" Padding="8" Height="140">
+                                CornerRadius="4" Padding="6" Height="160">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="*"/>
                                 </Grid.RowDefinitions>
-                                <TextBlock Grid.Row="0" Text="Offline Computers" FontSize="10" FontWeight="Bold"
+                                <TextBlock Grid.Row="0" Text="Offline Computers" FontSize="9" FontWeight="Bold"
                                            Foreground="#F85149" Margin="0,0,0,4"/>
-                                <ListBox x:Name="OfflineComputersList" Grid.Row="1" Background="#0D1117"
-                                         Foreground="#8B949E" BorderThickness="0" FontFamily="Consolas" FontSize="9"
-                                         SelectionMode="Extended"/>
+                                <ListBox x:Name="OfflineComputersList" Grid.Row="1" Foreground="#8B949E"
+                                         FontFamily="Consolas" FontSize="9" SelectionMode="Extended"/>
                             </Grid>
                         </Border>
                     </Grid>
 
                     <!-- Status Line -->
                     <TextBlock x:Name="DiscoveryStatus" Text="Ready to discover computers"
-                               FontSize="10" Foreground="#8B949E" Margin="0,6,0,0"/>
+                               FontSize="9" Foreground="#8B949E" Margin="0,4,0,0"/>
 
-                    <!-- Discovery Output -->
+                    <!-- Discovery Output - expanded -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" Margin="0,8,0,0" MinHeight="120">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            CornerRadius="4" Padding="8" Margin="0,6,0,0" MinHeight="140">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="DiscoveryOutput" Text="Click 'Discover' to search AD..."
                                        FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
@@ -2741,66 +2759,51 @@ $xamlString = @"
 
                 <!-- Group Management Panel -->
                 <StackPanel x:Name="PanelGroupMgmt" Visibility="Collapsed">
-                    <TextBlock Text="Group Management" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Group Management" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
 
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                            CornerRadius="4" Padding="10" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="AD Group Membership Management" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="AD Group Membership Management" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,4"/>
                             <TextBlock Text="Export AD groups to editable CSV, modify memberships, then import changes back."
-                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                       FontSize="10" Foreground="#8B949E" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
                     <!-- Export Section -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
-                        <StackPanel>
-                            <TextBlock Text="Export Current State" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="150"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Export all AD groups with current members to CSV" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                <Button x:Name="ExportGroupsBtn" Content="Export Groups" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
-                            </Grid>
-                        </StackPanel>
+                            CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Export all AD groups with current members to CSV" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            <Button x:Name="ExportGroupsBtn" Content="Export Groups" Style="{StaticResource PrimaryButton}" Grid.Column="1"/>
+                        </Grid>
                     </Border>
 
                     <!-- Import Section -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                            CornerRadius="4" Padding="10" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="Import Desired State" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="15"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="15"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="15"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="120"/>
-                                </Grid.ColumnDefinitions>
-                                <CheckBox x:Name="DryRunCheck" Content="Dry Run (Preview)" IsChecked="True" Grid.Column="0" Foreground="#E6EDF3"/>
-                                <CheckBox x:Name="AllowRemovalsCheck" Content="Allow Removals" Grid.Column="2" Foreground="#E6EDF3"/>
-                                <CheckBox x:Name="IncludeProtectedCheck" Content="Include Tier-0" Grid.Column="4" Foreground="#E6EDF3"/>
-                                <Button x:Name="ImportGroupsBtn" Content="Import Changes" Style="{StaticResource SecondaryButton}" Grid.Column="8"/>
-                            </Grid>
-                            <TextBlock Text="Tier-0 Protected Groups: Domain Admins, Enterprise Admins, Schema Admins, Administrators" FontSize="11" Foreground="#6E7681"/>
+                            <TextBlock Text="Import Desired State" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,6"/>
+                            <WrapPanel Margin="0,0,0,6">
+                                <CheckBox x:Name="DryRunCheck" Content="Dry Run" IsChecked="True" Foreground="#E6EDF3" FontSize="10" Margin="0,0,12,4"/>
+                                <CheckBox x:Name="AllowRemovalsCheck" Content="Allow Removals" Foreground="#E6EDF3" FontSize="10" Margin="0,0,12,4"/>
+                                <CheckBox x:Name="IncludeProtectedCheck" Content="Include Tier-0" Foreground="#E6EDF3" FontSize="10" Margin="0,0,12,4"/>
+                                <Button x:Name="ImportGroupsBtn" Content="Import Changes" Style="{StaticResource SecondaryButton}"/>
+                            </WrapPanel>
+                            <TextBlock Text="Tier-0: Domain Admins, Enterprise Admins, Schema Admins, Administrators" FontSize="9" Foreground="#6E7681"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Output -->
+                    <!-- Output - expanded -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            CornerRadius="4" Padding="10" MinHeight="220">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="GroupMgmtOutput" Text="Click 'Export Groups' to begin..."
-                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
@@ -2808,75 +2811,62 @@ $xamlString = @"
 
                 <!-- AppLocker Setup Panel -->
                 <StackPanel x:Name="PanelAppLockerSetup" Visibility="Collapsed">
-                    <TextBlock Text="AppLocker Setup" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="AppLocker Setup" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
 
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                            CornerRadius="4" Padding="10" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="AppLocker Bootstrap" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <TextBlock Text="Create AppLocker OU, groups (allow/deny), and generate default policy. Auto-populates Domain Admins."
-                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                            <TextBlock Text="AppLocker Bootstrap" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,4"/>
+                            <TextBlock Text="Create AppLocker OU, groups, and default policy. Auto-populates Domain Admins."
+                                       FontSize="10" Foreground="#8B949E" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
 
-                    <!-- Bootstrap Section -->
+                    <!-- Bootstrap Section - compact -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                            CornerRadius="4" Padding="10" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="Initialize AppLocker Structure" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="15"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="15"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="150"/>
-                                </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="OU Name:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                <TextBox x:Name="OUNameText" Text="AppLocker" Width="120" Height="28" Grid.Column="2" Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1" FontSize="12" Padding="5"/>
-                                <CheckBox x:Name="AutoPopulateCheck" Content="Auto-Populate Admins" IsChecked="True" Grid.Column="4" Foreground="#E6EDF3"/>
-                                <Button x:Name="BootstrapAppLockerBtn" Content="Initialize" Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
-                            </Grid>
-                            <Grid Margin="0,10,0,0">
+                            <TextBlock Text="Initialize AppLocker Structure" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,6"/>
+                            <WrapPanel Margin="0,0,0,6">
+                                <TextBlock Text="OU Name:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                                <TextBox x:Name="OUNameText" Text="AppLocker" Width="100" Height="22" Margin="0,0,10,4"/>
+                                <CheckBox x:Name="AutoPopulateCheck" Content="Auto-Populate Admins" IsChecked="True" Foreground="#E6EDF3" FontSize="10" VerticalContentAlignment="Center" Margin="0,0,10,4"/>
+                                <Button x:Name="BootstrapAppLockerBtn" Content="Initialize" Style="{StaticResource PrimaryButton}" Margin="0,0,0,4"/>
+                            </WrapPanel>
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Remove protection from AppLocker OUs (allows deletion)" FontSize="11" Foreground="#F85149" VerticalAlignment="Center"/>
-                                <Button x:Name="RemoveOUProtectionBtn" Content="Remove OU Protection" Style="{StaticResource SecondaryButton}" Grid.Column="1"/>
+                                <TextBlock Grid.Column="0" Text="Remove protection from AppLocker OUs (allows deletion)" FontSize="9" Foreground="#F85149" VerticalAlignment="Center"/>
+                                <Button x:Name="RemoveOUProtectionBtn" Content="Remove Protection" Style="{StaticResource SecondaryButton}" Grid.Column="1"/>
                             </Grid>
                         </StackPanel>
                     </Border>
 
-                    <!-- Browser Deny Section -->
+                    <!-- Browser Deny Section - compact -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                            CornerRadius="4" Padding="10" Margin="0,0,0,8">
                         <StackPanel>
-                            <TextBlock Text="Admin Browser Deny Rules" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <TextBlock Text="Deny internet access for admin accounts (security best practice)" FontSize="11" Foreground="#D29922" Margin="0,0,0,5"/>
-                            <Grid Margin="0,5,0,10">
+                            <TextBlock Text="Admin Browser Deny Rules" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,4"/>
+                            <TextBlock Text="Deny internet access for admin accounts (security best practice)" FontSize="9" Foreground="#D29922" Margin="0,0,0,6"/>
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="150"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0" Text="Create deny rules for common browsers in AppLocker-Admin" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                <Button x:Name="CreateBrowserDenyBtn" Content="Create Deny Rules" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                                <TextBlock Grid.Column="0" Text="Chrome, Firefox, Edge, Opera, Brave, Vivaldi, IE" FontSize="9" Foreground="#6E7681" VerticalAlignment="Center"/>
+                                <Button x:Name="CreateBrowserDenyBtn" Content="Create Deny Rules" Style="{StaticResource SecondaryButton}" Grid.Column="1"/>
                             </Grid>
-                            <TextBlock FontSize="11" Foreground="#6E7681" TextWrapping="Wrap">
-                                Browsers: Chrome, Firefox, Edge, Opera, Brave, Vivaldi, Internet Explorer
-                            </TextBlock>
                         </StackPanel>
                     </Border>
 
-                    <!-- Output - Fixed height with scrolling -->
+                    <!-- Output - expanded -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="280">
+                            CornerRadius="4" Padding="10" MinHeight="220">
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                             <TextBlock x:Name="AppLockerSetupOutput" Text="Click 'Initialize' to create AppLocker structure..."
-                                       FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
