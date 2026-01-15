@@ -2,37 +2,15 @@
 # GitHub-style dark theme based on ExampleGUI design
 # Self-contained with embedded module functions
 
-# Suppress all error popups
-$ErrorActionPreference = "SilentlyContinue"
-$ProgressPreference = "SilentlyContinue"
-
 # Required assemblies for WPF
-Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Windows.Forms, System.Drawing
-
-#region DPI Awareness - Enable crisp rendering on high-DPI displays
 try {
-    Add-Type -TypeDefinition @"
-        using System;
-        using System.Runtime.InteropServices;
-        public class DpiAwareness {
-            [DllImport("shcore.dll")]
-            public static extern int SetProcessDpiAwareness(int awareness);
-            [DllImport("user32.dll")]
-            public static extern bool SetProcessDPIAware();
-            public static void Enable() {
-                try {
-                    SetProcessDpiAwareness(2);
-                } catch {
-                    try {
-                        SetProcessDPIAware();
-                    } catch { }
-                }
-            }
-        }
-"@ -ErrorAction SilentlyContinue
-    [DpiAwareness]::Enable()
-} catch { }
-#endregion
+    Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
+    Add-Type -AssemblyName PresentationCore -ErrorAction Stop
+    Add-Type -AssemblyName WindowsBase -ErrorAction Stop
+} catch {
+    [System.Windows.Forms.MessageBox]::Show("Failed to load WPF assemblies. This application requires .NET Framework 4.5 or later.", "Error", "OK", "Error")
+    exit 1
+}
 
 # ============================================================
 # EMBEDDED: All Module Functions
