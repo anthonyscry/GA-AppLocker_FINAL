@@ -203,7 +203,79 @@ function New-EvidenceFolder {
     }
 }
 
-# Module 7: WinRM GPO Functions
+# Module 7: GPO Functions
+
+# Create AppLocker GPO
+function New-AppLockerGpo {
+    param(
+        [string]$GpoName = "AppLocker Policy",
+        [string]$TargetOU = $null,
+        [ValidateSet("AuditOnly", "Enabled")]
+        [string]$EnforcementMode = "AuditOnly"
+    )
+
+    try {
+        Import-Module GroupPolicy -ErrorAction Stop
+        Import-Module ActiveDirectory -ErrorAction SilentlyContinue
+
+        # Detect current domain if OU not specified
+        if (-not $TargetOU) {
+            $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
+            $TargetOU = $domain.DistinguishedName
+        }
+
+        Write-Log "Creating AppLocker GPO: $GpoName"
+
+        # Check if GPO already exists
+        $existingGpo = Get-GPO -Name $GpoName -ErrorAction SilentlyContinue
+        if ($existingGpo) {
+            Write-Log "GPO already exists: $GpoName"
+            return @{
+                success = $true
+                gpoName = $GpoName
+                gpoId = $existingGpo.Id
+                linkedTo = "Existing GPO"
+                message = "GPO '$GpoName' already exists. Use Link GPO to link it to an OU."
+                isNew = $false
+            }
+        }
+
+        # Create the GPO
+        $gpo = New-GPO -Name $GpoName -Comment "AppLocker application control policy - Created by GA-AppLocker Dashboard" -ErrorAction Stop
+        Write-Log "GPO created: $($gpo.Id)"
+
+        # Link to target OU
+        $link = New-GPLink -Name $GpoName -Target $TargetOU -LinkEnabled Yes -ErrorAction Stop
+        Write-Log "GPO linked to: $TargetOU"
+
+        # Set Domain Admins with full control
+        try {
+            Set-GPPermission -Name $GpoName -PermissionLevel GpoEditDeleteModifySecurity -TargetName "Domain Admins" -TargetType Group -Replace -ErrorAction Stop
+            Write-Log "Set Domain Admins as owner of GPO: $GpoName"
+        }
+        catch {
+            Write-Log "Failed to set GPO permissions: $($_.Exception.Message)" -Level "WARN"
+        }
+
+        return @{
+            success = $true
+            gpoName = $GpoName
+            gpoId = $gpo.Id
+            linkedTo = $TargetOU
+            message = "AppLocker GPO created and linked successfully"
+            isNew = $true
+        }
+    }
+    catch {
+        Write-Log "Failed to create AppLocker GPO: $($_.Exception.Message)" -Level "ERROR"
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
+# Create WinRM GPO
 function New-WinRMGpo {
     param(
         [string]$GpoName = "Enable WinRM",
@@ -325,6 +397,9 @@ function Export-ADGroupMembership {
             }
 
         $results | Export-Csv $Path -NoTypeInformation -Encoding UTF8 -ErrorAction Stop
+
+        # Close the progress dialog
+        Write-Progress -Activity "Exporting AD Groups" -Completed
 
         $actualCount = (Import-Csv $Path).Count
         Write-Log "Export complete: $Path ($actualCount groups)"
@@ -581,7 +656,8 @@ function Initialize-AppLockerStructure {
     param(
         [string]$OUName = "AppLocker",
         [bool]$AutoPopulateAdmins = $true,
-        [string]$DomainFQDN = $null
+        [string]$DomainFQDN = $null,
+        [bool]$ProtectFromDeletion = $false  # Default to false so OUs can be deleted
     )
 
     try {
@@ -619,9 +695,9 @@ function Initialize-AppLockerStructure {
         $ouExists = Get-ADOrganizationalUnit -Filter "DistinguishedName -eq '$OUDN'" -ErrorAction SilentlyContinue
 
         if (-not $ouExists) {
-            New-ADOrganizationalUnit -Name $OUName -Path $DomainDN -ProtectedFromAccidentalDeletion $true -ErrorAction Stop | Out-Null
-            $output += "[CREATED] OU: $OUDN`n"
-            Write-Log "Created OU: $OUDN"
+            New-ADOrganizationalUnit -Name $OUName -Path $DomainDN -ProtectedFromAccidentalDeletion $ProtectFromDeletion -ErrorAction Stop | Out-Null
+            $output += "[CREATED] OU: $OUDN (Protected: $ProtectFromDeletion)`n"
+            Write-Log "Created OU: $OUDN (Protected from deletion: $ProtectFromDeletion)"
 
             # Set Domain Admins as owner so they can manage/delete the OU
             if (Set-ADObjectOwner -DistinguishedName $OUDN) {
@@ -1031,8 +1107,9 @@ $xamlString = @"
                     </ScrollViewer>
             </Border>
 
-            <!-- Content Panel -->
-            <Grid Grid.Column="1" Margin="20,10,10,10">
+            <!-- Content Panel with ScrollViewer for scrolling -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="20,10,10,10">
                 <!-- Dashboard Panel -->
                 <StackPanel x:Name="PanelDashboard" Visibility="Collapsed">
                     <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
@@ -1519,23 +1596,66 @@ $xamlString = @"
                         </StackPanel>
                     </Border>
 
+                    <!-- Search Controls -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="140"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Search Filter:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ADSearchFilter" Grid.Column="2" Text="*" Height="32"
+                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                 BorderThickness="1" FontSize="13" Padding="8,5"
+                                 ToolTip="Use * for all, or enter computer name filter"/>
+                        <Button x:Name="DiscoverComputersBtn" Content="Discover Computers"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="4"/>
+                    </Grid>
+
+                    <!-- Action Buttons -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="TestConnectivityBtn" Content="Test Connectivity"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="SelectAllComputersBtn" Content="Select All"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                        <Button x:Name="ScanSelectedBtn" Content="Scan Selected"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="4"/>
+                    </Grid>
+
+                    <!-- Discovered Computers List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="420">
+                            CornerRadius="8" Padding="15" Height="320">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Discovered Computers" FontSize="13" FontWeight="Bold"
+                                       Foreground="#8B949E" Margin="0,0,0,10"/>
+
+                            <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
+                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="11"
+                                     SelectionMode="Multiple"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Discovery Output -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,15,0,0" Height="120">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock FontFamily="Consolas" FontSize="12" Foreground="#8B949E">
-                                <Run Text="AD Discovery Features:" Foreground="#E6EDF3"/>
-                                <LineBreak/>
-                                <LineBreak/>
-                                <Run Text="• Search computers by OU path"/>
-                                <LineBreak/>
-                                <Run Text="• Test connectivity to discovered hosts"/>
-                                <LineBreak/>
-                                <Run Text="• Select hosts for artifact scanning"/>
-                                <LineBreak/>
-                                <LineBreak/>
-                                <Run Text="Note: In workgroup mode, AD features are disabled."/>
-                                <Run Text=" Use 'Scan Localhost' in the Artifacts tab instead." Foreground="#D29922"/>
-                            </TextBlock>
+                            <TextBlock x:Name="DiscoveryOutput" Text="Click 'Discover Computers' to search Active Directory..."
+                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
                         </ScrollViewer>
                     </Border>
                 </StackPanel>
@@ -1776,6 +1896,7 @@ $xamlString = @"
                     </StackPanel>
                 </ScrollViewer>
             </Grid>
+            </ScrollViewer>
         </Grid>
     </Grid>
 </Window>
@@ -1871,6 +1992,16 @@ $ComplianceOutput = $window.FindName("ComplianceOutput")
 $CreateWinRMGpoBtn = $window.FindName("CreateWinRMGpoBtn")
 $FullWorkflowBtn = $window.FindName("FullWorkflowBtn")
 $WinRMOutput = $window.FindName("WinRMOutput")
+
+# AD Discovery controls
+$ADSearchFilter = $window.FindName("ADSearchFilter")
+$DiscoverComputersBtn = $window.FindName("DiscoverComputersBtn")
+$TestConnectivityBtn = $window.FindName("TestConnectivityBtn")
+$SelectAllComputersBtn = $window.FindName("SelectAllComputersBtn")
+$ScanSelectedBtn = $window.FindName("ScanSelectedBtn")
+$DiscoveredComputersList = $window.FindName("DiscoveredComputersList")
+$DiscoveryOutput = $window.FindName("DiscoveryOutput")
+$DiscoveryStatus = $window.FindName("DiscoveryStatus")
 
 # Group Management controls
 $ExportGroupsBtn = $window.FindName("ExportGroupsBtn")
@@ -2714,8 +2845,26 @@ $CreateGP0Btn.Add_Click({
         [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
         return
     }
-    $DeploymentStatus.Text = "GPO creation requires Domain Admin privileges. In production, this would create a new GPO in the domain."
-    Write-Log "GPO creation initiated (domain mode)"
+
+    $DeploymentStatus.Text = "Creating AppLocker GPO...`n`nPlease wait..."
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $result = New-AppLockerGpo -GpoName "AppLocker Policy"
+
+    if ($result.success) {
+        if ($result.isNew) {
+            $DeploymentStatus.Text = "SUCCESS: AppLocker GPO created!`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nNext Steps:`n1. Export rules from Rule Generator`n2. Import rules to GPO via Group Policy Management`n3. Set enforcement mode (start with Audit)`n4. Monitor events before enforcing"
+            [System.Windows.MessageBox]::Show("AppLocker GPO created successfully!`n`nGPO: $($result.gpoName)`nLinked to: $($result.linkedTo)", "Success", "OK", "Information")
+        } else {
+            $DeploymentStatus.Text = "GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs."
+            [System.Windows.MessageBox]::Show("GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs.", "GPO Exists", "OK", "Information")
+        }
+        Write-Log "AppLocker GPO created/found: $($result.gpoName)"
+    } else {
+        $DeploymentStatus.Text = "ERROR: Failed to create GPO`n`n$($result.error)`n`nMake sure you are running as Domain Admin with Group Policy module installed."
+        [System.Windows.MessageBox]::Show("Failed to create AppLocker GPO:`n$($result.error)", "Error", "OK", "Error")
+        Write-Log "Failed to create AppLocker GPO: $($result.error)" -Level "ERROR"
+    }
 })
 
 $LinkGP0Btn.Add_Click({
@@ -2724,8 +2873,40 @@ $LinkGP0Btn.Add_Click({
         [System.Windows.MessageBox]::Show("GPO linking requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
         return
     }
-    $DeploymentStatus.Text = "GPO linking requires Domain Admin privileges. In production, this would link the GPO to an OU."
-    Write-Log "GPO linking initiated (domain mode)"
+
+    try {
+        Import-Module GroupPolicy -ErrorAction Stop
+        Import-Module ActiveDirectory -ErrorAction SilentlyContinue
+
+        # Get domain root
+        $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
+        $domainDN = $domain.DistinguishedName
+
+        # Check if AppLocker GPO exists
+        $gpo = Get-GPO -Name "AppLocker Policy" -ErrorAction SilentlyContinue
+        if (-not $gpo) {
+            [System.Windows.MessageBox]::Show("AppLocker GPO not found. Please create it first using 'Create GPO'.", "GPO Not Found", "OK", "Warning")
+            $DeploymentStatus.Text = "ERROR: AppLocker GPO not found.`n`nPlease create it first using the 'Create GPO' button."
+            return
+        }
+
+        # Link to domain root
+        $existingLink = Get-GPInheritance -Target $domainDN | Select-Object -ExpandProperty GpoLinks | Where-Object { $_.DisplayName -eq "AppLocker Policy" }
+        if ($existingLink) {
+            $DeploymentStatus.Text = "GPO 'AppLocker Policy' is already linked to the domain root.`n`nLinked to: $domainDN"
+            [System.Windows.MessageBox]::Show("GPO is already linked to the domain root.", "Already Linked", "OK", "Information")
+        } else {
+            New-GPLink -Name "AppLocker Policy" -Target $domainDN -LinkEnabled Yes -ErrorAction Stop
+            $DeploymentStatus.Text = "SUCCESS: GPO linked to domain!`n`nGPO: AppLocker Policy`nLinked to: $domainDN`n`nThe policy will apply during the next Group Policy refresh."
+            [System.Windows.MessageBox]::Show("GPO linked to domain successfully!`n`nLinked to: $domainDN", "Success", "OK", "Information")
+        }
+        Write-Log "GPO linking complete: AppLocker Policy -> $domainDN"
+    }
+    catch {
+        $DeploymentStatus.Text = "ERROR: Failed to link GPO`n`n$($_.Exception.Message)"
+        [System.Windows.MessageBox]::Show("Failed to link GPO:`n$($_.Exception.Message)", "Error", "OK", "Error")
+        Write-Log "Failed to link GPO: $($_.Exception.Message)" -Level "ERROR"
+    }
 })
 
 # WinRM events
@@ -2775,6 +2956,89 @@ $FullWorkflowBtn.Add_Click({
         Write-Log "Full WinRM workflow failed: $($result.error)" -Level "ERROR"
         [System.Windows.MessageBox]::Show("Failed to deploy WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
     }
+})
+
+# AD Discovery events
+$DiscoverComputersBtn.Add_Click({
+    Write-Log "Discover computers button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("AD Discovery requires Active Directory. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        $DiscoveryOutput.Text = "=== WORKGROUP MODE ===`n`nAD Discovery is only available in domain mode.`n`nUse 'Scan Localhost' in Artifacts tab instead."
+        return
+    }
+
+    $DiscoveredComputersList.Items.Clear()
+    $DiscoveryOutput.Text = "Searching Active Directory for computers...`n`nPlease wait..."
+    [System.Windows.Forms.Application]::DoEvents()
+
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop
+        $filter = $ADSearchFilter.Text
+        if ([string]::IsNullOrWhiteSpace($filter)) { $filter = "*" }
+
+        $computers = Get-ADComputer -Filter "Name -like '$filter'" -Properties OperatingSystem,LastLogonDate |
+                     Select-Object Name, OperatingSystem, LastLogonDate |
+                     Sort-Object Name
+
+        foreach ($comp in $computers) {
+            $DiscoveredComputersList.Items.Add("$($comp.Name) | $($comp.OperatingSystem) | Last: $($comp.LastLogonDate)")
+        }
+
+        $DiscoveryOutput.Text = "Found $($computers.Count) computers matching filter '$filter'`n`nSelect computers and click 'Test Connectivity' or 'Scan Selected'"
+        $DiscoveryStatus.Text = "Discovered $($computers.Count) computers"
+        Write-Log "AD Discovery found $($computers.Count) computers"
+    }
+    catch {
+        $DiscoveryOutput.Text = "ERROR: $($_.Exception.Message)`n`nMake sure the Active Directory module is installed."
+        Write-Log "AD Discovery failed: $($_.Exception.Message)" -Level "ERROR"
+    }
+})
+
+$TestConnectivityBtn.Add_Click({
+    Write-Log "Test connectivity button clicked"
+    if ($DiscoveredComputersList.SelectedItems.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("Please select at least one computer to test.", "No Selection", "OK", "Information")
+        return
+    }
+
+    $DiscoveryOutput.Text = "Testing connectivity to selected computers...`n`n"
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $results = @()
+    foreach ($item in $DiscoveredComputersList.SelectedItems) {
+        $computerName = ($item -split '\|')[0].Trim()
+        $ping = New-Object System.Net.NetworkInformation.Ping
+        try {
+            $reply = $ping.Send($computerName, 1000)
+            if ($reply.Status -eq 'Success') {
+                $results += "$computerName - ONLINE ($($reply.RoundtripTime)ms)"
+            } else {
+                $results += "$computerName - OFFLINE ($($reply.Status))"
+            }
+        }
+        catch {
+            $results += "$computerName - ERROR"
+        }
+    }
+
+    $DiscoveryOutput.Text = "Connectivity Test Results:`n`n" + ($results -join "`n")
+    Write-Log "Connectivity test completed for $($DiscoveredComputersList.SelectedItems.Count) computers"
+})
+
+$SelectAllComputersBtn.Add_Click({
+    $DiscoveredComputersList.SelectAll()
+    $DiscoveryOutput.Text = "Selected all $($DiscoveredComputersList.Items.Count) computers"
+})
+
+$ScanSelectedBtn.Add_Click({
+    Write-Log "Scan selected button clicked"
+    if ($DiscoveredComputersList.SelectedItems.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("Please select at least one computer to scan.", "No Selection", "OK", "Information")
+        return
+    }
+
+    $DiscoveryOutput.Text = "Scanning selected computers for artifacts...`n`nThis feature will initiate remote scanning via WinRM.`n`nNote: Ensure WinRM is configured on target machines."
+    [System.Windows.MessageBox]::Show("Remote scanning requires WinRM to be enabled on target machines.`n`nUse 'WinRM Setup' to deploy WinRM configuration via GPO first.", "Remote Scanning", "OK", "Information")
 })
 
 # Group Management events
