@@ -1525,7 +1525,7 @@ $xamlString = @"
                                     </ToggleButton.Template>
                                     <ContentPresenter Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"/>
                                 </ToggleButton>
-                                <ContentPresenter x:Name="ExpanderContent" Visibility="Collapsed"/>
+                                <ContentPresenter x:Name="ExpanderContent" Content="{TemplateBinding Content}" Visibility="Collapsed"/>
                             </StackPanel>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -1583,16 +1583,9 @@ $xamlString = @"
                                 HorizontalAlignment="Stretch" Margin="10,5"/>
 
                         <!-- SETUP Section (Collapsible) -->
-                            <Expander x:Name="SetupSection" IsExpanded="False" Style="{StaticResource MenuExpander}" Margin="0,4,0,0">
+                            <Expander x:Name="SetupSection" IsExpanded="False" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
                                 <Expander.Header>
-                                    <Grid Width="170">
-                                        <TextBlock Text="SETUP" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
-                                        <Path x:Name="SetupSectionArrow" Data="M 0 0 L 3 3 L 6 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="8" Height="5" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
-                                            <Path.RenderTransform>
-                                                <RotateTransform Angle="-90"/>
-                                            </Path.RenderTransform>
-                                        </Path>
-                                    </Grid>
+                                    <TextBlock Text="SETUP" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
                                     <Button x:Name="NavAppLockerSetup" Content="AppLocker Setup" Style="{StaticResource NavButton}"
@@ -1605,16 +1598,9 @@ $xamlString = @"
                             </Expander>
 
                             <!-- SCANNING Section (Collapsible) -->
-                            <Expander x:Name="ScanningSection" IsExpanded="False" Style="{StaticResource MenuExpander}" Margin="0,4,0,0">
+                            <Expander x:Name="ScanningSection" IsExpanded="False" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
                                 <Expander.Header>
-                                    <Grid Width="170">
-                                        <TextBlock Text="SCANNING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
-                                        <Path x:Name="ScanningSectionArrow" Data="M 0 0 L 3 3 L 6 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="8" Height="5" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
-                                            <Path.RenderTransform>
-                                                <RotateTransform Angle="-90"/>
-                                            </Path.RenderTransform>
-                                        </Path>
-                                    </Grid>
+                                    <TextBlock Text="SCANNING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
                                     <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource NavButton}"
@@ -1627,16 +1613,9 @@ $xamlString = @"
                             </Expander>
 
                             <!-- DEPLOYMENT Section (Collapsible) -->
-                            <Expander x:Name="DeploymentSection" IsExpanded="False" Style="{StaticResource MenuExpander}" Margin="0,4,0,0">
+                            <Expander x:Name="DeploymentSection" IsExpanded="False" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
                                 <Expander.Header>
-                                    <Grid Width="170">
-                                        <TextBlock Text="DEPLOYMENT" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
-                                        <Path x:Name="DeploymentSectionArrow" Data="M 0 0 L 3 3 L 6 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="8" Height="5" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
-                                            <Path.RenderTransform>
-                                                <RotateTransform Angle="-90"/>
-                                            </Path.RenderTransform>
-                                        </Path>
-                                    </Grid>
+                                    <TextBlock Text="DEPLOYMENT" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
                                     <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource NavButton}"
@@ -1647,16 +1626,9 @@ $xamlString = @"
                             </Expander>
 
                             <!-- MONITORING Section (Collapsible) -->
-                            <Expander x:Name="MonitoringSection" IsExpanded="False" Style="{StaticResource MenuExpander}" Margin="0,4,0,0">
+                            <Expander x:Name="MonitoringSection" IsExpanded="False" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
                                 <Expander.Header>
-                                    <Grid Width="170">
-                                        <TextBlock Text="MONITORING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
-                                        <Path x:Name="MonitoringSectionArrow" Data="M 0 0 L 3 3 L 6 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="8" Height="5" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
-                                            <Path.RenderTransform>
-                                                <RotateTransform Angle="-90"/>
-                                            </Path.RenderTransform>
-                                        </Path>
-                                    </Grid>
+                                    <TextBlock Text="MONITORING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
                                     <Button x:Name="NavEvents" Content="Events" Style="{StaticResource NavButton}"
@@ -1748,14 +1720,15 @@ $xamlString = @"
 
                 <!-- Artifacts Panel -->
                 <StackPanel x:Name="PanelArtifacts" Visibility="Collapsed">
-                    <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,15"/>
 
-                    <Grid Margin="0,0,0,15">
+                    <!-- Row 1: Max Files and basic buttons -->
+                    <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="140"/>
-                            <ColumnDefinition Width="120"/>
-                            <ColumnDefinition Width="120"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
@@ -1765,19 +1738,21 @@ $xamlString = @"
                                      BorderThickness="1" FontSize="13" Padding="5"/>
                         </StackPanel>
 
-                        <Button x:Name="ComprehensiveScanBtn" Content="Comprehensive Scan"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="1" Margin="0,0,5,0"/>
-                        <Button x:Name="ExportArtifactsBtn" Content="Export CSV"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="0,0,5,0"/>
                         <Button x:Name="ScanLocalBtn" Content="Scan Localhost"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="0,0,10,0"/>
+                        <Button x:Name="ExportArtifactsBtn" Content="Export CSV"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="3"/>
                     </Grid>
 
+                    <!-- Row 2: Comprehensive Scan (full width) -->
+                    <Button x:Name="ComprehensiveScanBtn" Content="Comprehensive Scan (AaronLocker-style)"
+                            Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Margin="0,0,0,10"/>
+
                     <!-- Info about Comprehensive Scan -->
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <TextBlock Text="Comprehensive Scan: Creates AaronLocker-style artifacts including Executables.csv, InstalledSoftware.csv, Publishers.csv, RunningProcesses.csv, SystemInfo.csv, WritableDirectories.csv, and AppLockerPolicy.xml"
-                                   FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
+                            CornerRadius="8" Padding="10" Margin="0,0,0,10">
+                        <TextBlock Text="Creates: Executables.csv, InstalledSoftware.csv, Publishers.csv, RunningProcesses.csv, SystemInfo.csv, WritableDirectories.csv, AppLockerPolicy.xml"
+                                   FontSize="10" Foreground="#8B949E" TextWrapping="Wrap"/>
                     </Border>
 
                     <!-- Artifacts List -->
@@ -2526,10 +2501,7 @@ $SetupSection = $window.FindName("SetupSection")
 $ScanningSection = $window.FindName("ScanningSection")
 $DeploymentSection = $window.FindName("DeploymentSection")
 $MonitoringSection = $window.FindName("MonitoringSection")
-$SetupSectionArrow = $window.FindName("SetupSectionArrow")
-$ScanningSectionArrow = $window.FindName("ScanningSectionArrow")
-$DeploymentSectionArrow = $window.FindName("DeploymentSectionArrow")
-$MonitoringSectionArrow = $window.FindName("MonitoringSectionArrow")
+# Arrow controls removed - using default expander style
 
 $StatusText = $window.FindName("StatusText")
 $EnvironmentText = $window.FindName("EnvironmentText")
@@ -3210,39 +3182,6 @@ $NavHelp.Add_Click({
 $NavAbout.Add_Click({
     Show-Panel "About"
     Update-StatusBar
-})
-
-# Expander event handlers - animate arrows on expand/collapse
-$SetupSection.Add_Expanded({
-    if ($_.NewValue -eq $true) {
-        $SetupSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(90)
-    } else {
-        $SetupSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(-90)
-    }
-})
-
-$ScanningSection.Add_Expanded({
-    if ($_.NewValue -eq $true) {
-        $ScanningSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(90)
-    } else {
-        $ScanningSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(-90)
-    }
-})
-
-$DeploymentSection.Add_Expanded({
-    if ($_.NewValue -eq $true) {
-        $DeploymentSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(90)
-    } else {
-        $DeploymentSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(-90)
-    }
-})
-
-$MonitoringSection.Add_Expanded({
-    if ($_.NewValue -eq $true) {
-        $MonitoringSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(90)
-    } else {
-        $MonitoringSectionArrow.RenderTransform = [System.Windows.Media.RotateTransform]::new(-90)
-    }
 })
 
 # Dashboard events
