@@ -105,6 +105,323 @@ function Get-LocalExecutableArtifacts {
     return @{ success = $true; artifacts = $artifacts; count = $artifacts.Count }
 }
 
+# Comprehensive AaronLocker-style Scan Function
+function Start-ComprehensiveScan {
+    param(
+        [string]$ComputerName = $env:COMPUTERNAME,
+        [string]$OutputPath = "C:\GA-AppLocker\Scans",
+        [switch]$IncludeDLLs = $false,
+        [int]$MaxExecutables = 50000
+    )
+
+    $startTime = Get-Date
+    $scanFolder = Join-Path $OutputPath "Scan-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
+    $computerFolder = Join-Path $scanFolder $ComputerName
+
+    try {
+        # Create output directories
+        New-Item -ItemType Directory -Path $computerFolder -Force | Out-Null
+        Write-Log "Starting comprehensive scan for $ComputerName"
+
+        $results = @{
+            ComputerName = $ComputerName
+            ScanFolder = $computerFolder
+            StartTime = $startTime
+            Files = @{}
+        }
+
+        # ============================================
+        # 1. SYSTEM INFO
+        # ============================================
+        Write-Log "Collecting system information..."
+        $systemInfo = @()
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction SilentlyContinue
+        $cs = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
+
+        $systemInfo += [PSCustomObject]@{
+            Property = "ComputerName"; Value = $ComputerName
+        }
+        $systemInfo += [PSCustomObject]@{
+            Property = "Domain"; Value = $cs.Domain
+        }
+        $systemInfo += [PSCustomObject]@{
+            Property = "OS"; Value = $os.Caption
+        }
+        $systemInfo += [PSCustomObject]@{
+            Property = "OSVersion"; Value = $os.Version
+        }
+        $systemInfo += [PSCustomObject]@{
+            Property = "OSBuild"; Value = $os.BuildNumber
+        }
+        $systemInfo += [PSCustomObject]@{
+            Property = "Architecture"; Value = $os.OSArchitecture
+        }
+        $systemInfo += [PSCustomObject]@{
+            Property = "LastBootTime"; Value = $os.LastBootUpTime
+        }
+        $systemInfo += [PSCustomObject]@{
+            Property = "ScanTime"; Value = $startTime
+        }
+
+        $systemInfoPath = Join-Path $computerFolder "SystemInfo.csv"
+        $systemInfo | Export-Csv -Path $systemInfoPath -NoTypeInformation -Encoding UTF8
+        $results.Files["SystemInfo"] = $systemInfoPath
+        Write-Log "SystemInfo.csv created"
+
+        # ============================================
+        # 2. INSTALLED SOFTWARE
+        # ============================================
+        Write-Log "Collecting installed software..."
+        $installedSoftware = @()
+
+        # 64-bit software
+        $regPath64 = "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+        # 32-bit software on 64-bit OS
+        $regPath32 = "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+        # User software
+        $regPathUser = "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*"
+
+        $regPaths = @($regPath64, $regPath32, $regPathUser) | Where-Object { Test-Path $_ }
+
+        foreach ($regPath in $regPaths) {
+            Get-ItemProperty -Path $regPath -ErrorAction SilentlyContinue |
+                Where-Object { $_.DisplayName } |
+                ForEach-Object {
+                    $installedSoftware += [PSCustomObject]@{
+                        Name = $_.DisplayName
+                        Version = $_.DisplayVersion
+                        Publisher = $_.Publisher
+                        InstallDate = $_.InstallDate
+                        InstallLocation = $_.InstallLocation
+                        UninstallString = $_.UninstallString
+                    }
+                }
+        }
+
+        $installedSoftware = $installedSoftware | Sort-Object Name -Unique
+        $installedSoftwarePath = Join-Path $computerFolder "InstalledSoftware.csv"
+        $installedSoftware | Export-Csv -Path $installedSoftwarePath -NoTypeInformation -Encoding UTF8
+        $results.Files["InstalledSoftware"] = $installedSoftwarePath
+        Write-Log "InstalledSoftware.csv created ($($installedSoftware.Count) entries)"
+
+        # ============================================
+        # 3. RUNNING PROCESSES
+        # ============================================
+        Write-Log "Collecting running processes..."
+        $processes = Get-Process -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                $proc = $_
+                $path = $proc.Path
+                $publisher = "Unknown"
+                $version = "Unknown"
+
+                if ($path -and (Test-Path $path -ErrorAction SilentlyContinue)) {
+                    $vInfo = (Get-Item $path -ErrorAction SilentlyContinue).VersionInfo
+                    $publisher = if ($vInfo.CompanyName) { $vInfo.CompanyName } else { "Unknown" }
+                    $version = if ($vInfo.FileVersion) { $vInfo.FileVersion } else { "Unknown" }
+                }
+
+                [PSCustomObject]@{
+                    ProcessName = $proc.ProcessName
+                    PID = $proc.Id
+                    Path = $path
+                    Publisher = $publisher
+                    Version = $version
+                    WorkingSet = $proc.WorkingSet64
+                    StartTime = $proc.StartTime
+                }
+            } catch { }
+        } | Where-Object { $_.Path }
+
+        $processesPath = Join-Path $computerFolder "RunningProcesses.csv"
+        $processes | Export-Csv -Path $processesPath -NoTypeInformation -Encoding UTF8
+        $results.Files["RunningProcesses"] = $processesPath
+        Write-Log "RunningProcesses.csv created ($($processes.Count) entries)"
+
+        # ============================================
+        # 4. EXECUTABLES SCAN
+        # ============================================
+        Write-Log "Scanning for executables (this may take a while)..."
+        $executables = @()
+        $publishers = @{}
+
+        $scanPaths = @(
+            "C:\Program Files",
+            "C:\Program Files (x86)",
+            "$env:LOCALAPPDATA",
+            "$env:PROGRAMDATA",
+            "$env:USERPROFILE\Desktop",
+            "$env:USERPROFILE\Downloads"
+        )
+
+        $extensions = @(".exe", ".msi", ".msp", ".bat", ".cmd", ".ps1", ".vbs", ".js")
+        if ($IncludeDLLs) { $extensions += ".dll" }
+
+        $fileCount = 0
+        foreach ($basePath in $scanPaths) {
+            if (-not (Test-Path $basePath)) { continue }
+
+            try {
+                Get-ChildItem -Path $basePath -Recurse -File -ErrorAction SilentlyContinue |
+                    Where-Object { $extensions -contains $_.Extension.ToLower() } |
+                    ForEach-Object {
+                        if ($fileCount -ge $MaxExecutables) { return }
+
+                        $file = $_
+                        try {
+                            $vInfo = $file.VersionInfo
+                            $publisher = if ($vInfo.CompanyName) { $vInfo.CompanyName.Trim() } else { "Unknown" }
+                            $product = if ($vInfo.ProductName) { $vInfo.ProductName.Trim() } else { "" }
+                            $version = if ($vInfo.FileVersion) { $vInfo.FileVersion.Trim() } else { "" }
+                            $description = if ($vInfo.FileDescription) { $vInfo.FileDescription.Trim() } else { "" }
+
+                            # Track publishers
+                            if ($publisher -ne "Unknown" -and -not $publishers.ContainsKey($publisher)) {
+                                $publishers[$publisher] = @{
+                                    Publisher = $publisher
+                                    FirstProduct = $product
+                                    FileCount = 0
+                                }
+                            }
+                            if ($publisher -ne "Unknown") { $publishers[$publisher].FileCount++ }
+
+                            $executables += [PSCustomObject]@{
+                                FileName = $file.Name
+                                FullPath = $file.FullName
+                                Extension = $file.Extension
+                                Publisher = $publisher
+                                Product = $product
+                                Version = $version
+                                Description = $description
+                                Size = $file.Length
+                                Created = $file.CreationTime
+                                Modified = $file.LastWriteTime
+                                Directory = $file.DirectoryName
+                            }
+                            $fileCount++
+                        } catch { }
+                    }
+            } catch { }
+        }
+
+        $executablesPath = Join-Path $computerFolder "Executables.csv"
+        $executables | Export-Csv -Path $executablesPath -NoTypeInformation -Encoding UTF8
+        $results.Files["Executables"] = $executablesPath
+        Write-Log "Executables.csv created ($($executables.Count) entries)"
+
+        # ============================================
+        # 5. PUBLISHERS
+        # ============================================
+        Write-Log "Extracting publisher information..."
+        $publisherList = $publishers.Values | ForEach-Object {
+            [PSCustomObject]@{
+                Publisher = $_.Publisher
+                SampleProduct = $_.FirstProduct
+                FileCount = $_.FileCount
+            }
+        } | Sort-Object Publisher
+
+        $publishersPath = Join-Path $computerFolder "Publishers.csv"
+        $publisherList | Export-Csv -Path $publishersPath -NoTypeInformation -Encoding UTF8
+        $results.Files["Publishers"] = $publishersPath
+        Write-Log "Publishers.csv created ($($publisherList.Count) unique publishers)"
+
+        # ============================================
+        # 6. WRITABLE DIRECTORIES
+        # ============================================
+        Write-Log "Finding user-writable directories..."
+        $writableDirs = @()
+
+        $checkPaths = @(
+            "$env:USERPROFILE",
+            "$env:LOCALAPPDATA",
+            "$env:APPDATA",
+            "$env:TEMP",
+            "C:\Users\Public"
+        )
+
+        foreach ($checkPath in $checkPaths) {
+            if (-not (Test-Path $checkPath)) { continue }
+            try {
+                Get-ChildItem -Path $checkPath -Directory -Recurse -Depth 3 -ErrorAction SilentlyContinue |
+                    ForEach-Object {
+                        $testFile = Join-Path $_.FullName ".writetest"
+                        try {
+                            [IO.File]::WriteAllText($testFile, "test")
+                            Remove-Item $testFile -Force -ErrorAction SilentlyContinue
+                            $writableDirs += [PSCustomObject]@{
+                                Path = $_.FullName
+                                Parent = $_.Parent.FullName
+                            }
+                        } catch { }
+                    }
+            } catch { }
+        }
+
+        # Add common writable locations
+        $commonWritable = @("$env:TEMP", "$env:LOCALAPPDATA\Temp", "C:\Users\Public")
+        foreach ($path in $commonWritable) {
+            if ((Test-Path $path) -and ($writableDirs.Path -notcontains $path)) {
+                $writableDirs += [PSCustomObject]@{ Path = $path; Parent = (Split-Path $path -Parent) }
+            }
+        }
+
+        $writableDirs = $writableDirs | Sort-Object Path -Unique | Select-Object -First 500
+        $writableDirsPath = Join-Path $computerFolder "WritableDirectories.csv"
+        $writableDirs | Export-Csv -Path $writableDirsPath -NoTypeInformation -Encoding UTF8
+        $results.Files["WritableDirectories"] = $writableDirsPath
+        Write-Log "WritableDirectories.csv created ($($writableDirs.Count) entries)"
+
+        # ============================================
+        # 7. APPLOCKER POLICY EXPORT
+        # ============================================
+        Write-Log "Exporting current AppLocker policy..."
+        try {
+            $policyXml = Get-AppLockerPolicy -Effective -Xml -ErrorAction Stop
+            $policyPath = Join-Path $computerFolder "AppLockerPolicy.xml"
+            $policyXml | Out-File -FilePath $policyPath -Encoding UTF8
+            $results.Files["AppLockerPolicy"] = $policyPath
+            Write-Log "AppLockerPolicy.xml exported"
+        } catch {
+            Write-Log "Could not export AppLocker policy: $($_.Exception.Message)" -Level "WARN"
+        }
+
+        # ============================================
+        # SCAN COMPLETE
+        # ============================================
+        $endTime = Get-Date
+        $duration = $endTime - $startTime
+
+        $results.EndTime = $endTime
+        $results.Duration = $duration.ToString()
+        $results.Success = $true
+
+        Write-Log "Comprehensive scan completed in $($duration.TotalSeconds.ToString('F1')) seconds"
+
+        return @{
+            success = $true
+            computerName = $ComputerName
+            scanFolder = $computerFolder
+            files = $results.Files
+            duration = $duration.TotalSeconds
+            stats = @{
+                Executables = $executables.Count
+                InstalledSoftware = $installedSoftware.Count
+                RunningProcesses = $processes.Count
+                Publishers = $publisherList.Count
+                WritableDirectories = $writableDirs.Count
+            }
+        }
+    }
+    catch {
+        Write-Log "Comprehensive scan failed: $($_.Exception.Message)" -Level "ERROR"
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
 # Module 3: Rule Generator Functions
 function New-PublisherRule {
     param([string]$PublisherName, [string]$ProductName = "*", [string]$BinaryName = "*", [string]$Version = "*")
@@ -722,6 +1039,82 @@ function Import-ADGroupMembership {
 # Module 9: AppLocker Setup Functions
 
 # Helper function to set Domain Admins as owner of AD objects
+# Remove protection from accidental deletion on OU/Container
+function Remove-OUProtection {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$DistinguishedName
+    )
+
+    try {
+        # Check if object exists
+        $adObject = Get-ADObject -Identity $DistinguishedName -Properties ProtectedFromAccidentalDeletion -ErrorAction Stop
+
+        if ($adObject.ProtectedFromAccidentalDeletion) {
+            Set-ADObject -Identity $DistinguishedName -ProtectedFromAccidentalDeletion $false -ErrorAction Stop
+            Write-Log "Removed protection from: $DistinguishedName"
+            return @{ success = $true; message = "Protection removed from $DistinguishedName" }
+        } else {
+            return @{ success = $true; message = "Object was not protected: $DistinguishedName" }
+        }
+    }
+    catch {
+        Write-Log "ERROR removing protection from '$DistinguishedName': $_"
+        return @{ success = $false; error = $_.Exception.Message }
+    }
+}
+
+# Remove protection from all sub-OUs in an AppLocker structure
+function Remove-AppLockerOUProtection {
+    param(
+        [string]$BaseDN = $null
+    )
+
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop
+
+        if (-not $BaseDN) {
+            $domain = Get-ADDomain -ErrorAction Stop
+            $BaseDN = "OU=AppLocker,$($domain.DistinguishedName)"
+        }
+
+        $output = "Removing protection from AppLocker OUs...`n`n"
+        $removedCount = 0
+
+        # Get all OUs under AppLocker
+        $allOUs = @($BaseDN)
+        $childOUs = Get-ADOrganizationalUnit -Filter * -SearchBase $BaseDN -SearchScope Subtree -ErrorAction SilentlyContinue
+        if ($childOUs) {
+            $allOUs += $childOUs.DistinguishedName
+        }
+
+        foreach ($ouDN in $allOUs) {
+            $result = Remove-OUProtection -DistinguishedName $ouDN
+            if ($result.success) {
+                $output += "[OK] $ouDN`n"
+                $removedCount++
+            } else {
+                $output += "[ERROR] $ouDN : $($result.error)`n"
+            }
+        }
+
+        $output += "`n$removedCount OUs processed.`n"
+        $output += "You can now delete OUs and objects under AppLocker."
+
+        return @{
+            success = $true
+            output = $output
+            processedCount = $removedCount
+        }
+    }
+    catch {
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
 function Set-ADObjectOwner {
     param(
         [Parameter(Mandatory=$true)]
@@ -1081,6 +1474,69 @@ $xamlString = @"
                 </Trigger>
             </Style.Triggers>
         </Style>
+
+        <!-- Small Nav Button Style for Sidebar -->
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#21262D"/>
+                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Custom Expander Style - hides default toggle arrow -->
+        <Style x:Key="MenuExpander" TargetType="Expander">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Expander">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <StackPanel>
+                                <ToggleButton x:Name="HeaderToggle" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Cursor="Hand">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent" Padding="8,6">
+                                                <ContentPresenter/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                    <ContentPresenter Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"/>
+                                </ToggleButton>
+                                <ContentPresenter x:Name="ExpanderContent" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="True">
+                                <Setter TargetName="ExpanderContent" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
@@ -1127,86 +1583,86 @@ $xamlString = @"
                                 HorizontalAlignment="Stretch" Margin="10,5"/>
 
                         <!-- SETUP Section (Collapsible) -->
-                            <Expander x:Name="SetupSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
+                            <Expander x:Name="SetupSection" IsExpanded="False" Style="{StaticResource MenuExpander}" Margin="0,4,0,0">
                                 <Expander.Header>
-                                    <Grid>
-                                        <TextBlock Text="SETUP" FontSize="11" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
-                                    <Path x:Name="SetupSectionArrow" Data="M 0 0 L 4 4 L 8 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="10" Height="6" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
-                                        <Path.RenderTransform>
-                                            <RotateTransform Angle="-90"/>
-                                        </Path.RenderTransform>
-                                    </Path>
+                                    <Grid Width="170">
+                                        <TextBlock Text="SETUP" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
+                                        <Path x:Name="SetupSectionArrow" Data="M 0 0 L 3 3 L 6 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="8" Height="5" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                            <Path.RenderTransform>
+                                                <RotateTransform Angle="-90"/>
+                                            </Path.RenderTransform>
+                                        </Path>
                                     </Grid>
                                 </Expander.Header>
-                                <StackPanel Margin="8,0,0,0">
-                                    <Button x:Name="NavAppLockerSetup" Content="AppLocker Setup" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
-                                    <Button x:Name="NavGroupMgmt" Content="Group Management" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
-                                    <Button x:Name="NavDiscovery" Content="AD Discovery" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavAppLockerSetup" Content="AppLocker Setup" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavGroupMgmt" Content="Group Management" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavDiscovery" Content="AD Discovery" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                 </StackPanel>
                             </Expander>
 
                             <!-- SCANNING Section (Collapsible) -->
-                            <Expander x:Name="ScanningSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
+                            <Expander x:Name="ScanningSection" IsExpanded="False" Style="{StaticResource MenuExpander}" Margin="0,4,0,0">
                                 <Expander.Header>
-                                    <Grid>
-                                        <TextBlock Text="SCANNING" FontSize="11" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
-                                        <Path x:Name="ScanningSectionArrow" Data="M 0 0 L 4 4 L 8 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="10" Height="6" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                    <Grid Width="170">
+                                        <TextBlock Text="SCANNING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
+                                        <Path x:Name="ScanningSectionArrow" Data="M 0 0 L 3 3 L 6 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="8" Height="5" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
                                             <Path.RenderTransform>
                                                 <RotateTransform Angle="-90"/>
                                             </Path.RenderTransform>
                                         </Path>
                                     </Grid>
                                 </Expander.Header>
-                                <StackPanel Margin="8,0,0,0">
-                                    <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
-                                    <Button x:Name="NavGapAnalysis" Content="Software Gap Analysis" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
-                                    <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavGapAnalysis" Content="Gap Analysis" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                 </StackPanel>
                             </Expander>
 
                             <!-- DEPLOYMENT Section (Collapsible) -->
-                            <Expander x:Name="DeploymentSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
+                            <Expander x:Name="DeploymentSection" IsExpanded="False" Style="{StaticResource MenuExpander}" Margin="0,4,0,0">
                                 <Expander.Header>
-                                    <Grid>
-                                        <TextBlock Text="DEPLOYMENT" FontSize="11" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
-                                        <Path x:Name="DeploymentSectionArrow" Data="M 0 0 L 4 4 L 8 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="10" Height="6" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                    <Grid Width="170">
+                                        <TextBlock Text="DEPLOYMENT" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
+                                        <Path x:Name="DeploymentSectionArrow" Data="M 0 0 L 3 3 L 6 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="8" Height="5" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
                                             <Path.RenderTransform>
                                                 <RotateTransform Angle="-90"/>
                                             </Path.RenderTransform>
                                         </Path>
                                     </Grid>
                                 </Expander.Header>
-                                <StackPanel Margin="8,0,0,0">
-                                    <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
-                                    <Button x:Name="NavWinRM" Content="WinRM Setup" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavWinRM" Content="WinRM Setup" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                 </StackPanel>
                             </Expander>
 
                             <!-- MONITORING Section (Collapsible) -->
-                            <Expander x:Name="MonitoringSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
+                            <Expander x:Name="MonitoringSection" IsExpanded="False" Style="{StaticResource MenuExpander}" Margin="0,4,0,0">
                                 <Expander.Header>
-                                    <Grid>
-                                        <TextBlock Text="MONITORING" FontSize="11" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
-                                        <Path x:Name="MonitoringSectionArrow" Data="M 0 0 L 4 4 L 8 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="10" Height="6" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
+                                    <Grid Width="170">
+                                        <TextBlock Text="MONITORING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center"/>
+                                        <Path x:Name="MonitoringSectionArrow" Data="M 0 0 L 3 3 L 6 0" Stroke="#58A6FF" StrokeThickness="1.5" Fill="Transparent" Width="8" Height="5" HorizontalAlignment="Right" RenderTransformOrigin="0.5,0.5">
                                             <Path.RenderTransform>
                                                 <RotateTransform Angle="-90"/>
                                             </Path.RenderTransform>
                                         </Path>
                                     </Grid>
                                 </Expander.Header>
-                                <StackPanel Margin="8,0,0,0">
-                                    <Button x:Name="NavEvents" Content="Events" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
-                                    <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource SecondaryButton}"
-                                            HorizontalAlignment="Stretch" Margin="15,3,10,3"/>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavEvents" Content="Events" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
@@ -1297,26 +1753,36 @@ $xamlString = @"
                     <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="140"/>
                             <ColumnDefinition Width="120"/>
                             <ColumnDefinition Width="120"/>
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Grid.Column="0" Orientation="Horizontal">
                             <TextBlock Text="Max Files:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                            <TextBox x:Name="MaxFilesText" Text="1000" Width="80" Height="32"
+                            <TextBox x:Name="MaxFilesText" Text="50000" Width="80" Height="32"
                                      Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
                                      BorderThickness="1" FontSize="13" Padding="5"/>
                         </StackPanel>
 
+                        <Button x:Name="ComprehensiveScanBtn" Content="Comprehensive Scan"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="1" Margin="0,0,5,0"/>
                         <Button x:Name="ExportArtifactsBtn" Content="Export CSV"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="1" Margin="0,0,5,0"/>
+                                Style="{StaticResource SecondaryButton}" Grid.Column="2" Margin="0,0,5,0"/>
                         <Button x:Name="ScanLocalBtn" Content="Scan Localhost"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                                Style="{StaticResource SecondaryButton}" Grid.Column="3"/>
                     </Grid>
+
+                    <!-- Info about Comprehensive Scan -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <TextBlock Text="Comprehensive Scan: Creates AaronLocker-style artifacts including Executables.csv, InstalledSoftware.csv, Publishers.csv, RunningProcesses.csv, SystemInfo.csv, WritableDirectories.csv, and AppLockerPolicy.xml"
+                                   FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
+                    </Border>
 
                     <!-- Artifacts List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,0,0,0" Padding="15" Height="380">
+                            CornerRadius="8" Margin="0,0,0,0" Padding="15" Height="340">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -1489,14 +1955,24 @@ $xamlString = @"
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <Button x:Name="ImportArtifactsBtn" Content="Import Artifacts"
-                                Style="{StaticResource SecondaryButton}"/>
+                                Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+
+                        <Button x:Name="ImportFolderBtn" Content="Import Folder (Recursive)"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+
+                        <Button x:Name="MergeRulesBtn" Content="Merge Rules"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
 
                         <Button x:Name="GenerateRulesBtn" Content="Generate Rules"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                                Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
                     </Grid>
 
                     <!-- Rules Output -->
@@ -1867,6 +2343,14 @@ $xamlString = @"
                                 <CheckBox x:Name="AutoPopulateCheck" Content="Auto-Populate Admins" IsChecked="True" Grid.Column="4" Foreground="#E6EDF3"/>
                                 <Button x:Name="BootstrapAppLockerBtn" Content="Initialize" Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
                             </Grid>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="180"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Remove protection from AppLocker OUs (allows deletion)" FontSize="11" Foreground="#F85149" VerticalAlignment="Center"/>
+                                <Button x:Name="RemoveOUProtectionBtn" Content="Remove OU Protection" Style="{StaticResource SecondaryButton}" Grid.Column="1"/>
+                            </Grid>
                         </StackPanel>
                     </Border>
 
@@ -2079,9 +2563,12 @@ $DashboardOutput = $window.FindName("DashboardOutput")
 $MaxFilesText = $window.FindName("MaxFilesText")
 $ScanLocalBtn = $window.FindName("ScanLocalBtn")
 $ExportArtifactsBtn = $window.FindName("ExportArtifactsBtn")
+$ComprehensiveScanBtn = $window.FindName("ComprehensiveScanBtn")
 $ArtifactsList = $window.FindName("ArtifactsList")
 $RuleTypeCombo = $window.FindName("RuleTypeCombo")
 $ImportArtifactsBtn = $window.FindName("ImportArtifactsBtn")
+$ImportFolderBtn = $window.FindName("ImportFolderBtn")
+$MergeRulesBtn = $window.FindName("MergeRulesBtn")
 $GenerateRulesBtn = $window.FindName("GenerateRulesBtn")
 $RulesOutput = $window.FindName("RulesOutput")
 $FilterAllBtn = $window.FindName("FilterAllBtn")
@@ -2124,6 +2611,7 @@ $GroupMgmtOutput = $window.FindName("GroupMgmtOutput")
 $OUNameText = $window.FindName("OUNameText")
 $AutoPopulateCheck = $window.FindName("AutoPopulateCheck")
 $BootstrapAppLockerBtn = $window.FindName("BootstrapAppLockerBtn")
+$RemoveOUProtectionBtn = $window.FindName("RemoveOUProtectionBtn")
 $CreateBrowserDenyBtn = $window.FindName("CreateBrowserDenyBtn")
 $AppLockerSetupOutput = $window.FindName("AppLockerSetupOutput")
 
@@ -2816,6 +3304,60 @@ $ScanLocalBtn.Add_Click({
     Write-Log "Localhost scan complete: $($result.count) artifacts found"
 })
 
+# Comprehensive Scan (AaronLocker-style)
+$ComprehensiveScanBtn.Add_Click({
+    Write-Log "Starting comprehensive AaronLocker-style scan"
+    $ArtifactsList.Items.Clear()
+
+    # Ask for output folder
+    $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $folderDialog.Description = "Select output folder for scan artifacts"
+    $folderDialog.SelectedPath = "C:\GA-AppLocker\Scans"
+
+    if ($folderDialog.ShowDialog() -ne "OK") {
+        return
+    }
+
+    $outputPath = $folderDialog.SelectedPath
+    $max = [int]$MaxFilesText.Text
+
+    $ArtifactsList.Items.Add("Starting comprehensive scan...")
+    $ArtifactsList.Items.Add("Output: $outputPath")
+    $ArtifactsList.Items.Add("Max Executables: $max")
+    $ArtifactsList.Items.Add("")
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $result = Start-ComprehensiveScan -OutputPath $outputPath -MaxExecutables $max
+
+    $ArtifactsList.Items.Clear()
+    if ($result.success) {
+        $ArtifactsList.Items.Add("=== COMPREHENSIVE SCAN COMPLETE ===")
+        $ArtifactsList.Items.Add("")
+        $ArtifactsList.Items.Add("Output Folder: $($result.outputPath)")
+        $ArtifactsList.Items.Add("Computer: $($result.computerName)")
+        $ArtifactsList.Items.Add("Scan Time: $($result.scanTime)")
+        $ArtifactsList.Items.Add("")
+        $ArtifactsList.Items.Add("=== ARTIFACTS CREATED ===")
+        foreach ($file in $result.files) {
+            $ArtifactsList.Items.Add("  $file")
+        }
+        $ArtifactsList.Items.Add("")
+        $ArtifactsList.Items.Add("=== COUNTS ===")
+        $ArtifactsList.Items.Add("  Executables: $($result.executableCount)")
+        $ArtifactsList.Items.Add("  Publishers: $($result.publisherCount)")
+        $ArtifactsList.Items.Add("  Installed Software: $($result.softwareCount)")
+        $ArtifactsList.Items.Add("  Running Processes: $($result.processCount)")
+        $ArtifactsList.Items.Add("  Writable Directories: $($result.writableDirCount)")
+
+        [System.Windows.MessageBox]::Show("Comprehensive scan complete!`n`nArtifacts saved to:`n$($result.outputPath)`n`nFiles created:`n$($result.files -join "`n")", "Scan Complete", "OK", "Information")
+    } else {
+        $ArtifactsList.Items.Add("ERROR: $($result.error)")
+        [System.Windows.MessageBox]::Show("Scan failed: $($result.error)", "Error", "OK", "Error")
+    }
+
+    Write-Log "Comprehensive scan complete"
+})
+
 # Rules events
 $ImportArtifactsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -2829,6 +3371,93 @@ $ImportArtifactsBtn.Add_Click({
             $script:CollectedArtifacts = Get-Content -Path $openDialog.FileName | ConvertFrom-Json
         }
         $RulesOutput.Text = "Imported $($script:CollectedArtifacts.Count) artifacts. Select rule type and click Generate Rules."
+    }
+})
+
+# Import folder recursively - searches all CSV files in folder and subfolders
+$ImportFolderBtn.Add_Click({
+    Write-Log "Import folder (recursive) clicked"
+    $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
+    $folderDialog.Description = "Select folder containing artifact CSV files (will search recursively)"
+
+    if ($folderDialog.ShowDialog() -eq "OK") {
+        $folderPath = $folderDialog.SelectedPath
+        $csvFiles = Get-ChildItem -Path $folderPath -Filter "*.csv" -Recurse -File -ErrorAction SilentlyContinue
+
+        if ($csvFiles.Count -eq 0) {
+            [System.Windows.MessageBox]::Show("No CSV files found in folder or subfolders.", "No Files Found", "OK", "Warning")
+            return
+        }
+
+        $allArtifacts = @()
+        $importedFiles = @()
+
+        foreach ($csvFile in $csvFiles) {
+            try {
+                $data = Import-Csv -Path $csvFile.FullName -ErrorAction Stop
+                if ($data.Count -gt 0) {
+                    $allArtifacts += $data
+                    $importedFiles += $csvFile.Name
+                }
+            } catch {
+                Write-Log "Failed to import $($csvFile.Name): $_"
+            }
+        }
+
+        if ($allArtifacts.Count -gt 0) {
+            $script:CollectedArtifacts = $allArtifacts
+            $RulesOutput.Text = "Imported $($allArtifacts.Count) artifacts from $($importedFiles.Count) files:`n`n$($importedFiles -join "`n")`n`nSelect rule type and click Generate Rules."
+            [System.Windows.MessageBox]::Show("Imported $($allArtifacts.Count) artifacts from $($importedFiles.Count) CSV files.", "Import Complete", "OK", "Information")
+        } else {
+            [System.Windows.MessageBox]::Show("No valid artifact data found in CSV files.", "Import Failed", "OK", "Warning")
+        }
+    }
+})
+
+# Merge rules - import additional XML rules and merge with generated rules
+$MergeRulesBtn.Add_Click({
+    Write-Log "Merge rules clicked"
+
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
+    $openDialog.Title = "Select AppLocker Rules XML to Merge"
+    $openDialog.Multiselect = $true
+
+    if ($openDialog.ShowDialog() -eq "OK") {
+        $mergedCount = 0
+        $fileNames = @()
+
+        foreach ($file in $openDialog.FileNames) {
+            try {
+                $content = Get-Content -Path $file -Raw
+                $xml = [xml]$content
+
+                # Extract rules from the XML
+                $ruleCollections = $xml.SelectNodes("//RuleCollection") + $xml.SelectNodes("//FilePublisherRule") + $xml.SelectNodes("//FileHashRule") + $xml.SelectNodes("//FilePathRule")
+
+                foreach ($ruleNode in $ruleCollections) {
+                    if ($ruleNode -and $ruleNode.OuterXml) {
+                        $rule = @{
+                            type = "Imported"
+                            publisher = $ruleNode.Name
+                            xml = $ruleNode.OuterXml
+                        }
+                        $script:GeneratedRules += $rule
+                        $mergedCount++
+                    }
+                }
+                $fileNames += [System.IO.Path]::GetFileName($file)
+            } catch {
+                Write-Log "Error parsing $file : $_"
+            }
+        }
+
+        if ($mergedCount -gt 0) {
+            $RulesOutput.Text = "Merged $mergedCount rules from:`n$($fileNames -join "`n")`n`nTotal rules: $($script:GeneratedRules.Count)`n`nUse Export Rules in Deployment to save merged ruleset."
+            [System.Windows.MessageBox]::Show("Merged $mergedCount rules.`n`nTotal rules now: $($script:GeneratedRules.Count)", "Merge Complete", "OK", "Information")
+        } else {
+            [System.Windows.MessageBox]::Show("No rules found in selected files.", "Merge Failed", "OK", "Warning")
+        }
     }
 })
 
@@ -3276,6 +3905,39 @@ $BootstrapAppLockerBtn.Add_Click({
     } else {
         $AppLockerSetupOutput.Text = "ERROR: $($result.error)"
         Write-Log "AppLocker bootstrap failed: $($result.error)" -Level "ERROR"
+    }
+})
+
+# Remove OU Protection button handler
+$RemoveOUProtectionBtn.Add_Click({
+    Write-Log "Remove OU Protection button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("This feature requires Domain Controller access.", "Workgroup Mode", "OK", "Information")
+        return
+    }
+
+    $confirm = [System.Windows.MessageBox]::Show(
+        "This will remove protection from all AppLocker OUs, allowing them to be deleted.`n`nAre you sure you want to continue?",
+        "Confirm Remove Protection",
+        "YesNo",
+        "Warning"
+    )
+
+    if ($confirm -ne "Yes") {
+        return
+    }
+
+    $AppLockerSetupOutput.Text = "Removing protection from AppLocker OUs..."
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $result = Remove-AppLockerOUProtection
+
+    if ($result.success) {
+        $AppLockerSetupOutput.Text = $result.output
+        [System.Windows.MessageBox]::Show("Protection removed from $($result.processedCount) OUs.`n`nYou can now delete OUs and objects under AppLocker.", "Success", "OK", "Information")
+    } else {
+        $AppLockerSetupOutput.Text = "ERROR: $($result.error)"
+        [System.Windows.MessageBox]::Show("Failed to remove protection: $($result.error)", "Error", "OK", "Error")
     }
 })
 
