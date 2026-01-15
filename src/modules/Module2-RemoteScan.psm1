@@ -25,7 +25,7 @@ function Get-DirectorySafetyClassification {
     )
 
     if ([string]::IsNullOrWhiteSpace($DirectoryPath)) {
-        return $script:UnknownDir
+        return $UnknownDir
     }
 
     # Normalize the path
@@ -46,7 +46,7 @@ function Get-DirectorySafetyClassification {
 
     foreach ($pattern in $unsafePatterns) {
         if ($normalizedPath -match $pattern) {
-            return $script:UnsafeDir
+            return $UnsafeDir
         }
     }
 
@@ -64,12 +64,12 @@ function Get-DirectorySafetyClassification {
 
     foreach ($pattern in $safePatterns) {
         if ($normalizedPath -match $pattern) {
-            return $script:SafeDir
+            return $SafeDir
         }
     }
 
     # Default to unknown for unclassified paths
-    return $script:UnknownDir
+    return $UnknownDir
 }
 
 <#
@@ -348,7 +348,7 @@ function Get-ExecutableArtifacts {
 
     # Check directory safety classification (from AaronLocker)
     $safetyClass = Get-DirectorySafetyClassification -DirectoryPath $TargetPath
-    if ($safetyClass -eq $script:UnsafeDir -and -not $IncludeUnsafe) {
+    if ($safetyClass -eq $UnsafeDir -and -not $IncludeUnsafe) {
         return @{
             success = $false
             error = "Path is in unsafe directory: $TargetPath. Use -IncludeUnsafe to scan anyway."
@@ -380,7 +380,7 @@ function Get-ExecutableArtifacts {
 
             # Check parent directory safety
             $parentSafety = Get-DirectorySafetyClassification -DirectoryPath $parentDir
-            if ($parentSafety -eq $script:UnsafeDir -and -not $IncludeUnsafe) {
+            if ($parentSafety -eq $UnsafeDir -and -not $IncludeUnsafe) {
                 $filteredOut++
                 continue
             }

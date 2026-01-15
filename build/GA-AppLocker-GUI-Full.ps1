@@ -431,7 +431,7 @@ function New-WinRMGpoRule {
     <AuthDigest>true</AuthDigest>
     <AuthBasic>true</AuthBasic>
     <AuthKerberos>true</AuthKerberos>
-    <AuthNegotiate>true</AuthNegiate>
+    <AuthNegotiate>true</AuthNegotiate>
     <AuthCertificate>true</AuthCertificate>
     <MaxConnections>$MaxConnections</MaxConnections>
     <MaxTimeoutMs>60000</MaxTimeoutMs>
@@ -459,7 +459,7 @@ function New-WinRMGpoRule {
     <MaxConcurrentUsers>10</MaxConcurrentUsers>
     <MaxShellRunTimeMSH>7200000</MaxShellRunTimeMSH>
     <MaxProcessesPerShell>25</MaxProcessesPerShell>
-    <MaxMemoryPerShellMBMB>512</MaxMemoryPerShellMBMB>
+    <MaxMemoryPerShellMB>512</MaxMemoryPerShellMB>
     <MaxShellsPerUser>50</MaxShellsPerUser>
   </WinRS>
   <ServiceRootListeners>

@@ -138,7 +138,7 @@ param(
     [string]$OutputPath = ".\Outputs\MergedPolicy.xml",
 
     [Parameter(ParameterSetName='Standard')]
-    [switch]$RemoveDuplicates = $true,
+    [bool]$RemoveDuplicates = $true,
 
     [Parameter(ParameterSetName='Standard')]
     [ValidateSet("AuditOnly", "Enabled", "NotConfigured")]
