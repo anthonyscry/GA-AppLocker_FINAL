@@ -1,6 +1,38 @@
 # Module6-ADManager.psm1
 # AD Manager module for GA-AppLocker
 # Manages users, groups, and WinRM configuration
+# Enhanced with patterns from Microsoft AaronLocker
+
+# Import Common library
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
+
+<#
+.SYNOPSIS
+    Escape LDAP Special Characters
+.DESCRIPTION
+    Escapes special characters in LDAP filter values to prevent injection attacks
+.PARAMETER Value
+    The value to escape
+#>
+function Protect-LDAPFilterValue {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Value
+    )
+
+    # Escape special LDAP characters: \ * ( ) NUL / and wildcard *
+    # From RFC 4515 and Microsoft best practices
+    $escaped = $Value -replace '\\', '\\5c'
+    $escaped = $escaped -replace '\*', '\\2a'
+    $escaped = $escaped -replace '\(', '\\28'
+    $escaped = $escaped -replace '\)', '\\29'
+    $escaped = $escaped -replace '\x00', '\\00'
+    $escaped = $escaped -replace '/', '\\2f'
+
+    return $escaped
+}
 
 <#
 .SYNOPSIS
@@ -72,7 +104,9 @@ function Get-AllADUsers {
 .SYNOPSIS
     Search AD Users
 .DESCRIPTION
-    Searches for users by name
+    Searches for users by name with LDAP injection protection
+.PARAMETER SearchQuery
+    The search query (will be properly escaped)
 #>
 function Search-ADUsers {
     [CmdletBinding()]
@@ -80,6 +114,14 @@ function Search-ADUsers {
         [Parameter(Mandatory = $true)]
         [string]$SearchQuery
     )
+
+    if ([string]::IsNullOrWhiteSpace($SearchQuery)) {
+        return @{
+            success = $false
+            error = 'Search query is required'
+            data = @()
+        }
+    }
 
     try {
         Import-Module ActiveDirectory -ErrorAction Stop
@@ -93,7 +135,12 @@ function Search-ADUsers {
     }
 
     try {
-        $users = Get-ADUser -Filter "Name -like '*$SearchQuery*'" -Properties DisplayName, Department, Enabled
+        # Protect against LDAP injection by escaping special characters
+        $escapedQuery = Protect-LDAPFilterValue -Value $SearchQuery
+
+        # Use LDAPFilter for safer querying (from AaronLocker pattern)
+        # (name=*escapedValue*) searches for the query anywhere in the name
+        $users = Get-ADUser -LDAPFilter "(name=*$escapedQuery*)" -Properties DisplayName, Department, Enabled
 
         $results = @()
         foreach ($user in $users) {
@@ -153,7 +200,8 @@ function New-AppLockerGroups {
 
     $results = @()
     foreach ($groupName in $groupNames) {
-        $existing = Get-ADGroup -Filter "Name -eq '$groupName'" -ErrorAction SilentlyContinue
+        # Use LDAPFilter for safer group lookup
+        $existing = Get-ADGroup -LDAPFilter "(name=$groupName)" -ErrorAction SilentlyContinue
 
         if ($existing) {
             $results += @{
@@ -206,7 +254,11 @@ function New-AppLockerGroups {
 .SYNOPSIS
     Add User to AppLocker Group
 .DESCRIPTION
-    Adds a user to an AppLocker security group
+    Adds a user to an AppLocker security group with LDAP injection protection
+.PARAMETER SamAccountName
+    The SAM account name of the user (will be properly escaped)
+.PARAMETER GroupName
+    The name of the group (will be properly escaped)
 #>
 function Add-UserToAppLockerGroup {
     [CmdletBinding()]
@@ -234,17 +286,22 @@ function Add-UserToAppLockerGroup {
     }
 
     try {
-        $user = Get-ADUser -Filter "SamAccountName -eq '$SamAccountName'" -ErrorAction SilentlyContinue
+        # Protect against LDAP injection
+        $escapedUser = Protect-LDAPFilterValue -Value $SamAccountName
+        $escapedGroup = Protect-LDAPFilterValue -Value $GroupName
+
+        # Use LDAPFilter for safer querying
+        $user = Get-ADUser -LDAPFilter "(sAMAccountName=$escapedUser)" -ErrorAction SilentlyContinue
         if (-not $user) {
             return @{ success = $false; error = "User not found: $SamAccountName" }
         }
 
-        $group = Get-ADGroup -Filter "Name -eq '$GroupName'" -ErrorAction SilentlyContinue
+        $group = Get-ADGroup -LDAPFilter "(name=$escapedGroup)" -ErrorAction SilentlyContinue
         if (-not $group) {
             return @{ success = $false; error = "Group not found: $GroupName" }
         }
 
-        $members = Get-ADGroupMember -Identity $GroupName -ErrorAction SilentlyContinue
+        $members = Get-ADGroupMember -Identity $group.DistinguishedName -ErrorAction SilentlyContinue
         $alreadyMember = $members | Where-Object { $_.SamAccountName -eq $SamAccountName }
 
         if ($alreadyMember) {
@@ -255,7 +312,7 @@ function Add-UserToAppLockerGroup {
             }
         }
 
-        Add-ADGroupMember -Identity $GroupName -Members $SamAccountName -ErrorAction Stop
+        Add-ADGroupMember -Identity $group.DistinguishedName -Members $user.DistinguishedName -ErrorAction Stop
 
         return @{
             success = $true
@@ -275,7 +332,11 @@ function Add-UserToAppLockerGroup {
 .SYNOPSIS
     Remove User from AppLocker Group
 .DESCRIPTION
-    Removes a user from an AppLocker security group
+    Removes a user from an AppLocker security group with LDAP injection protection
+.PARAMETER SamAccountName
+    The SAM account name of the user (will be properly escaped)
+.PARAMETER GroupName
+    The name of the group (will be properly escaped)
 #>
 function Remove-UserFromAppLockerGroup {
     [CmdletBinding()]
@@ -303,17 +364,22 @@ function Remove-UserFromAppLockerGroup {
     }
 
     try {
-        $user = Get-ADUser -Filter "SamAccountName -eq '$SamAccountName'" -ErrorAction SilentlyContinue
+        # Protect against LDAP injection
+        $escapedUser = Protect-LDAPFilterValue -Value $SamAccountName
+        $escapedGroup = Protect-LDAPFilterValue -Value $GroupName
+
+        # Use LDAPFilter for safer querying
+        $user = Get-ADUser -LDAPFilter "(sAMAccountName=$escapedUser)" -ErrorAction SilentlyContinue
         if (-not $user) {
             return @{ success = $false; error = "User not found: $SamAccountName" }
         }
 
-        $group = Get-ADGroup -Filter "Name -eq '$GroupName'" -ErrorAction SilentlyContinue
+        $group = Get-ADGroup -LDAPFilter "(name=$escapedGroup)" -ErrorAction SilentlyContinue
         if (-not $group) {
             return @{ success = $false; error = "Group not found: $GroupName" }
         }
 
-        Remove-ADGroupMember -Identity $GroupName -Members $SamAccountName -Confirm:$false -ErrorAction Stop
+        Remove-ADGroupMember -Identity $group.DistinguishedName -Members $user.DistinguishedName -Confirm:$false -ErrorAction Stop
 
         return @{
             success = $true
@@ -415,32 +481,42 @@ function New-WinRMGPO {
 
         $gpo = New-GPO -Name $GpoName -Comment 'Enables WinRM for remote management'
 
+        # Configure WinRM service settings
         try {
             Set-GPRegistryValue -Name $GpoName `
                 -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service' `
                 -ValueName 'AllowAutoConfig' `
                 -Type DWord `
-                -Value 1
+                -Value 1 `
+                -ErrorAction Stop
         }
-        catch { }
+        catch {
+            Write-Warning "Failed to set AllowAutoConfig registry value: $($_.Exception.Message)"
+        }
 
         try {
             Set-GPRegistryValue -Name $GpoName `
                 -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service' `
                 -ValueName 'IPv4Filter' `
                 -Type String `
-                -Value '*'
+                -Value '*' `
+                -ErrorAction Stop
         }
-        catch { }
+        catch {
+            Write-Warning "Failed to set IPv4Filter registry value: $($_.Exception.Message)"
+        }
 
         try {
             Set-GPRegistryValue -Name $GpoName `
                 -Key 'HKLM\SOFTWARE\Policies\Microsoft\Windows\WinRM\Service' `
                 -ValueName 'IPv6Filter' `
                 -Type String `
-                -Value '*'
+                -Value '*' `
+                -ErrorAction Stop
         }
-        catch { }
+        catch {
+            Write-Warning "Failed to set IPv6Filter registry value: $($_.Exception.Message)"
+        }
 
         $domainDN = (Get-ADDomain).DistinguishedName
 
@@ -475,6 +551,6 @@ function New-WinRMGPO {
 }
 
 # Export functions
-Export-ModuleMember -Function Get-AllADUsers, Search-ADUsers, New-AppLockerGroups,
+Export-ModuleMember -Function Protect-LDAPFilterValue, Get-AllADUsers, Search-ADUsers, New-AppLockerGroups,
                               Add-UserToAppLockerGroup, Remove-UserFromAppLockerGroup,
                               Get-AppLockerGroupMembers, New-WinRMGPO

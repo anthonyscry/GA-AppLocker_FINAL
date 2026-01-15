@@ -1,6 +1,10 @@
 # Module7-Compliance.psm1
 # Compliance module for GA-AppLocker
 # Collects evidence and generates compliance reports
+# Enhanced with patterns from Microsoft AaronLocker
+
+# Import Common library
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
 <#
 .SYNOPSIS
@@ -59,7 +63,7 @@ function New-EvidenceFolder {
 .SYNOPSIS
     Export Current AppLocker Policy
 .DESCRIPTION
-    Saves the current AppLocker policy to a file
+    Saves the current AppLocker policy to a file with proper UTF-16 encoding (from AaronLocker)
 .OUTPUTS
     System.Collections.Hashtable
 #>
@@ -85,7 +89,10 @@ function Export-CurrentPolicy {
             New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
         }
 
-        $policy | Out-File -FilePath $OutputPath -Encoding UTF8 -Force
+        # Save with proper UTF-16 encoding (from AaronLocker pattern)
+        # AppLocker policies MUST be UTF-16 encoded
+        $xmlDoc = [xml]$policy
+        Save-XmlDocAsUnicode -xmlDoc $xmlDoc -xmlFilename $OutputPath
 
         $exists = Test-Path $OutputPath
         return @{
@@ -168,26 +175,51 @@ function Get-ComplianceSummary {
     [OutputType([hashtable])]
     param()
 
+    # Import modules for Get-PolicyHealthScore and Get-AppLockerEventStats
+    # Note: These functions should be defined in their respective modules
+    # If not available, we'll use default values
+    $hasPolicyHealth = $false
+    $hasEventStats = $false
+
     try {
-        Import-Module "$PSScriptRoot\Module1-Dashboard.psm1" -ErrorAction SilentlyContinue
-        Import-Module "$PSScriptRoot\Module5-EventMonitor.psm1" -ErrorAction SilentlyContinue
+        Import-Module "$PSScriptRoot\Module1-Dashboard.psm1" -ErrorAction Stop
+        $hasPolicyHealth = $true
     }
-    catch { }
+    catch {
+        # Module not available, will use defaults
+    }
+
+    try {
+        Import-Module "$PSScriptRoot\Module5-EventMonitor.psm1" -ErrorAction Stop
+        $hasEventStats = $true
+    }
+    catch {
+        # Module not available, will use defaults
+    }
 
     $summary = @{
         timestamp = Get-Date -Format 'o'
         computerName = $env:COMPUTERNAME
     }
 
-    try {
-        $health = Get-PolicyHealthScore
-        $summary.policyScore = $health.score
-        $summary.hasExeRules = $health.hasExe
-        $summary.hasMsiRules = $health.hasMsi
-        $summary.hasScriptRules = $health.hasScript
-        $summary.hasDllRules = $health.hasDll
+    if ($hasPolicyHealth) {
+        try {
+            $health = Get-PolicyHealthScore
+            $summary.policyScore = $health.score
+            $summary.hasExeRules = $health.hasExe
+            $summary.hasMsiRules = $health.hasMsi
+            $summary.hasScriptRules = $health.hasScript
+            $summary.hasDllRules = $health.hasDll
+        }
+        catch {
+            $summary.policyScore = 0
+            $summary.hasExeRules = $false
+            $summary.hasMsiRules = $false
+            $summary.hasScriptRules = $false
+            $summary.hasDllRules = $false
+        }
     }
-    catch {
+    else {
         $summary.policyScore = 0
         $summary.hasExeRules = $false
         $summary.hasMsiRules = $false
@@ -195,13 +227,20 @@ function Get-ComplianceSummary {
         $summary.hasDllRules = $false
     }
 
-    try {
-        $events = Get-AppLockerEventStats
-        $summary.eventsAllowed = $events.allowed
-        $summary.eventsAudit = $events.audit
-        $summary.eventsBlocked = $events.blocked
+    if ($hasEventStats) {
+        try {
+            $events = Get-AppLockerEventStats
+            $summary.eventsAllowed = $events.allowed
+            $summary.eventsAudit = $events.audit
+            $summary.eventsBlocked = $events.blocked
+        }
+        catch {
+            $summary.eventsAllowed = 0
+            $summary.eventsAudit = 0
+            $summary.eventsBlocked = 0
+        }
     }
-    catch {
+    else {
         $summary.eventsAllowed = 0
         $summary.eventsAudit = 0
         $summary.eventsBlocked = 0
@@ -283,7 +322,7 @@ function New-ComplianceReport {
         <h2>Policy Health Score</h2>
         <div class="summary">
             <div class="metric">
-                <div class="metric-value score-$($data.policyScore -eq 100 ? 'excellent' : ($data.policyScore -ge 50 ? 'good' : ($data.policyScore -gt 0 ? 'fair' : 'poor')))">$($data.policyScore)</div>
+                <div class="metric-value score-$(if ($data.policyScore -eq 100) { 'excellent' } elseif ($data.policyScore -ge 50) { 'good' } elseif ($data.policyScore -gt 0) { 'fair' } else { 'poor' })">$($data.policyScore)</div>
                 <div class="metric-label">Overall Score</div>
             </div>
             <div class="metric">
@@ -292,17 +331,17 @@ function New-ComplianceReport {
             </div>
         </div>
 
-        <div class="assessment" style="background: $($data.assessment -like 'Excellent' ? '#d4edda' : ($data.assessment -like 'Good' ? '#fff3cd' : '#f8d7da')); color: $($data.assessment -like 'Excellent' ? '#155724' : ($data.assessment -like 'Good' ? '#856404' : '#721c24'));">
+        <div class="assessment" style="background: $(if ($data.assessment -like 'Excellent') { '#d4edda' } elseif ($data.assessment -like 'Good') { '#fff3cd' } else { '#f8d7da' }); color: $(if ($data.assessment -like 'Excellent') { '#155724' } elseif ($data.assessment -like 'Good') { '#856404' } else { '#721c24' });">
             Assessment: $($data.assessment)
         </div>
 
         <h2>Rule Categories</h2>
         <table>
             <tr><th>Category</th><th>Status</th></tr>
-            <tr><td>Executable (EXE)</td><td>$($data.hasExeRules ? '✓ Configured' : '✗ Not Configured')</td></tr>
-            <tr><td>Installer (MSI)</td><td>$($data.hasMsiRules ? '✓ Configured' : '✗ Not Configured')</td></tr>
-            <tr><td>Script</td><td>$($data.hasScriptRules ? '✓ Configured' : '✗ Not Configured')</td></tr>
-            <tr><td>DLL</td><td>$($data.hasDllRules ? '✓ Configured' : '✗ Not Configured')</td></tr>
+            <tr><td>Executable (EXE)</td><td>$(if ($data.hasExeRules) { '✓ Configured' } else { '✗ Not Configured' })</td></tr>
+            <tr><td>Installer (MSI)</td><td>$(if ($data.hasMsiRules) { '✓ Configured' } else { '✗ Not Configured' })</td></tr>
+            <tr><td>Script</td><td>$(if ($data.hasScriptRules) { '✓ Configured' } else { '✗ Not Configured' })</td></tr>
+            <tr><td>DLL</td><td>$(if ($data.hasDllRules) { '✓ Configured' } else { '✗ Not Configured' })</td></tr>
         </table>
 
         <h2>Event Statistics</h2>
@@ -324,8 +363,8 @@ function New-ComplianceReport {
         <h2>Enforcement Readiness</h2>
         <table>
             <tr><th>Metric</th><th>Status</th></tr>
-            <tr><td>Ready to Enforce</td><td>$($data.readyToEnforce ? '✓ Yes' : '✗ No - Too many audit events')</td></tr>
-            <tr><td>Too Restrictive</td><td>$($data.tooRestrictive ? '⚠ Yes - Review blocked events' : '✓ No')</td></tr>
+            <tr><td>Ready to Enforce</td><td>$(if ($data.readyToEnforce) { '✓ Yes' } else { '✗ No - Too many audit events' })</td></tr>
+            <tr><td>Too Restrictive</td><td>$(if ($data.tooRestrictive) { '⚠ Yes - Review blocked events' } else { '✓ No' })</td></tr>
         </table>
     </div>
 </body>

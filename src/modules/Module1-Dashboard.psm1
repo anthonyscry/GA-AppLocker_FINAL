@@ -1,8 +1,10 @@
 # Module1-Dashboard.psm1
 # Dashboard module for GA-AppLocker
 # Shows overview statistics about AppLocker environment
+# Enhanced with patterns from Microsoft AaronLocker
 
-using module ..\lib\Common.psm1
+# Import Common library
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
 <#
 .SYNOPSIS
@@ -20,20 +22,31 @@ function Get-AppLockerEventStats {
     $logName = 'Microsoft-Windows-AppLocker/EXE and DLL'
 
     # Check if log exists
-    $logExists = Get-WinEvent -ListLog $logName -ErrorAction SilentlyContinue
-    if (-not $logExists) {
+    try {
+        $logExists = Get-WinEvent -ListLog $logName -ErrorAction Stop
+        if (-not $logExists) {
+            return @{
+                success = $true
+                allowed = 0
+                audit = 0
+                blocked = 0
+                message = 'AppLocker log not found'
+            }
+        }
+    }
+    catch {
         return @{
             success = $true
             allowed = 0
             audit = 0
             blocked = 0
-            message = 'AppLocker log not found'
+            message = 'AppLocker log not available'
         }
     }
 
     # Query events
     try {
-        $events = Get-WinEvent -LogName $logName -MaxEvents 1000 -ErrorAction SilentlyContinue
+        $events = Get-WinEvent -LogName $logName -MaxEvents 1000 -ErrorAction Stop
 
         $allowed = ($events | Where-Object { $_.Id -eq 8002 }).Count
         $audit = ($events | Where-Object { $_.Id -eq 8003 }).Count
@@ -133,6 +146,10 @@ function Get-PolicyHealthScore {
             success = $true
             score = 0
             hasPolicy = $false
+            hasExe = $false
+            hasMsi = $false
+            hasScript = $false
+            hasDll = $false
             message = 'No AppLocker policy'
         }
     }

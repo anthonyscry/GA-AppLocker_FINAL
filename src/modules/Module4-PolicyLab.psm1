@@ -4,7 +4,7 @@
 # Enhanced with patterns from Microsoft AaronLocker
 
 # Import Common library
-Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction SilentlyContinue
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
 <#
 .SYNOPSIS
@@ -366,7 +366,11 @@ function Set-LatestAppLockerPolicy {
 .SYNOPSIS
     Save Policy to File
 .DESCRIPTION
-    Saves an AppLocker policy XML to a file
+    Saves an AppLocker policy XML to a file with proper UTF-16 encoding (from AaronLocker)
+.PARAMETER PolicyXml
+    The AppLocker policy XML string
+.PARAMETER OutputPath
+    The output file path
 #>
 function Save-PolicyToFile {
     [CmdletBinding()]
@@ -383,7 +387,10 @@ function Save-PolicyToFile {
             New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
         }
 
-        $PolicyXml | Out-File -FilePath $OutputPath -Encoding UTF8 -Force
+        # Convert string to XmlDocument and save with UTF-16 encoding (from AaronLocker)
+        # AppLocker policies MUST be UTF-16 encoded
+        $xmlDoc = [xml]$PolicyXml
+        Save-XmlDocAsUnicode -xmlDoc $xmlDoc -xmlFilename $OutputPath
 
         return @{
             success = $true
