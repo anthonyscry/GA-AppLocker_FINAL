@@ -3992,7 +3992,7 @@ $ExportEventsBtn.Add_Click({
     $saveDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json|Text Files (*.txt)|*.txt"
     $saveDialog.Title = "Export Events"
     $saveDialog.FileName = "AppLockerEvents-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-    $saveDialog.InitialDirectory = "C:\GA-AppLocker\Scans"
+    $saveDialog.InitialDirectory = "C:\GA-AppLocker\Events"
 
     if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $ext = [System.IO.Path]::GetExtension($saveDialog.FileName)
@@ -4147,7 +4147,7 @@ $ImportEventsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openDialog.Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*"
     $openDialog.Title = "Import Events"
-    $openDialog.InitialDirectory = "C:\GA-AppLocker\Scans"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker\Events"
 
     if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         try {
