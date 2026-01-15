@@ -1960,8 +1960,12 @@ $xamlString = @"
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Text="Time Range:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="DashboardTimeFilter" Grid.Column="1" Width="120" Height="28"
-                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,20,0">
+                        <ComboBox x:Name="DashboardTimeFilter" Grid.Column="1" Width="130" Height="26"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,15,0" FontSize="11">
+                            <ComboBox.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#21262D"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#30363D"/>
+                            </ComboBox.Resources>
                             <ComboBox.ItemContainerStyle>
                                 <Style TargetType="ComboBoxItem">
                                     <Setter Property="Background" Value="#21262D"/>
@@ -1978,8 +1982,12 @@ $xamlString = @"
                         </ComboBox>
 
                         <TextBlock Text="System:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="2" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="DashboardSystemFilter" Grid.Column="3" Width="150" Height="28"
-                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,20,0">
+                        <ComboBox x:Name="DashboardSystemFilter" Grid.Column="3" Width="150" Height="26"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,15,0" FontSize="11">
+                            <ComboBox.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#21262D"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#30363D"/>
+                            </ComboBox.Resources>
                             <ComboBox.ItemContainerStyle>
                                 <Style TargetType="ComboBoxItem">
                                     <Setter Property="Background" Value="#21262D"/>
@@ -1994,8 +2002,8 @@ $xamlString = @"
                             <ComboBoxItem Content="All Systems" IsSelected="True"/>
                         </ComboBox>
 
-                        <Button x:Name="RefreshDashboardBtn" Content="Refresh Dashboard"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="4" Height="28"/>
+                        <Button x:Name="RefreshDashboardBtn" Content="Refresh"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="4" Width="80" Height="26"/>
                     </Grid>
 
                     <!-- Output Area -->
