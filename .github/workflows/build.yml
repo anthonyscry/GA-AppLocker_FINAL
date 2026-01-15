@@ -159,19 +159,18 @@ jobs:
       - name: Create batch launcher
         shell: pwsh
         run: |
-          $lines = @(
-            "@echo off",
-            "title GA-AppLocker Dashboard",
-            "if exist `"%~dp0GA-AppLocker-Dashboard.exe`" (",
-            "  start `"`" `"%~dp0GA-AppLocker-Dashboard.exe`"",
-            ") else if exist `"%~dp0GA-AppLocker-GUI.ps1`" (",
-            "  powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"%~dp0GA-AppLocker-GUI.ps1`"",
-            ") else (",
-            "  echo ERROR: No executable found!",
-            "  pause",
-            ")"
+          @'
+          @echo off
+          title GA-AppLocker Dashboard
+          if exist "%~dp0GA-AppLocker-Dashboard.exe" (
+            start "" "%~dp0GA-AppLocker-Dashboard.exe"
+          ) else if exist "%~dp0GA-AppLocker-GUI.ps1" (
+            powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0GA-AppLocker-GUI.ps1"
+          ) else (
+            echo ERROR: No executable found!
+            pause
           )
-          $lines -join "`r`n" | Out-File -FilePath "./output/Launch-GA-AppLocker.bat" -Encoding ASCII
+          '@ | Out-File -FilePath "./output/Launch-GA-AppLocker.bat" -Encoding ASCII
           Write-Host "Created batch launcher" -ForegroundColor Green
 
       - name: Copy documentation

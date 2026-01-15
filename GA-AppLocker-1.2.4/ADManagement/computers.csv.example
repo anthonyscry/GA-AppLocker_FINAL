@@ -1,4 +1,0 @@
-"ComputerName","OperatingSystem","Enabled","LastLogonDate"
-"PC-001","Windows 11 Enterprise","True","2026-01-09"
-"PC-002","Windows 11 Enterprise","True","2026-01-08"
-"SERVER-01","Windows Server 2022 Standard","True","2026-01-09"
