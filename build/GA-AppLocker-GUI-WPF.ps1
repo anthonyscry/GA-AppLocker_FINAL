@@ -144,20 +144,27 @@ function New-RulesFromArtifacts {
 # Module 4: Domain Detection
 function Get-ADDomain {
     $computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
-    $isWorkgroup = $computerSystem -and ($computerSystem.Workgroup -eq "WORKGROUP" -or $null -eq $computerSystem.PartOfDomain)
+    # Check if actually part of a domain (PartOfDomain is a boolean)
+    $isWorkgroup = -not $computerSystem -or -not $computerSystem.PartOfDomain
     if ($isWorkgroup) {
-        return @{ success = $true; isWorkgroup = $true; dnsRoot = "WORKGROUP"; netBIOSName = $computerSystem.Name; message = "WORKGROUP - AD/GPO disabled" }
+        return @{ success = $true; isWorkgroup = $true; dnsRoot = "WORKGROUP"; netBIOSName = $env:COMPUTERNAME; message = "WORKGROUP - AD/GPO disabled" }
     }
+    # We're domain-joined, try to get domain info
     try {
         Import-Module ActiveDirectory -ErrorAction SilentlyContinue
         $domain = Get-ADDomain -ErrorAction Stop
         return @{ success = $true; isWorkgroup = $false; dnsRoot = $domain.DNSRoot; netBIOSName = $domain.NetBIOSName; message = "Domain: $($domain.DNSRoot)" }
     } catch {
+        # AD module not available or failed, use environment variables
         $dnsDomain = $env:USERDNSDOMAIN
-        if ([string]::IsNullOrEmpty($dnsDomain)) {
-            return @{ success = $true; isWorkgroup = $true; dnsRoot = "WORKGROUP"; netBIOSName = $env:COMPUTERNAME; message = "WORKGROUP - AD/GPO disabled" }
+        if (-not [string]::IsNullOrEmpty($dnsDomain)) {
+            return @{ success = $true; isWorkgroup = $false; dnsRoot = $dnsDomain; netBIOSName = $env:USERDOMAIN; message = "Domain: $dnsDomain" }
         }
-        return @{ success = $true; isWorkgroup = $false; dnsRoot = $dnsDomain; netBIOSName = $env:USERDOMAIN; message = "Domain detected" }
+        # Try computer system domain property
+        if ($computerSystem.Domain) {
+            return @{ success = $true; isWorkgroup = $false; dnsRoot = $computerSystem.Domain; netBIOSName = $env:USERDOMAIN; message = "Domain: $($computerSystem.Domain)" }
+        }
+        return @{ success = $true; isWorkgroup = $true; dnsRoot = "WORKGROUP"; netBIOSName = $env:COMPUTERNAME; message = "WORKGROUP - AD/GPO disabled" }
     }
 }
 
@@ -756,7 +763,7 @@ function New-BrowserDenyRules {
 $xamlString = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="GA-AppLocker Dashboard" Height="720" Width="1280" MinHeight="600" MinWidth="1000"
+        Title="GA-AppLocker Dashboard" Height="600" Width="1000" MinHeight="500" MinWidth="800"
         WindowStartupLocation="CenterScreen" Background="#0D1117">
     <Window.Resources>
         <!-- GitHub Dark Theme Colors -->
@@ -841,7 +848,7 @@ $xamlString = @"
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="GA-AppLocker Dashboard" FontSize="18" FontWeight="Bold"
                                Foreground="#E6EDF3" VerticalAlignment="Center"/>
-                    <TextBlock Text="v1.0" FontSize="12" Foreground="#6E7681"
+                    <TextBlock x:Name="HeaderVersion" Text="v1.2.4" FontSize="12" Foreground="#6E7681"
                                VerticalAlignment="Center" Margin="10,0,0,0"/>
                 </StackPanel>
                 <TextBlock x:Name="StatusText" Text="Initializing..." FontSize="12"
@@ -2991,9 +2998,31 @@ function Update-StatusBar {
     }
 }
 
-# Initialize on load
+# Handle window closing properly
+$window.add_Closing({
+    param($sender, $e)
+    # Allow the window to close
+    $e.Cancel = $false
+})
+
+# Initialize on load - fast startup, defer slow operations
 $window.add_Loaded({
-    # Detect domain/workgroup
+    # Set version info first (instant)
+    $script:AppVersion = "1.2.4"
+    $AboutVersion.Text = "Version $script:AppVersion"
+
+    # Show loading state
+    $EnvironmentText.Text = "Detecting environment..."
+    $StatusText.Text = "Initializing..."
+
+    # Load dashboard immediately with placeholder
+    Show-Panel "Dashboard"
+    $DashboardOutput.Text = "=== GA-APPLOCKER DASHBOARD ===`n`nLoading environment..."
+
+    # Force UI to render before heavy operations
+    $window.Dispatcher.Invoke([Action]{}, [System.Windows.Threading.DispatcherPriority]::Render)
+
+    # Now do domain detection (fast with fixed logic)
     $script:DomainInfo = Get-ADDomain
     $script:IsWorkgroup = $script:DomainInfo.isWorkgroup
 
@@ -3002,7 +3031,7 @@ $window.add_Loaded({
     # Update environment banner
     if ($script:IsWorkgroup) {
         $EnvironmentText.Text = "WORKGROUP MODE - Localhost scanning available | AD/GPO features disabled"
-        $EnvironmentBanner.Background = "#21262D" # BgCard
+        $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#21262D")
 
         # Disable AD/GPO related buttons in workgroup mode
         $CreateGP0Btn.IsEnabled = $false
@@ -3016,7 +3045,7 @@ $window.add_Loaded({
         Write-Log "Workgroup mode: Deployment, WinRM, Group Management, and AppLocker Setup buttons disabled"
     } else {
         $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | Full features available"
-        $EnvironmentBanner.Background = "#238636" # Green
+        $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#238636")
 
         # Enable all buttons in domain mode
         $CreateGP0Btn.IsEnabled = $true
@@ -3027,19 +3056,15 @@ $window.add_Loaded({
         Write-Log "Domain mode: All features enabled"
     }
 
-    # Load app icon and About logo
+    # Load icons (non-blocking)
     try {
         $scriptPath = Split-Path -Parent $PSCommandPath
-        # Try to load icon from script directory
         $iconPath = Join-Path $scriptPath "GA-AppLocker.ico"
         if (Test-Path $iconPath) {
             $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create((New-Object System.Uri $iconPath))
         }
-    } catch {
-        # Icon load failed - using default
-    }
+    } catch { }
 
-    # Try to load About logo
     try {
         $scriptPath = Split-Path -Parent $PSCommandPath
         $logoPath = Join-Path $scriptPath "GA-AppLocker.png"
@@ -3052,20 +3077,13 @@ $window.add_Loaded({
             $aboutBitmap.Freeze()
             $AboutLogo.Source = $aboutBitmap
         }
-    } catch {
-        # Logo load failed - using default
-    }
+    } catch { }
 
-    # Set version info
-    $script:AppVersion = "1.1.0"
-    $AboutVersion.Text = "Version $script:AppVersion"
-
-    # Load dashboard
-    Show-Panel "Dashboard"
+    # Refresh dashboard data
     Refresh-Data
     Update-StatusBar
 
-    # Load initial message
+    # Set final message
     $DashboardOutput.Text = "=== GA-APPLOCKER DASHBOARD ===`n`nAaronLocker-aligned AppLocker Policy Management`n`nEnvironment: $($script:DomainInfo.message)`n`nReady to begin. Select a tab to start."
 })
 
