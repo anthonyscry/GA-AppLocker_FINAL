@@ -1889,49 +1889,61 @@ $xamlString = @"
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Policy Health Card -->
                         <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Margin="0,0,10,10" Padding="20">
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Policy Health" FontSize="12" Foreground="#8B949E"/>
-                                <TextBlock x:Name="HealthScore" Text="--" FontSize="32" FontWeight="Bold"
-                                           Foreground="#3FB950" Margin="0,10,0,0"/>
-                                <TextBlock x:Name="HealthStatus" Text="Loading..." FontSize="11" Foreground="#6E7681"/>
+                                <TextBlock Text="Policy Health" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="HealthScore" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,8,0,0"/>
+                                <TextBlock x:Name="HealthStatus" Text="Loading..." FontSize="10" Foreground="#6E7681"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Events Card -->
                         <Border Grid.Column="1" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Margin="0,0,10,10" Padding="20">
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Total Events" FontSize="12" Foreground="#8B949E"/>
-                                <TextBlock x:Name="TotalEvents" Text="--" FontSize="32" FontWeight="Bold"
-                                           Foreground="#58A6FF" Margin="0,10,0,0"/>
-                                <TextBlock x:Name="EventsStatus" Text="Loading..." FontSize="11" Foreground="#6E7681"/>
+                                <TextBlock Text="Total Events" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="TotalEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#58A6FF" Margin="0,8,0,0"/>
+                                <TextBlock x:Name="EventsStatus" Text="Loading..." FontSize="10" Foreground="#6E7681"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Allowed Card -->
                         <Border Grid.Column="2" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Margin="0,0,10,10" Padding="20">
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Allowed" FontSize="12" Foreground="#8B949E"/>
-                                <TextBlock x:Name="AllowedEvents" Text="--" FontSize="32" FontWeight="Bold"
-                                           Foreground="#3FB950" Margin="0,10,0,0"/>
-                                <TextBlock FontSize="11" Foreground="#6E7681">Event ID 8002</TextBlock>
+                                <TextBlock Text="Allowed" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="AllowedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8002</TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Audited Card -->
+                        <Border Grid.Column="3" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="Audited" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="AuditedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#D29922" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8003</TextBlock>
                             </StackPanel>
                         </Border>
 
                         <!-- Blocked Card -->
-                        <Border Grid.Column="3" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Margin="0,0,0,10" Padding="20">
+                        <Border Grid.Column="4" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,0,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Blocked" FontSize="12" Foreground="#8B949E"/>
-                                <TextBlock x:Name="BlockedEvents" Text="--" FontSize="32" FontWeight="Bold"
-                                           Foreground="#F85149" Margin="0,10,0,0"/>
-                                <TextBlock FontSize="11" Foreground="#6E7681">Event ID 8004</TextBlock>
+                                <TextBlock Text="Blocked" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="BlockedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#F85149" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8004</TextBlock>
                             </StackPanel>
                         </Border>
                     </Grid>
@@ -2900,6 +2912,7 @@ $HealthStatus = $window.FindName("HealthStatus")
 $TotalEvents = $window.FindName("TotalEvents")
 $EventsStatus = $window.FindName("EventsStatus")
 $AllowedEvents = $window.FindName("AllowedEvents")
+$AuditedEvents = $window.FindName("AuditedEvents")
 $BlockedEvents = $window.FindName("BlockedEvents")
 $RefreshDashboardBtn = $window.FindName("RefreshDashboardBtn")
 $DashboardOutput = $window.FindName("DashboardOutput")
@@ -3618,6 +3631,7 @@ function Refresh-Data {
     $TotalEvents.Text = $summary.events.total
     $EventsStatus.Text = if ($summary.events.total -gt 0) { "Events found" } else { "No events" }
     $AllowedEvents.Text = $summary.events.allowed
+    $AuditedEvents.Text = $summary.events.audit
     $BlockedEvents.Text = $summary.events.blocked
 }
 
