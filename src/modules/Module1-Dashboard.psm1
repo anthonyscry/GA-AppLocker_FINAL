@@ -48,9 +48,9 @@ function Get-AppLockerEventStats {
     try {
         $events = Get-WinEvent -LogName $logName -MaxEvents 1000 -ErrorAction Stop
 
-        $allowed = ($events | Where-Object { $_.Id -eq 8002 }).Count
-        $audit = ($events | Where-Object { $_.Id -eq 8003 }).Count
-        $blocked = ($events | Where-Object { $_.Id -eq 8004 }).Count
+        $allowed = @($events | Where-Object { $_.Id -eq 8002 }).Count
+        $audit = @($events | Where-Object { $_.Id -eq 8003 }).Count
+        $blocked = @($events | Where-Object { $_.Id -eq 8004 }).Count
 
         return @{
             success = $true

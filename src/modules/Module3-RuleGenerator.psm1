@@ -742,7 +742,7 @@ function New-RulesFromArtifacts {
         [ValidateSet('Allow', 'Deny')]
         [string]$Action = 'Allow',
         [string]$DenyListPath,
-        [switch]$UseDenyList = $true
+        [bool]$UseDenyList = $true
     )
 
     if (-not $Artifacts -or $Artifacts.Count -eq 0) {

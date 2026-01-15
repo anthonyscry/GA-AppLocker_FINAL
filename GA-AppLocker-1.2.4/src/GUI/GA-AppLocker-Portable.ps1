@@ -4841,7 +4841,7 @@ $controls['ADGroupManagerAdd'].Add_Click({
             $newItem = New-Object System.Windows.Controls.ListBoxItem
             $newItem.Content = "$($item.Content) [+]"
             $newItem.Tag = $sam
-            $newItem.Foreground = "#58A6FF"  # Blue to indicate pending add
+            $newItem.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#58A6FF")  # Blue to indicate pending add
             $controls['ADGroupManagerMembers'].Items.Add($newItem) | Out-Null
             $addCount++
         }
@@ -4879,7 +4879,7 @@ $controls['ADGroupManagerRemove'].Add_Click({
                 $Script:GroupManagerPendingRemove += $sam
                 $item.Content = $item.Content -replace ' \[\+\]$',''
                 $item.Content = "$($item.Content) [-]"
-                $item.Foreground = "#FF6B6B"  # Red to indicate pending removal
+                $item.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FF6B6B")  # Red to indicate pending removal
                 $removeCount++
             }
         }
