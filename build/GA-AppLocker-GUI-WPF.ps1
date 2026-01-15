@@ -2224,6 +2224,23 @@ $xamlString = @"
                         <TextBlock Text="Apply To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="6" Margin="0,0,8,0"/>
                         <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="180"
                                   Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#388BFD"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#238636"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
                             <ComboBoxItem Content="Everyone (S-1-1-0)" IsSelected="True" Tag="S-1-1-0"/>
                             <ComboBoxItem Content="Administrators (S-1-5-32-544)" Tag="S-1-5-32-544"/>
                             <ComboBoxItem Content="Users (S-1-5-32-545)" Tag="S-1-5-32-545"/>
@@ -5033,6 +5050,7 @@ $window.add_Loaded({
         # Domain with RSAT - full features
         $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | Full features available"
         $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#238636")
+        $EnvironmentText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFFFFF")
 
         # Enable all buttons
         $CreateGP0Btn.IsEnabled = $true
