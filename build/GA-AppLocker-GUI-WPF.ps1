@@ -959,10 +959,83 @@ function New-WinRMGpo {
         # Enable the Windows Remote Management firewall group (Domain profile)
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile\RemoteAdminSettings" -ValueName "Enabled" -Type DWord -Value 1 -ErrorAction SilentlyContinue
 
-        # Enable inbound firewall rule for WinRM HTTP
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\FirewallRules" -ValueName "WINRM-HTTP-In-TCP-NoScope" -Type String -Value "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5985|RA4=LocalSubnet|RA6=LocalSubnet|App=System|Name=Windows Remote Management (HTTP-In)|Desc=Inbound rule for Windows Remote Management via WS-Management. [TCP 5985]|EmbedCtxt=Windows Remote Management|" -ErrorAction SilentlyContinue
+        # Enable inbound firewall rule for WinRM HTTP (5985)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\FirewallRules" -ValueName "WinRM-HTTP-In-TCP" -Type String -Value "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5985|Name=WinRM-HTTP-In-TCP|Desc=Allow WinRM HTTP|Profile=Domain|RA4=LocalSubnet|RA6=LocalSubnet|App=%SystemRoot%\system32\svchost.exe|Svc=WinRM|" -ErrorAction SilentlyContinue
+
+        # Enable inbound firewall rule for WinRM HTTPS (5986)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\FirewallRules" -ValueName "WinRM-HTTPS-In-TCP" -Type String -Value "v2.31|Action=Allow|Active=TRUE|Dir=In|Protocol=6|LPort=5986|Name=WinRM-HTTPS-In-TCP|Desc=Allow WinRM HTTPS|Profile=Domain|RA4=LocalSubnet|RA6=LocalSubnet|App=%SystemRoot%\system32\svchost.exe|Svc=WinRM|" -ErrorAction SilentlyContinue
+
+        # Configure Domain Firewall Profile settings
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile" -ValueName "EnableFirewall" -Type DWord -Value 1 -ErrorAction SilentlyContinue
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile" -ValueName "DefaultInboundAction" -Type DWord -Value 1 -ErrorAction SilentlyContinue
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\WindowsFirewall\DomainProfile" -ValueName "DefaultOutboundAction" -Type DWord -Value 0 -ErrorAction SilentlyContinue
 
         Write-Log "WinRM firewall rules configured"
+
+        # ============================================
+        # Create Startup Script for Reliable Firewall
+        # ============================================
+        try {
+            $currentDomain = (Get-ADDomain).DNSRoot
+            $gpoPath = "\\$currentDomain\SYSVOL\$currentDomain\Policies\{$($gpo.Id)}"
+
+            $scriptsDir = "$gpoPath\Machine\Scripts\Startup"
+            if (!(Test-Path $scriptsDir)) {
+                New-Item -Path $scriptsDir -ItemType Directory -Force | Out-Null
+            }
+
+            # Create the firewall configuration script
+            $firewallScript = @'
+@echo off
+REM WinRM Firewall Configuration Script
+netsh advfirewall firewall show rule name="WinRM-HTTP-In-GPO" >nul 2>&1
+if %errorlevel% neq 0 (
+    netsh advfirewall firewall add rule name="WinRM-HTTP-In-GPO" dir=in action=allow protocol=tcp localport=5985 profile=domain,private remoteip=localsubnet enable=yes
+)
+netsh advfirewall firewall show rule name="WinRM-HTTPS-In-GPO" >nul 2>&1
+if %errorlevel% neq 0 (
+    netsh advfirewall firewall add rule name="WinRM-HTTPS-In-GPO" dir=in action=allow protocol=tcp localport=5986 profile=domain,private remoteip=localsubnet enable=yes
+)
+sc query WinRM | find "RUNNING" >nul 2>&1
+if %errorlevel% neq 0 (
+    net start WinRM
+)
+winrm enumerate winrm/config/listener >nul 2>&1
+if %errorlevel% neq 0 (
+    winrm quickconfig -quiet
+)
+'@
+            Set-Content -Path "$scriptsDir\Configure-WinRM-Firewall.cmd" -Value $firewallScript -Encoding ASCII
+
+            # Create scripts.ini
+            $scriptsIniDir = "$gpoPath\Machine\Scripts"
+            if (!(Test-Path $scriptsIniDir)) {
+                New-Item -Path $scriptsIniDir -ItemType Directory -Force | Out-Null
+            }
+            $scriptsIniContent = "[Startup]`r`n0CmdLine=Configure-WinRM-Firewall.cmd`r`n0Parameters="
+            Set-Content -Path "$scriptsIniDir\scripts.ini" -Value $scriptsIniContent -Encoding Unicode
+
+            # Update GPT.INI with script extension
+            $gptIniPath = "$gpoPath\GPT.INI"
+            $scriptsExtension = "{42B5FAAE-6536-11D2-AE5A-0000F87571E3}{40B6664F-4972-11D1-A7CA-0000F87571E3}"
+            if (Test-Path $gptIniPath) {
+                $gptContent = Get-Content $gptIniPath -Raw
+                if ($gptContent -notmatch "gPCMachineExtensionNames") {
+                    $gptContent = $gptContent -replace "(\[General\])", "`$1`r`ngPCMachineExtensionNames=$scriptsExtension"
+                } elseif ($gptContent -notlike "*$scriptsExtension*") {
+                    $gptContent = $gptContent -replace "(gPCMachineExtensionNames=.*)", "`$1$scriptsExtension"
+                }
+                if ($gptContent -match "Version=(\d+)") {
+                    $newVersion = [int]$matches[1] + 1
+                    $gptContent = $gptContent -replace "Version=\d+", "Version=$newVersion"
+                }
+                Set-Content -Path $gptIniPath -Value $gptContent
+            }
+            Write-Log "Created startup script for firewall configuration"
+        }
+        catch {
+            Write-Log "Could not create startup script (non-critical): $($_.Exception.Message)" -Level "WARN"
+        }
 
         # ============================================
         # PowerShell Remoting (Enable-PSRemoting compatibility)
