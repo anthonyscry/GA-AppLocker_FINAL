@@ -1,6 +1,171 @@
 # Module2-RemoteScan.psm1
 # Remote Scan module for GA-AppLocker
 # Discovers machines in AD and scans them for software artifacts
+# Enhanced with patterns from Microsoft AaronLocker
+
+# Import Common library
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
+
+<#
+.SYNOPSIS
+    Classify Directory Safety
+.DESCRIPTION
+    Determines if a directory is safe for scanning (from AaronLocker)
+.PARAMETER DirectoryPath
+    The directory path to classify
+.OUTPUTS
+    SafeDir, UnsafeDir, or UnknownDir
+#>
+function Get-DirectorySafetyClassification {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$DirectoryPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($DirectoryPath)) {
+        return $script:UnknownDir
+    }
+
+    # Normalize the path
+    $normalizedPath = $DirectoryPath.TrimEnd('\')
+
+    # Unsafe directories - user-writable or temp locations (from AaronLocker)
+    # Use 4 backslashes in PowerShell single quotes to match literal backslash in regex
+    $unsafePatterns = @(
+        'C:\\\\Users\\\\.*\\\\AppData\\\\Local\\\\Temp',
+        'C:\\\\Windows\\\\Temp',
+        'C:\\\\Temp',
+        'C:\\\\ProgramData\\\\.*\\\\Temp',
+        'C:\\\\Users\\\\.*\\\\Downloads',
+        'C:\\\\Users\\\\Public\\\\Downloads',
+        'C:\\\\Users\\\\.*\\\\Desktop',
+        '\\\\AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup'
+    )
+
+    foreach ($pattern in $unsafePatterns) {
+        if ($normalizedPath -match $pattern) {
+            return $script:UnsafeDir
+        }
+    }
+
+    # Safe directories - well-known locations (from AaronLocker)
+    $safePatterns = @(
+        '^C:\\\\Windows\\\\system32$',
+        '^C:\\\\Windows\\\\SysWOW64$',
+        '^C:\\\\Windows\\\\.*$',
+        '^C:\\\\Program Files\\\\.*$',
+        '^C:\\\\Program Files \\(x86\\)\\\\.*$',
+        '^C:\\\\Program Files\\\\WindowsApps\\\\.*$',
+        '^C:\\\\Program Files\\\\Common Files\\\\.*$',
+        '^C:\\\\Program Files \\(x86\\)\\\\Common Files\\\\.*$'
+    )
+
+    foreach ($pattern in $safePatterns) {
+        if ($normalizedPath -match $pattern) {
+            return $script:SafeDir
+        }
+    }
+
+    # Default to unknown for unclassified paths
+    return $script:UnknownDir
+}
+
+<#
+.SYNOPSIS
+    Get Directory Files with Junction Handling
+.DESCRIPTION
+    Recursively gets files from a directory while handling junctions and reparse points (from AaronLocker)
+.PARAMETER Path
+    The directory path to scan
+.PARAMETER Extension
+    File extension filter
+.PARAMETER MaxFiles
+    Maximum number of files to return
+.OUTPUTS
+    Array of FileInfo objects
+#>
+function Get-DirectoryFilesSafe {
+    [CmdletBinding()]
+    [OutputType([array])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [string[]]$Extension = @('.exe'),
+        [int]$MaxFiles = 500
+    )
+
+    if (-not (Test-Path $Path)) {
+        return @()
+    }
+
+    $files = @()
+    $visitedPaths = @{}  # Track visited paths to avoid infinite loops
+    $queue = @(@{ Path = $Path; Depth = 0 })
+
+    while ($queue.Count -gt 0 -and $files.Count -lt $MaxFiles) {
+        $current = $queue[0]
+        $queue = $queue[1..($queue.Count - 1)]
+
+        $currentPath = $current.Path
+        $currentDepth = $current.Depth
+
+        # Skip if we've already visited this path
+        if ($visitedPaths.ContainsKey($currentPath)) {
+            continue
+        }
+        $visitedPaths[$currentPath] = $true
+
+        # Check for junction/reparse point (from AaronLocker)
+        try {
+            $item = Get-Item -LiteralPath $currentPath -Force -ErrorAction Stop
+            if ($item.LinkType -eq 'Junction' -or $item.Target -is [System.IO.DirectoryInfo]) {
+                $reparsePoint = [System.IO.Directory]::EnumerateFiles($currentPath, '*', [System.IO.EnumerationOptions]::new())
+                # Skip scanning into junctions/reparse points to avoid infinite loops
+                continue
+            }
+        }
+        catch {
+            # Skip paths we can't access
+            continue
+        }
+
+        # Get files in current directory
+        try {
+            $dirFiles = Get-ChildItem -LiteralPath $currentPath -File -ErrorAction Stop |
+                Where-Object { $Extension -contains $_.Extension }
+
+            foreach ($file in $dirFiles) {
+                if ($files.Count -ge $MaxFiles) {
+                    break
+                }
+                $files += $file
+            }
+        }
+        catch {
+            # Skip directories we can't read
+        }
+
+        # Limit recursion depth
+        if ($currentDepth -lt 10) {
+            # Add subdirectories to queue
+            try {
+                $subdirs = Get-ChildItem -LiteralPath $currentPath -Directory -ErrorAction Stop
+                foreach ($subdir in $subdirs) {
+                    if (-not $visitedPaths.ContainsKey($subdir.FullName)) {
+                        $queue += @{ Path = $subdir.FullName; Depth = $currentDepth + 1 }
+                    }
+                }
+            }
+            catch {
+                # Skip directories we can't read
+            }
+        }
+    }
+
+    return $files
+}
 
 <#
 .SYNOPSIS
@@ -157,13 +322,20 @@ function Test-ComputerOnline {
 .SYNOPSIS
     Scan Local Path for Executables
 .DESCRIPTION
-    Finds all EXE files in a folder and collects file information
+    Finds all EXE files in a folder and collects file information with PE detection (from AaronLocker)
+.PARAMETER TargetPath
+    The directory path to scan
+.PARAMETER MaxFiles
+    Maximum number of files to return
+.PARAMETER IncludeUnsafe
+    Include files from unsafe directories
 #>
 function Get-ExecutableArtifacts {
     [CmdletBinding()]
     param(
         [string]$TargetPath = 'C:\Program Files',
-        [int]$MaxFiles = 500
+        [int]$MaxFiles = 500,
+        [switch]$IncludeUnsafe
     )
 
     if (-not (Test-Path $TargetPath)) {
@@ -174,46 +346,84 @@ function Get-ExecutableArtifacts {
         }
     }
 
+    # Check directory safety classification (from AaronLocker)
+    $safetyClass = Get-DirectorySafetyClassification -DirectoryPath $TargetPath
+    if ($safetyClass -eq $script:UnsafeDir -and -not $IncludeUnsafe) {
+        return @{
+            success = $false
+            error = "Path is in unsafe directory: $TargetPath. Use -IncludeUnsafe to scan anyway."
+            data = @()
+            safetyClassification = $safetyClass
+        }
+    }
+
     try {
-        $files = Get-ChildItem -Path $TargetPath -Recurse -Include *.exe -ErrorAction SilentlyContinue |
-            Select-Object -First $MaxFiles
+        # Use safe directory scanning with junction handling (from AaronLocker)
+        $files = Get-DirectoryFilesSafe -Path $TargetPath -Extension @('.exe') -MaxFiles $MaxFiles
 
         if (-not $files -or $files.Count -eq 0) {
             return @{
                 success = $true
                 data = @()
                 message = "No executables found in $TargetPath"
+                safetyClassification = $safetyClass
             }
         }
 
         $results = @()
+        $filteredOut = 0
+
         foreach ($file in $files) {
             $filePath = $file.FullName
             $fileName = $file.Name
+            $parentDir = Split-Path -Parent $filePath
+
+            # Check parent directory safety
+            $parentSafety = Get-DirectorySafetyClassification -DirectoryPath $parentDir
+            if ($parentSafety -eq $script:UnsafeDir -and -not $IncludeUnsafe) {
+                $filteredOut++
+                continue
+            }
+
+            # Use PE detection from AaronLocker to verify it's a real executable
+            $peType = IsWin32Executable -filename $filePath
+            if ($peType -ne 'EXE') {
+                # Skip non-EXE files (even if they have .exe extension)
+                continue
+            }
 
             # Get file hash
-            $hashResult = Get-FileHash -Path $filePath -Algorithm SHA256 -ErrorAction SilentlyContinue
+            $hashResult = Get-FileHash -Path $filePath -Algorithm SHA256 -ErrorAction Stop
             $hash = if ($hashResult) { $hashResult.Hash } else { '' }
 
             # Get signature
-            $signature = Get-AuthenticodeSignature -FilePath $filePath -ErrorAction SilentlyContinue
+            $signature = Get-AuthenticodeSignature -FilePath $filePath -ErrorAction Stop
             $publisher = 'Unknown'
+            $isSigned = $false
             if ($signature -and $signature.SignerCertificate) {
                 $subject = $signature.SignerCertificate.Subject
                 if ($subject -match 'CN=([^,]+)') {
                     $publisher = $matches[1]
                 }
+                $isSigned = ($signature.Status -eq 'Valid')
             }
 
             $version = $file.VersionInfo.FileVersion
 
+            # Get generic path for portability (from AaronLocker)
+            $genericPath = ConvertTo-AppLockerGenericPath -FilePath $filePath
+
             $results += @{
                 name = $fileName
                 path = $filePath
+                genericPath = $genericPath
                 hash = $hash
                 publisher = $publisher
+                isSigned = $isSigned
                 version = $version
                 size = $file.Length
+                safetyClassification = $parentSafety
+                peType = $peType
             }
         }
 
@@ -222,6 +432,8 @@ function Get-ExecutableArtifacts {
             data = $results
             count = $results.Count
             scannedPath = $TargetPath
+            safetyClassification = $safetyClass
+            filteredOut = $filteredOut
         }
     }
     catch {
@@ -413,6 +625,7 @@ function Import-ScanResults {
 }
 
 # Export functions
-Export-ModuleMember -Function Get-AllADComputers, Get-ComputersByOU, Test-ComputerOnline,
+Export-ModuleMember -Function Get-DirectorySafetyClassification, Get-DirectoryFilesSafe,
+                              Get-AllADComputers, Get-ComputersByOU, Test-ComputerOnline,
                               Get-ExecutableArtifacts, Get-RemoteArtifacts,
                               Export-ScanResults, Import-ScanResults

@@ -1,12 +1,15 @@
 # GA-AppLocker.Tests.ps1
 # Pester tests for GA-AppLocker Dashboard modules
+# Updated with tests for deny list, software gap analysis, and AaronLocker alignment
 
 BeforeAll {
     # Import modules
     $modulePath = $PSScriptRoot + "\..\src\modules"
     $libPath = $PSScriptRoot + "\..\src\lib"
+    $srcPath = $PSScriptRoot + "\..\src"
 
     Import-Module (Join-Path $libPath "Common.psm1") -Force
+    Import-Module (Join-Path $srcPath "Config.psm1") -Force
     Import-Module (Join-Path $modulePath "Module1-Dashboard.psm1") -Force
     Import-Module (Join-Path $modulePath "Module2-RemoteScan.psm1") -Force
     Import-Module (Join-Path $modulePath "Module3-RuleGenerator.psm1") -Force
@@ -130,6 +133,50 @@ Describe "Module2-RemoteScan" {
             Remove-Item -Path $testFile -Force -ErrorAction SilentlyContinue
         }
     }
+
+    # Module2 AaronLocker Pattern Tests
+    It "Get-DirectorySafetyClassification classifies Program Files as SafeDir" {
+        $result = Get-DirectorySafetyClassification -DirectoryPath "C:\Program Files"
+        $result | Should -Be "SafeDir"
+    }
+
+    It "Get-DirectorySafetyClassification classifies Temp as UnsafeDir" {
+        $result = Get-DirectorySafetyClassification -DirectoryPath "C:\Users\John\AppData\Local\Temp"
+        $result | Should -Be "UnsafeDir"
+    }
+
+    It "Get-DirectorySafetyClassification classifies Downloads as UnsafeDir" {
+        $result = Get-DirectorySafetyClassification -DirectoryPath "C:\Users\John\Downloads"
+        $result | Should -Be "UnsafeDir"
+    }
+
+    It "Get-DirectorySafetyClassification returns UnknownDir for unrecognized paths" {
+        $result = Get-DirectorySafetyClassification -DirectoryPath "D:\Some\Random\Path"
+        $result | Should -Be "UnknownDir"
+    }
+
+    It "Get-DirectorySafetyClassification handles empty input" {
+        $result = Get-DirectorySafetyClassification -DirectoryPath ""
+        $result | Should -Be "UnknownDir"
+    }
+
+    It "Get-DirectoryFilesSafe returns empty for non-existent path" {
+        $result = Get-DirectoryFilesSafe -Path "C:\NonExistent\Path\12345" -Extension @('.exe') -MaxFiles 10
+        $result.Count | Should -Be 0
+    }
+
+    It "Get-DirectoryFilesSafe returns array of files" {
+        $testDir = "$env:TEMP\GA-AppLocker-ScanTest"
+        try {
+            New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+            "test content" | Out-File "$testDir\test.txt" -Encoding ascii
+
+            $result = Get-DirectoryFilesSafe -Path $testDir -Extension @('.txt') -MaxFiles 10
+            $result.Count | Should -BeGreaterOrEqual 0
+        } finally {
+            Remove-Item -Path $testDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 Describe "Module3-RuleGenerator" {
@@ -239,6 +286,209 @@ Describe "Module3-RuleGenerator" {
         $result.rules | Should -Not -BeNullOrEmpty
         # Should deduplicate publishers
         $result.count | Should -BeLessOrEqual 3
+    }
+
+    # Deny List Tests (AaronLocker pattern)
+    It "Get-DenyList returns empty hashtable when no file exists" {
+        $testPath = "$env:TEMP\nonexistent-deny-list.txt"
+        $result = Get-DenyList -DenyListPath $testPath
+        $result.success | Should -Be $true
+        $result.publishers.Count | Should -Be 0
+        $result.paths.Count | Should -Be 0
+        $result.count | Should -Be 0
+    }
+
+    It "Add-DenyListEntry validates input parameters" {
+        $result = Add-DenyListEntry -Publisher "" -Path ""
+        $result.success | Should -Be $false
+        $result.error | Should -Be "Either Publisher or Path must be specified"
+    }
+
+    It "Add-DenyListEntry adds publisher entry to file" {
+        $testPath = "$env:TEMP\test-deny-list.txt"
+        try {
+            $result = Add-DenyListEntry -Publisher "TestPublisher" -DenyListPath $testPath
+            $result.success | Should -Be $true
+            Test-Path $testPath | Should -Be $true
+            $content = Get-Content $testPath
+            $content | Should -Match "Publisher: TestPublisher"
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Add-DenyListEntry adds path entry to file" {
+        $testPath = "$env:TEMP\test-deny-list-path.txt"
+        try {
+            $result = Add-DenyListEntry -Path "C:\Temp\*" -DenyListPath $testPath
+            $result.success | Should -Be $true
+            Test-Path $testPath | Should -Be $true
+            $content = Get-Content $testPath
+            $content | Should -Match "Path: C:\\Temp\\*"
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Test-DeniedPublisher identifies denied publishers" {
+        $testPath = "$env:TEMP\test-deny-list-check.txt"
+        try {
+            Add-DenyListEntry -Publisher "BlockedCorp" -DenyListPath $testPath | Out-Null
+            $result = Test-DeniedPublisher -PublisherName "BlockedCorp" -DenyListPath $testPath
+            $result | Should -Be $true
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Test-DeniedPublisher returns false for non-denied publishers" {
+        $testPath = "$env:TEMP\test-deny-list-safe.txt"
+        try {
+            Add-DenyListEntry -Publisher "BlockedCorp" -DenyListPath $testPath | Out-Null
+            $result = Test-DeniedPublisher -PublisherName "SafeCorp" -DenyListPath $testPath
+            $result | Should -Be $false
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Test-DeniedPath identifies denied paths" {
+        $testPath = "$env:TEMP\test-deny-list-path-check.txt"
+        try {
+            Add-DenyListEntry -Path "C:\Temp\*" -DenyListPath $testPath | Out-Null
+            $result = Test-DeniedPath -FilePath "C:\Temp\app.exe" -DenyListPath $testPath
+            $result | Should -Be $true
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "New-SampleDenyList creates sample file" {
+        $testPath = "$env:TEMP\test-sample-deny-list.txt"
+        try {
+            $result = New-SampleDenyList -DenyListPath $testPath
+            $result.success | Should -Be $true
+            Test-Path $testPath | Should -Be $true
+            $content = Get-Content $testPath -Raw
+            $content | Should -Match "# AppLocker Deny List"
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "New-SampleDenyList fails if file exists without Force" {
+        $testPath = "$env:TEMP\test-sample-deny-list-exist.txt"
+        try {
+            New-SampleDenyList -DenyListPath $testPath | Out-Null
+            $result = New-SampleDenyList -DenyListPath $testPath
+            $result.success | Should -Be $false
+            $result.error | Should -Match "already exists"
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "New-RulesFromArtifacts filters denied publishers" {
+        $testPath = "$env:TEMP\test-deny-list-filter.txt"
+        try {
+            Add-DenyListEntry -Publisher "BlockedCorp" -DenyListPath $testPath | Out-Null
+
+            $artifacts = @(
+                @{ publisher = "Microsoft"; name = "app.exe" }
+                @{ publisher = "BlockedCorp"; name = "bad.exe" }
+                @{ publisher = "Google"; name = "chrome.exe" }
+            )
+
+            $result = New-RulesFromArtifacts -Artifacts $artifacts -RuleType Publisher -DenyListPath $testPath -UseDenyList
+            $result.success | Should -Be $true
+            $result.deniedCount | Should -Be 1
+            $result.deniedPublishers | Should -Contain "BlockedCorp"
+            $result.count | Should -Be 2  # Only Microsoft and Google
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    # Software Gap Analysis Tests (GA-AppLocker Custom Feature)
+    It "Get-SoftwareBaseline returns empty when no file exists" {
+        $testPath = "$env:TEMP\nonexistent-baseline.txt"
+        $result = Get-SoftwareBaseline -BaselinePath $testPath
+        $result.success | Should -Be $true
+        $result.publishers.Count | Should -Be 0
+        $result.paths.Count | Should -Be 0
+        $result.names.Count | Should -Be 0
+    }
+
+    It "New-SampleBaseline creates sample file" {
+        $testPath = "$env:TEMP\test-sample-baseline.txt"
+        try {
+            $result = New-SampleBaseline -BaselinePath $testPath
+            $result.success | Should -Be $true
+            Test-Path $testPath | Should -Be $true
+            $content = Get-Content $testPath -Raw
+            $content | Should -Match "# AppLocker Software Baseline"
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Compare-SoftwareBaseline requires artifacts" {
+        $result = Compare-SoftwareBaseline -Artifacts @()
+        $result.success | Should -Be $false
+        $result.error | Should -Match "No artifacts"
+    }
+
+    It "Compare-SoftwareBaseline returns compliance statistics" {
+        $testPath = "$env:TEMP\test-baseline-compare.txt"
+        try {
+            # Create baseline with Microsoft
+            "Publisher: Microsoft Corporation" | Out-File $testPath -Encoding utf8
+
+            $artifacts = @(
+                @{ publisher = "Microsoft Corporation"; name = "word.exe"; path = "C:\Program Files\word.exe" }
+                @{ publisher = "Unauthorized Corp"; name = "bad.exe"; path = "C:\Temp\bad.exe" }
+            )
+
+            $result = Compare-SoftwareBaseline -Artifacts $artifacts -BaselinePath $testPath
+            $result.success | Should -Be $true
+            $result.scannedCount | Should -Be 2
+            $result.unauthorizedCount | Should -Be 1
+            $result.compliancePercent | Should -Be 50
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Compare-SoftwareBaseline identifies missing software" {
+        $testPath = "$env:TEMP\test-baseline-missing.txt"
+        try {
+            # Create baseline with Microsoft and Oracle
+            @"
+Publisher: Microsoft Corporation
+Publisher: Oracle Corporation
+"@ | Out-File $testPath -Encoding utf8
+
+            $artifacts = @(
+                @{ publisher = "Microsoft Corporation"; name = "word.exe"; path = "C:\word.exe" }
+            )
+
+            $result = Compare-SoftwareBaseline -Artifacts $artifacts -BaselinePath $testPath
+            $result.success | Should -Be $true
+            $result.notInstalledCount | Should -Be 1
+            $result.missingFromSystem[0].value | Should -Be "Oracle Corporation"
+        } finally {
+            Remove-Item $testPath -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Protect-XmlAttributeValue escapes special characters" {
+        $testValue = 'test&<>"'
+        $result = Protect-XmlAttributeValue -Value $testValue
+        $result | Should -Not -Match '[^&]&[^;]'
+        $result | Should -Not -Match '<'
+        $result | Should -Not -Match '>'
+        $result | Should -Match '&amp;'
+        $result | Should -Match '&lt;'
     }
 }
 
@@ -395,6 +645,41 @@ Describe "Module6-ADManager" {
         $result = New-AppLockerGroups
         $result.groups.Count | Should -BeGreaterOrEqual 0
         # If AD is available, should create 6 groups
+    }
+
+    # Module6 LDAP Injection Protection Tests
+    It "Protect-LDAPFilterValue escapes backslash" {
+        $result = Protect-LDAPFilterValue -Value "test\value"
+        $result | Should -Match "\\5c"
+    }
+
+    It "Protect-LDAPFilterValue escapes asterisk" {
+        $result = Protect-LDAPFilterValue -Value "test*value"
+        $result | Should -Match "\\2a"
+    }
+
+    It "Protect-LDAPFilterValue escapes parentheses" {
+        $result = Protect-LDAPFilterValue -Value "test(value)"
+        $result | Should -Match "\\28"
+        $result | Should -Match "\\29"
+    }
+
+    It "Protect-LDAPFilterValue escapes null byte" {
+        $result = Protect-LDAPFilterValue -Value "test$([char]0x00)value"
+        $result | Should -Match "\\00"
+    }
+
+    It "Protect-LDAPFilterValue escapes forward slash" {
+        $result = Protect-LDAPFilterValue -Value "test/value"
+        $result | Should -Match "\\2f"
+    }
+
+    It "Protect-LDAPFilterValue handles multiple special characters" {
+        $result = Protect-LDAPFilterValue -Value "test*(\value)/"
+        $result | Should -Match "\\2a"
+        $result | Should -Match "\\28"
+        $result | Should -Match "\\5c"
+        $result | Should -Match "\\2f"
     }
 }
 
@@ -567,7 +852,192 @@ Describe "Common Library" {
         $data = @("one", "two", "three")
         $result = ConvertTo-JsonResponse -Data $data
         $result | Should -Match '"one"'
-        $result | Should -Match '"two"'
+        $result | Should -Match '\"two\"'
+    }
+
+    # Common Library AaronLocker Pattern Tests
+    It "IsWin32Executable returns EXE for valid executable" {
+        $testFile = "$env:TEMP\test-pe-detection.exe"
+        try {
+            # Create a minimal PE file (DOS header + PE header)
+            $peBytes = @(
+                # "MZ" signature
+                0x4D, 0x5A,
+                # DOS stub (zeros)
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                # Offset to PE header (at 0x3C)
+                0x40, 0x00, 0x00, 0x00,
+                # More DOS stub
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                # PE header starts at 0x40
+                # "PE" signature
+                0x50, 0x45, 0x00, 0x00,
+                # Machine (0x014C = i386)
+                0x4C, 0x01, 0x00, 0x00,
+                # NumberOfSections
+                0x01, 0x00, 0x00, 0x00,
+                # TimeDateStamp
+                0x00, 0x00, 0x00, 0x00,
+                # PointerToSymbolTable
+                0x00, 0x00, 0x00, 0x00,
+                # NumberOfSymbols
+                0x00, 0x00, 0x00, 0x00,
+                # SizeOfOptionalHeader
+                0xE0, 0x00, 0x00, 0x00,
+                # Characteristics (0x0102 = executable, 32-bit)
+                0x02, 0x01, 0x00, 0x00
+            )
+            # Pad to at least 0x80 bytes (NT headers start at 0x40 + 0x18 = 0x58)
+            for ($i = $peBytes.Count; $i -lt 400; $i++) {
+                $peBytes += 0x00
+            }
+
+            # Set Optional Header values
+            # Magic (0x010B = PE32)
+            $peBytes[0x58] = 0x0B
+            $peBytes[0x59] = 0x01
+            # Subsystem (3 = Windows CLI)
+            $peBytes[0x5C] = 0x03
+            $peBytes[0x5D] = 0x00
+            # DLL Characteristics flag offset (0x70 in Optional Header)
+            $peBytes[0x5C + 0x70] = 0x00
+            $peBytes[0x5C + 0x71] = 0x00
+
+            # Set Characteristics (IMAGE_FILE_EXECUTABLE_IMAGE | IMAGE_FILE_32BIT_MACHINE)
+            # At offset 0x56 + 0x18 = 0x6E, need to set 0x0102
+            $peBytes[0x6E] = 0x02
+            $peBytes[0x6F] = 0x01
+
+            [System.IO.File]::WriteAllBytes($testFile, [byte[]]$peBytes)
+
+            $result = IsWin32Executable -filename $testFile
+            $result | Should -Be "EXE"
+        } finally {
+            Remove-Item -Path $testFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "IsWin32Executable returns null for non-executable" {
+        $testFile = "$env:TEMP\test-not-exe.txt"
+        try {
+            "plain text" | Out-File $testFile -Encoding ascii
+            $result = IsWin32Executable -filename $testFile
+            $result | Should -BeNullOrEmpty
+        } finally {
+            Remove-Item -Path $testFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "IsWin32Executable returns null for non-existent file" {
+        $result = IsWin32Executable -filename "C:\NonExistent\file.exe"
+        $result | Should -BeNullOrEmpty
+    }
+
+    It "Test-AppLockerPath validates existing file path" {
+        $testFile = "$env:TEMP\test-validation.txt"
+        try {
+            "test" | Out-File $testFile -Encoding ascii
+            $result = Test-AppLockerPath -Path $testFile
+            $result.valid | Should -Be $true
+            $result.path | Should -Be $result.path
+        } finally {
+            Remove-Item -Path $testFile -Force -ErrorAction SilentlyContinue
+        }
+    }
+
+    It "Test-AppLockerPath rejects empty path" {
+        $result = Test-AppLockerPath -Path ""
+        $result.valid | Should -Be $false
+        $result.error | Should -Match "empty"
+    }
+
+    It "Test-AppLockerPath rejects UNC paths by default" {
+        $result = Test-AppLockerPath -Path "\\server\share\file.exe"
+        $result.valid | Should -Be $false
+        $result.error | Should -Match "UNC"
+    }
+
+    It "Test-AppLockerPath rejects device paths" {
+        $result = Test-AppLockerPath -Path "\\.\C:\path\file.exe"
+        $result.valid | Should -Be $false
+        $result.error | Should -Match "Device"
+    }
+
+    It "Test-AppLockerPath rejects non-existent files" {
+        $result = Test-AppLockerPath -Path "C:\NonExistent\Path\file.exe"
+        $result.valid | Should -Be $false
+        $result.error | Should -Match "not found"
+    }
+
+    It "Test-PublisherName validates correct publisher name" {
+        $result = Test-PublisherName -PublisherName "Microsoft Corporation"
+        $result.valid | Should -Be $true
+        $result.name | Should -Be "Microsoft Corporation"
+    }
+
+    It "Test-PublisherName rejects empty name" {
+        $result = Test-PublisherName -PublisherName ""
+        $result.valid | Should -Be $false
+        $result.error | Should -Match "empty"
+    }
+
+    It "Test-PublisherName rejects name with invalid characters" {
+        $result = Test-PublisherName -PublisherName "Test<script>"
+        $result.valid | Should -Be $false
+        $result.error | Should -Match "invalid"
+    }
+
+    It "Test-PublisherName rejects name that is too long" {
+        $longName = "A" * 257
+        $result = Test-PublisherName -PublisherName $longName
+        $result.valid | Should -Be $false
+        $result.error | Should -Match "too long"
+    }
+
+    It "ConvertTo-AppLockerGenericPath converts Program Files" {
+        $result = ConvertTo-AppLockerGenericPath -FilePath "C:\Program Files\app\file.exe"
+        $result | Should -Match "%PROGRAMFILES%"
+    }
+
+    It "ConvertTo-AppLockerGenericPath converts user profile paths" {
+        $result = ConvertTo-AppLockerGenericPath -FilePath "C:\Users\John\AppData\Local\app.exe"
+        $result | Should -Match "%LOCALAPPDATA%"
+    }
+
+    It "ConvertTo-AppLockerGenericPath converts Windows path" {
+        $result = ConvertTo-AppLockerGenericPath -FilePath "C:\Windows\System32\cmd.exe"
+        $result | Should -Match "%WINDIR%"
+    }
+
+    It "ConvertTo-AppLockerGenericPath handles empty input" {
+        $result = ConvertTo-AppLockerGenericPath -FilePath ""
+        $result | Should -Be ""
+    }
+
+    It "Get-StandardSids returns expected SID values" {
+        $result = Get-StandardSids
+        $result.Everyone | Should -Be "S-1-1-0"
+        $result.Administrators | Should -Be "S-1-5-32-544"
+        $result.System | Should -Be "S-1-5-18"
+    }
+
+    It "New-AppLockerGuid returns valid GUID" {
+        $result = New-AppLockerGuid
+        $guid = [guid]::empty
+        [guid]::TryParse($result, [ref]$guid) | Should -Be $true
     }
 }
 
@@ -641,7 +1111,20 @@ AfterAll {
         "$env:TEMP\test-policy-export.xml",
         "$env:TEMP\test-inventory.json",
         "$env:TEMP\GA-AppLocker-Test-Evidence-Full",
-        "$env:TEMP\GA-AppLocker-Integration-Test"
+        "$env:TEMP\GA-AppLocker-Integration-Test",
+        # Deny list and baseline test files
+        "$env:TEMP\nonexistent-deny-list.txt",
+        "$env:TEMP\test-deny-list*.txt",
+        "$env:TEMP\test-sample-deny-list*.txt",
+        "$env:TEMP\nonexistent-baseline.txt",
+        "$env:TEMP\test-baseline*.txt",
+        "$env:TEMP\test-sample-baseline*.txt",
+        # Module2 test files
+        "$env:TEMP\GA-AppLocker-ScanTest",
+        # Common library test files
+        "$env:TEMP\test-pe-detection.exe",
+        "$env:TEMP\test-not-exe.txt",
+        "$env:TEMP\test-validation.txt"
     )
 
     foreach ($pattern in $testPaths) {
@@ -663,6 +1146,20 @@ AfterAll {
     $tempDir = $env:TEMP
     if (Test-Path $tempDir) {
         Get-ChildItem -Path $tempDir -Filter "GA-AppLocker-*" -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            } catch {
+                # Ignore cleanup errors
+            }
+        }
+        Get-ChildItem -Path $tempDir -Filter "test-*" -ErrorAction SilentlyContinue | ForEach-Object {
+            try {
+                Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
+            } catch {
+                # Ignore cleanup errors
+            }
+        }
+        Get-ChildItem -Path $tempDir -Filter "nonexistent-*" -ErrorAction SilentlyContinue | ForEach-Object {
             try {
                 Remove-Item $_.FullName -Recurse -Force -ErrorAction SilentlyContinue
             } catch {
