@@ -1,107 +1,25 @@
-name: Build (with Tests)
+name: Build Only (Priority)
 
-# Full build workflow with PSScriptAnalyzer and Pester tests
-# For fast builds without tests, use build-only.yml (runs on push/PR)
+# PRIORITY WORKFLOW - Fast builds without tests
+# Runs on every push and PR for quick feedback
+# For full testing with PSScriptAnalyzer and Pester, use build.yml
 
 on:
+  push:
+    branches: [ master, main, develop, 'claude/**' ]
+  pull_request:
+    branches: [ master, main, develop ]
   workflow_dispatch:
-    inputs:
-      run_slow_tests:
-        description: 'Run slow network tests'
-        required: false
-        default: 'false'
-        type: boolean
-  schedule:
-    # Run full tests weekly on Sunday at midnight
-    - cron: '0 0 * * 0'
 
 env:
   POWERSHELL_TELEMETRY_OPTOUT: 1
 
 jobs:
-  analyze:
-    name: PSScriptAnalyzer
-    runs-on: windows-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install PSScriptAnalyzer
-        shell: pwsh
-        run: Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
-
-      - name: Run PSScriptAnalyzer
-        shell: pwsh
-        run: |
-          Import-Module PSScriptAnalyzer
-          $results = Invoke-ScriptAnalyzer -Path ./src -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse
-          if ($results) {
-            Write-Host "PSScriptAnalyzer found $($results.Count) issue(s):"
-            $results | Format-Table -AutoSize
-            $errors = $results | Where-Object { $_.Severity -eq 'Error' }
-            if ($errors) {
-              Write-Host "##[error]Build failed: PSScriptAnalyzer found $($errors.Count) error(s)"
-              exit 1
-            }
-          } else {
-            Write-Host "No PSScriptAnalyzer issues found"
-          }
-
-  test:
-    name: Pester Tests
-    runs-on: windows-latest
-    timeout-minutes: 10
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install Pester
-        shell: pwsh
-        run: Install-Module -Name Pester -Force -MinimumVersion 5.0 -Scope CurrentUser -SkipPublisherCheck
-
-      - name: Run Pester tests (fast mode)
-        shell: pwsh
-        run: |
-          Import-Module Pester -MinimumVersion 5.0
-
-          $config = New-PesterConfiguration
-          $config.Run.Path = "./tests"
-          $config.Run.Exit = $false
-          $config.Run.Throw = $false
-          $config.Output.Verbosity = 'Normal'
-          $config.TestResult.Enabled = $true
-          $config.TestResult.OutputPath = "./pester-results.xml"
-          $config.CodeCoverage.Enabled = $false
-
-          # Note: $script:SkipSlowNetworkTests = $true is set in the test file
-          # This skips slow network and file system tests automatically
-
-          $result = Invoke-Pester -Configuration $config
-
-          Write-Host "`nTest Results:"
-          Write-Host "  Passed: $($result.PassedCount)"
-          Write-Host "  Failed: $($result.FailedCount)"
-          Write-Host "  Skipped: $($result.SkippedCount)"
-
-          if ($result.FailedCount -gt 0) {
-            Write-Host "##[error]$($result.FailedCount) tests failed"
-            exit 1
-          }
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pester-results
-          path: pester-results.xml
-          retention-days: 30
-
   build:
-    name: Build Package
-    needs: [analyze, test]
+    name: Build GA-AppLocker
     runs-on: windows-latest
     timeout-minutes: 10
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -121,7 +39,7 @@ jobs:
         shell: pwsh
         run: |
           Write-Host "====================================" -ForegroundColor Cyan
-          Write-Host "  GA-AppLocker Dashboard Build (Tested)" -ForegroundColor Cyan
+          Write-Host "  GA-AppLocker Dashboard Build" -ForegroundColor Cyan
           Write-Host "====================================`n" -ForegroundColor Cyan
 
           # Find the GUI script
@@ -213,14 +131,14 @@ jobs:
         shell: pwsh
         run: |
           $version = "1.2.4"
-          $zipName = "GA-AppLocker-Dashboard-v$version-tested.zip"
+          $zipName = "GA-AppLocker-Dashboard-v$version.zip"
           Compress-Archive -Path ./output/* -DestinationPath "./$zipName" -Force
           Write-Host "Created: $zipName" -ForegroundColor Green
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GA-AppLocker-Dashboard-Tested
+          name: GA-AppLocker-Dashboard
           path: |
             ./output/GA-AppLocker-Dashboard.exe
             ./output/GA-AppLocker-GUI.ps1
@@ -231,18 +149,16 @@ jobs:
       - name: Upload full package
         uses: actions/upload-artifact@v4
         with:
-          name: GA-AppLocker-Dashboard-Tested-Full
-          path: GA-AppLocker-Dashboard-v*-tested.zip
+          name: GA-AppLocker-Dashboard-Full
+          path: GA-AppLocker-Dashboard-v*.zip
           retention-days: 30
 
       - name: Build Summary
         shell: pwsh
         run: |
           Write-Host "`n====================================" -ForegroundColor Green
-          Write-Host "  BUILD WITH TESTS COMPLETED" -ForegroundColor Green
+          Write-Host "  BUILD COMPLETED SUCCESSFULLY" -ForegroundColor Green
           Write-Host "====================================`n" -ForegroundColor Green
-          Write-Host "All PSScriptAnalyzer checks passed" -ForegroundColor Cyan
-          Write-Host "All Pester tests passed" -ForegroundColor Cyan
           Write-Host "Artifacts uploaded:" -ForegroundColor Cyan
-          Write-Host "  - GA-AppLocker-Dashboard-Tested (EXE + Scripts)"
-          Write-Host "  - GA-AppLocker-Dashboard-Tested-Full (Complete ZIP)"
+          Write-Host "  - GA-AppLocker-Dashboard (EXE + Scripts)"
+          Write-Host "  - GA-AppLocker-Dashboard-Full (Complete ZIP)"
