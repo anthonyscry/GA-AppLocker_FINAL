@@ -167,9 +167,9 @@ function Get-AppLockerEvents {
     $logName = 'Microsoft-Windows-AppLocker/EXE and DLL'
     try {
         $events = Get-WinEvent -LogName $logName -MaxEvents $MaxEvents -ErrorAction Stop
-        $data = $events | ForEach-Object @{
+        $data = $events | ForEach-Object { @{
             eventId = $_.Id; time = $_.TimeCreated; message = $_.Message -replace "`n", " " -replace "`r", ""
-        }
+        } }
         return @{ success = $true; data = $data; count = $data.Count }
     } catch {
         return @{ success = $true; data = @(); count = 0; message = "No events found" }

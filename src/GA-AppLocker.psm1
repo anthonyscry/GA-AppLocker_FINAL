@@ -77,7 +77,7 @@ function Get-DashboardSummary {
         return @{ success = $false; error = "Module not found: Module1-Dashboard.psm1" }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module1\Get-DashboardSummary @args
+    return Get-DashboardSummary @args
 }
 
 <#
@@ -95,7 +95,7 @@ function Get-AllComputers {
         return @{ success = $false; error = "Module not found: Module2-RemoteScan.psm1"; data = @() }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module2\Get-AllADComputers @args
+    return Get-AllADComputers @args
 }
 
 <#
@@ -115,7 +115,7 @@ function Scan-LocalComputer {
         return @{ success = $false; error = "Module not found: Module2-RemoteScan.psm1"; data = @() }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module2\Get-ExecutableArtifacts @args
+    return Get-ExecutableArtifacts @args
 }
 
 <#
@@ -138,7 +138,7 @@ function Generate-Rules {
         return @{ success = $false; error = "Module not found: Module3-RuleGenerator.psm1"; rules = @() }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module3\New-RulesFromArtifacts @args
+    return New-RulesFromArtifacts @args
 }
 
 <#
@@ -163,7 +163,7 @@ function Export-Policy {
         return @{ success = $false; error = "Module not found: Module3-RuleGenerator.psm1" }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module3\Export-RulesToXml @args
+    return Export-RulesToXml @args
 }
 
 <#
@@ -184,7 +184,7 @@ function Create-GPO {
         return @{ success = $false; error = "Module not found: Module4-PolicyLab.psm1" }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module4\New-AppLockerGPO @args
+    return New-AppLockerGPO @args
 }
 
 <#
@@ -207,7 +207,7 @@ function Link-GPO {
         return @{ success = $false; error = "Module not found: Module4-PolicyLab.psm1" }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module4\Add-GPOLink @args
+    return Add-GPOLink @args
 }
 
 <#
@@ -225,7 +225,7 @@ function Get-AllOUs {
         return @{ success = $false; error = "Module not found: Module4-PolicyLab.psm1"; data = @() }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module4\Get-OUsWithComputerCounts @args
+    return Get-OUsWithComputerCounts @args
 }
 
 <#
@@ -246,7 +246,7 @@ function Get-Events {
         return @{ success = $false; error = "Module not found: Module5-EventMonitor.psm1"; data = @() }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module5\Get-AppLockerEvents @args
+    return Get-AppLockerEvents @args
 }
 
 <#
@@ -264,7 +264,7 @@ function Get-Users {
         return @{ success = $false; error = "Module not found: Module6-ADManager.psm1"; data = @() }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module6\Get-AllADUsers @args
+    return Get-AllADUsers @args
 }
 
 <#
@@ -284,7 +284,7 @@ function Create-AppLockerGroups {
         return @{ success = $false; error = "Module not found: Module6-ADManager.psm1" }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module6\New-AppLockerGroups @args
+    return New-AppLockerGroups @args
 }
 
 <#
@@ -307,7 +307,7 @@ function Add-UserToGroup {
         return @{ success = $false; error = "Module not found: Module6-ADManager.psm1" }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module6\Add-UserToAppLockerGroup @args
+    return Add-UserToAppLockerGroup @args
 }
 
 <#
@@ -325,7 +325,7 @@ function Get-Compliance {
         return @{ success = $false; error = "Module not found: Module7-Compliance.psm1" }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module7\Get-ComplianceSummary @args
+    return Get-ComplianceSummary @args
 }
 
 <#
@@ -345,7 +345,7 @@ function New-Report {
         return @{ success = $false; error = "Module not found: Module7-Compliance.psm1" }
     }
     Import-Module $moduleFile -ErrorAction Stop
-    return Module7\New-ComplianceReport @args
+    return New-ComplianceReport @args
 }
 
 # Export all functions

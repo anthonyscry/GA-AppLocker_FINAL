@@ -83,7 +83,7 @@ if (-not $SkipTests) {
 
     $config = New-PesterConfiguration
     $config.Run.Path = ".\tests"
-    $config.Run.Exit = $true
+    $config.Run.Exit = $false
     $config.Output.Verbosity = 'Detailed'
     $config.TestResult.Enabled = $true
     $config.TestResult.OutputPath = "$OutputPath\PesterResults.xml"

@@ -79,7 +79,7 @@ $ErrorActionPreference = 'Stop'
 $scriptRoot = Split-Path $PSScriptRoot -Parent
 
 # Import common functions and error handling
-Import-Module (Join-Path $scriptRoot 'utilities\Common.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'Common.psm1') -Force
 Import-Module (Join-Path $PSScriptRoot 'ErrorHandling.psm1') -Force
 
 #region Phase Definitions

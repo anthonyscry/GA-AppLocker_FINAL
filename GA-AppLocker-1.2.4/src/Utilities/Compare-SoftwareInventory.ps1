@@ -218,11 +218,12 @@ function Get-ComparisonKey {
     switch ($Method) {
         "Name" {
             # Match by DisplayName only (case-insensitive)
-            return $Item.DisplayName.ToLower().Trim()
+            $name = if ($Item.DisplayName) { $Item.DisplayName.ToLower().Trim() } else { "" }
+            return $name
         }
         "NameVersion" {
             # Match by DisplayName AND DisplayVersion
-            $name = $Item.DisplayName.ToLower().Trim()
+            $name = if ($Item.DisplayName) { $Item.DisplayName.ToLower().Trim() } else { "" }
             $version = if ($Item.DisplayVersion) { $Item.DisplayVersion.Trim() } else { "" }
             return "$name|$version"
         }
