@@ -5076,15 +5076,27 @@ $ScanSelectedBtn.Add_Click({
         } catch {
             $winrmFail += $comp
             $errorMsg = $_.Exception.Message
+            $reason = "Unknown"
             if ($errorMsg -match "Access is denied") {
-                $DiscoveryOutput.Text += " FAILED (Access Denied)"
-            } elseif ($errorMsg -match "WinRM cannot complete") {
-                $DiscoveryOutput.Text += " FAILED (WinRM not enabled)"
-            } elseif ($errorMsg -match "network path was not found") {
-                $DiscoveryOutput.Text += " FAILED (Unreachable)"
+                $reason = "Access Denied"
+            } elseif ($errorMsg -match "WinRM cannot complete|cannot process the request") {
+                $reason = "WinRM not enabled"
+            } elseif ($errorMsg -match "network path was not found|cannot find the computer") {
+                $reason = "Unreachable"
+            } elseif ($errorMsg -match "client cannot connect|connection attempt failed") {
+                $reason = "Connection refused"
+            } elseif ($errorMsg -match "firewall") {
+                $reason = "Firewall blocking"
+            } elseif ($errorMsg -match "timed out|timeout") {
+                $reason = "Timeout"
+            } elseif ($errorMsg -match "not a Windows") {
+                $reason = "Not Windows"
             } else {
-                $DiscoveryOutput.Text += " FAILED"
+                # Extract short reason from error
+                $reason = ($errorMsg -split ':')[0].Trim()
+                if ($reason.Length -gt 30) { $reason = $reason.Substring(0, 30) + "..." }
             }
+            $DiscoveryOutput.Text += " FAILED ($reason)"
             Write-Log "WinRM FAIL: $comp - $errorMsg" -Level "ERROR"
         }
         [System.Windows.Forms.Application]::DoEvents()
