@@ -652,8 +652,701 @@ function Import-ScanResults {
     }
 }
 
+# ======================================================================
+# REMOTE APPLOCKER EVENT LOG SCANNING
+# Comprehensive remote event log collection for rule generation
+# ======================================================================
+
+<#
+.SYNOPSIS
+    Get Remote AppLocker Event Logs
+.DESCRIPTION
+    Scans a remote computer for AppLocker event logs and returns comprehensive data
+    including system info, policy status, and events formatted for rule generation.
+    This is a comprehensive scan that collects all AppLocker-relevant data from a target.
+.PARAMETER ComputerName
+    The name of the remote computer to scan
+.PARAMETER Credential
+    Optional credentials for remote authentication
+.PARAMETER DaysBack
+    Number of days of event history to retrieve (default: 7)
+.PARAMETER MaxEvents
+    Maximum number of events to retrieve per log (default: 1000)
+.PARAMETER IncludePolicyXml
+    Include the full effective policy XML in results (default: false, can be large)
+.OUTPUTS
+    Hashtable with system info, policy status, and events formatted for rule generator
+.EXAMPLE
+    $result = Get-RemoteAppLockerEvents -ComputerName "WORKSTATION01"
+    $result.artifacts | ForEach-Object { New-PublisherRule -PublisherName $_.publisher }
+#>
+function Get-RemoteAppLockerEvents {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [PSCredential]$Credential,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateRange(1, 365)]
+        [int]$DaysBack = 7,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateRange(1, 10000)]
+        [int]$MaxEvents = 1000,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$IncludePolicyXml
+    )
+
+    # Validate computer name
+    if ([string]::IsNullOrWhiteSpace($ComputerName)) {
+        return @{
+            success = $false
+            error = 'Computer name is required'
+            computerName = $ComputerName
+        }
+    }
+
+    # Test WinRM connectivity before attempting remote scan
+    $winrmTest = Test-WSMan -ComputerName $ComputerName -ErrorAction SilentlyContinue
+    if (-not $winrmTest) {
+        return @{
+            success = $false
+            error = "WinRM not available on '$ComputerName'. Ensure WinRM is enabled and firewall allows connections."
+            computerName = $ComputerName
+        }
+    }
+
+    # Define the remote script block that runs on the target computer
+    # This collects all AppLocker-related data in a single remote session
+    $scanScript = {
+        param($DaysBack, $MaxEvents, $IncludePolicyXml)
+
+        $Result = [ordered]@{
+            success = $true
+            timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+        }
+
+        # ----------------------------
+        # SYSTEM INFORMATION
+        # Collect basic system info for inventory and troubleshooting
+        # ----------------------------
+        try {
+            $os = Get-CimInstance Win32_OperatingSystem -ErrorAction Stop
+            $Result.System = @{
+                ComputerName = $env:COMPUTERNAME
+                OS           = $os.Caption
+                Build        = $os.BuildNumber
+                Version      = $os.Version
+                Architecture = $env:PROCESSOR_ARCHITECTURE
+            }
+        }
+        catch {
+            $Result.System = @{
+                ComputerName = $env:COMPUTERNAME
+                error = $_.Exception.Message
+            }
+        }
+
+        # ----------------------------
+        # APPLOCKER SERVICE STATE
+        # Check if AppIDSvc is running (required for AppLocker enforcement)
+        # ----------------------------
+        try {
+            $svc = Get-Service AppIDSvc -ErrorAction Stop
+            $svcWmi = Get-CimInstance Win32_Service -Filter "Name='AppIDSvc'" -ErrorAction SilentlyContinue
+            $Result.AppIDSvc = @{
+                Status      = $svc.Status.ToString()
+                StartupType = if ($svcWmi) { $svcWmi.StartMode } else { 'Unknown' }
+                IsRunning   = ($svc.Status -eq 'Running')
+            }
+        }
+        catch {
+            $Result.AppIDSvc = @{
+                Status      = 'NotInstalled'
+                StartupType = 'Unknown'
+                IsRunning   = $false
+                error       = $_.Exception.Message
+            }
+        }
+
+        # ----------------------------
+        # EFFECTIVE APPLOCKER POLICY
+        # Get current policy enforcement modes and rule counts
+        # ----------------------------
+        try {
+            $Policy = Get-AppLockerPolicy -Effective -ErrorAction Stop
+
+            # Extract enforcement mode for each rule collection
+            $Result.PolicyMode = @{
+                Exe    = if ($Policy.RuleCollections["Exe"]) { $Policy.RuleCollections["Exe"].EnforcementMode.ToString() } else { 'NotConfigured' }
+                Dll    = if ($Policy.RuleCollections["Dll"]) { $Policy.RuleCollections["Dll"].EnforcementMode.ToString() } else { 'NotConfigured' }
+                Msi    = if ($Policy.RuleCollections["Msi"]) { $Policy.RuleCollections["Msi"].EnforcementMode.ToString() } else { 'NotConfigured' }
+                Script = if ($Policy.RuleCollections["Script"]) { $Policy.RuleCollections["Script"].EnforcementMode.ToString() } else { 'NotConfigured' }
+                Appx   = if ($Policy.RuleCollections["Appx"]) { $Policy.RuleCollections["Appx"].EnforcementMode.ToString() } else { 'NotConfigured' }
+            }
+
+            # Count rules in each collection
+            $Result.RuleCounts = @{
+                ExeRules    = if ($Policy.RuleCollections["Exe"]) { $Policy.RuleCollections["Exe"].Count } else { 0 }
+                DllRules    = if ($Policy.RuleCollections["Dll"]) { $Policy.RuleCollections["Dll"].Count } else { 0 }
+                MsiRules    = if ($Policy.RuleCollections["Msi"]) { $Policy.RuleCollections["Msi"].Count } else { 0 }
+                ScriptRules = if ($Policy.RuleCollections["Script"]) { $Policy.RuleCollections["Script"].Count } else { 0 }
+                AppxRules   = if ($Policy.RuleCollections["Appx"]) { $Policy.RuleCollections["Appx"].Count } else { 0 }
+            }
+
+            $Result.HasPolicy = $true
+
+            # Optionally include full policy XML (can be large)
+            if ($IncludePolicyXml) {
+                $PolicyXml = Get-AppLockerPolicy -Effective -Xml -ErrorAction SilentlyContinue
+                $Result.PolicyXml = if ($PolicyXml) { $PolicyXml.OuterXml } else { $null }
+            }
+        }
+        catch {
+            $Result.PolicyMode = @{
+                Exe = 'NotConfigured'; Dll = 'NotConfigured'; Msi = 'NotConfigured'
+                Script = 'NotConfigured'; Appx = 'NotConfigured'
+            }
+            $Result.RuleCounts = @{
+                ExeRules = 0; DllRules = 0; MsiRules = 0; ScriptRules = 0; AppxRules = 0
+            }
+            $Result.HasPolicy = $false
+            $Result.PolicyError = $_.Exception.Message
+        }
+
+        # ----------------------------
+        # APPLOCKER EVENT LOGS
+        # Collect events from all AppLocker log channels
+        # ----------------------------
+        $Since = (Get-Date).AddDays(-$DaysBack)
+
+        # Define all AppLocker event log channels
+        $LogNames = @(
+            "Microsoft-Windows-AppLocker/EXE and DLL",
+            "Microsoft-Windows-AppLocker/MSI and Script",
+            "Microsoft-Windows-AppLocker/Packaged app-Deployment",
+            "Microsoft-Windows-AppLocker/Packaged app-Execution"
+        )
+
+        $AllEvents = @()
+        $EventSummary = @{
+            TotalEvents = 0
+            AllowedCount = 0
+            AuditCount = 0
+            BlockedCount = 0
+            ByEventId = @{}
+        }
+
+        foreach ($LogName in $LogNames) {
+            try {
+                $events = Get-WinEvent -FilterHashtable @{
+                    LogName   = $LogName
+                    StartTime = $Since
+                } -MaxEvents $MaxEvents -ErrorAction SilentlyContinue
+
+                if ($events) {
+                    foreach ($event in $events) {
+                        # Parse event message to extract file path and other details
+                        # AppLocker events contain file path, publisher, hash in XML data
+                        $eventData = @{
+                            TimeCreated     = $event.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')
+                            EventId         = $event.Id
+                            Level           = $event.LevelDisplayName
+                            LogName         = $LogName
+                            Message         = $event.Message
+                            UserSid         = $null
+                            FilePath        = $null
+                            FileHash        = $null
+                            Publisher       = $null
+                            ProductName     = $null
+                            FileName        = $null
+                            EventType       = $null
+                        }
+
+                        # Classify event by ID
+                        # EXE/DLL: 8002=Allowed, 8003=Audit, 8004=Blocked
+                        # MSI/Script: 8005=Allowed, 8006=Audit, 8007=Blocked
+                        # Packaged App: 8020=Allowed, 8021=Audit, 8022=Blocked
+                        switch ($event.Id) {
+                            8002 { $eventData.EventType = 'Allowed'; $EventSummary.AllowedCount++ }
+                            8003 { $eventData.EventType = 'Audit'; $EventSummary.AuditCount++ }
+                            8004 { $eventData.EventType = 'Blocked'; $EventSummary.BlockedCount++ }
+                            8005 { $eventData.EventType = 'Allowed'; $EventSummary.AllowedCount++ }
+                            8006 { $eventData.EventType = 'Audit'; $EventSummary.AuditCount++ }
+                            8007 { $eventData.EventType = 'Blocked'; $EventSummary.BlockedCount++ }
+                            8020 { $eventData.EventType = 'Allowed'; $EventSummary.AllowedCount++ }
+                            8021 { $eventData.EventType = 'Audit'; $EventSummary.AuditCount++ }
+                            8022 { $eventData.EventType = 'Blocked'; $EventSummary.BlockedCount++ }
+                            default { $eventData.EventType = 'Other' }
+                        }
+
+                        # Track counts by event ID
+                        if (-not $EventSummary.ByEventId.ContainsKey($event.Id.ToString())) {
+                            $EventSummary.ByEventId[$event.Id.ToString()] = 0
+                        }
+                        $EventSummary.ByEventId[$event.Id.ToString()]++
+
+                        # Parse XML event data for detailed file information
+                        try {
+                            $xmlData = [xml]$event.ToXml()
+                            $eventDataNode = $xmlData.Event.EventData
+
+                            if ($eventDataNode -and $eventDataNode.Data) {
+                                foreach ($dataItem in $eventDataNode.Data) {
+                                    $name = $dataItem.Name
+                                    $value = $dataItem.'#text'
+
+                                    switch ($name) {
+                                        'FilePath'    { $eventData.FilePath = $value }
+                                        'FileHash'    { $eventData.FileHash = $value }
+                                        'Fqbn'        {
+                                            # Fully Qualified Binary Name contains publisher info
+                                            # Format: O=Publisher, L=Location, S=State, C=Country\ProductName\FileName\Version
+                                            if ($value -match '^O=([^\\,]+)') {
+                                                $eventData.Publisher = $matches[1]
+                                            }
+                                            if ($value -match '\\([^\\]+)\\([^\\]+)\\') {
+                                                $eventData.ProductName = $matches[1]
+                                                $eventData.FileName = $matches[2]
+                                            }
+                                        }
+                                        'UserSid'     { $eventData.UserSid = $value }
+                                        'PolicyName'  { $eventData.PolicyName = $value }
+                                        'RuleName'    { $eventData.RuleName = $value }
+                                        'RuleSddl'    { $eventData.RuleSddl = $value }
+                                    }
+                                }
+                            }
+
+                            # Extract file name from path if not already set
+                            if (-not $eventData.FileName -and $eventData.FilePath) {
+                                $eventData.FileName = Split-Path -Path $eventData.FilePath -Leaf
+                            }
+                        }
+                        catch {
+                            # XML parsing failed, continue with message-based extraction
+                        }
+
+                        # Fallback: Extract file path from message if XML parsing failed
+                        if (-not $eventData.FilePath -and $event.Message) {
+                            # Common patterns in AppLocker event messages
+                            if ($event.Message -match '([A-Z]:\\[^\s]+\.(exe|dll|msi|ps1|bat|cmd|vbs|js))') {
+                                $eventData.FilePath = $matches[1]
+                                $eventData.FileName = Split-Path -Path $matches[1] -Leaf
+                            }
+                        }
+
+                        $AllEvents += $eventData
+                        $EventSummary.TotalEvents++
+                    }
+                }
+            }
+            catch {
+                # Log not available or no events, continue to next log
+            }
+        }
+
+        $Result.Events = $AllEvents
+        $Result.EventSummary = $EventSummary
+
+        # ----------------------------
+        # GENERATE ARTIFACTS FOR RULE GENERATOR
+        # Convert events to artifact format compatible with New-RulesFromArtifacts
+        # ----------------------------
+        $Artifacts = @()
+        $SeenPaths = @{}
+        $SeenPublishers = @{}
+
+        foreach ($event in $AllEvents) {
+            # Skip events without file path
+            if (-not $event.FilePath) {
+                continue
+            }
+
+            # Deduplicate by path
+            if ($SeenPaths.ContainsKey($event.FilePath)) {
+                continue
+            }
+            $SeenPaths[$event.FilePath] = $true
+
+            # Create artifact in format expected by Module3-RuleGenerator
+            $artifact = @{
+                name           = $event.FileName
+                path           = $event.FilePath
+                publisher      = if ($event.Publisher) { $event.Publisher } else { 'Unknown' }
+                hash           = $event.FileHash
+                productName    = $event.ProductName
+                eventType      = $event.EventType
+                eventId        = $event.EventId
+                sourceComputer = $env:COMPUTERNAME
+                lastSeen       = $event.TimeCreated
+            }
+
+            $Artifacts += $artifact
+
+            # Track unique publishers
+            if ($artifact.publisher -and $artifact.publisher -ne 'Unknown') {
+                if (-not $SeenPublishers.ContainsKey($artifact.publisher)) {
+                    $SeenPublishers[$artifact.publisher] = @{
+                        count = 0
+                        files = @()
+                    }
+                }
+                $SeenPublishers[$artifact.publisher].count++
+                $SeenPublishers[$artifact.publisher].files += $artifact.name
+            }
+        }
+
+        $Result.Artifacts = $Artifacts
+        $Result.ArtifactCount = $Artifacts.Count
+
+        # Publisher summary for easy review
+        $PublisherSummary = @()
+        foreach ($pub in $SeenPublishers.Keys) {
+            $PublisherSummary += @{
+                publisher = $pub
+                fileCount = $SeenPublishers[$pub].count
+                files     = $SeenPublishers[$pub].files | Select-Object -Unique
+            }
+        }
+        $Result.PublisherSummary = $PublisherSummary | Sort-Object { $_.fileCount } -Descending
+
+        return [PSCustomObject]$Result
+    }
+
+    try {
+        # Execute remote scan with appropriate credentials
+        $invokeParams = @{
+            ComputerName = $ComputerName
+            ScriptBlock  = $scanScript
+            ArgumentList = @($DaysBack, $MaxEvents, $IncludePolicyXml.IsPresent)
+            ErrorAction  = 'Stop'
+        }
+
+        if ($Credential) {
+            $invokeParams.Credential = $Credential
+        }
+
+        $remoteResult = Invoke-Command @invokeParams
+
+        # Convert result to hashtable for consistent return format
+        $result = @{
+            success          = $true
+            computerName     = $ComputerName
+            timestamp        = $remoteResult.timestamp
+            system           = $remoteResult.System
+            appIdSvc         = $remoteResult.AppIDSvc
+            policyMode       = $remoteResult.PolicyMode
+            ruleCounts       = $remoteResult.RuleCounts
+            hasPolicy        = $remoteResult.HasPolicy
+            eventSummary     = $remoteResult.EventSummary
+            events           = $remoteResult.Events
+            artifacts        = $remoteResult.Artifacts
+            artifactCount    = $remoteResult.ArtifactCount
+            publisherSummary = $remoteResult.PublisherSummary
+            daysBack         = $DaysBack
+        }
+
+        # Include policy XML if requested
+        if ($IncludePolicyXml -and $remoteResult.PolicyXml) {
+            $result.policyXml = $remoteResult.PolicyXml
+        }
+
+        # Include any policy errors
+        if ($remoteResult.PolicyError) {
+            $result.policyError = $remoteResult.PolicyError
+        }
+
+        return $result
+    }
+    catch {
+        return @{
+            success      = $false
+            computerName = $ComputerName
+            error        = $_.Exception.Message
+            errorType    = $_.Exception.GetType().Name
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Get AppLocker Events from Multiple Computers
+.DESCRIPTION
+    Scans multiple remote computers for AppLocker event logs in parallel-style execution.
+    Returns aggregated results with artifacts formatted for rule generation.
+.PARAMETER ComputerNames
+    Array of computer names to scan
+.PARAMETER Credential
+    Optional credentials for remote authentication
+.PARAMETER DaysBack
+    Number of days of event history to retrieve (default: 7)
+.PARAMETER MaxEvents
+    Maximum number of events to retrieve per log per computer (default: 500)
+.PARAMETER ContinueOnError
+    Continue scanning remaining computers if one fails (default: true)
+.OUTPUTS
+    Hashtable with aggregated results from all computers
+.EXAMPLE
+    $computers = @("WS01", "WS02", "WS03")
+    $result = Get-RemoteAppLockerEventsMultiple -ComputerNames $computers -DaysBack 14
+    # Get all unique artifacts across all computers
+    $allArtifacts = $result.allArtifacts
+#>
+function Get-RemoteAppLockerEventsMultiple {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerNames,
+
+        [Parameter(Mandatory = $false)]
+        [PSCredential]$Credential,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateRange(1, 365)]
+        [int]$DaysBack = 7,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateRange(1, 5000)]
+        [int]$MaxEvents = 500,
+
+        [Parameter(Mandatory = $false)]
+        [bool]$ContinueOnError = $true
+    )
+
+    if (-not $ComputerNames -or $ComputerNames.Count -eq 0) {
+        return @{
+            success = $false
+            error   = 'No computer names provided'
+        }
+    }
+
+    $results = @{
+        success        = $true
+        timestamp      = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
+        computerCount  = $ComputerNames.Count
+        successCount   = 0
+        failedCount    = 0
+        computers      = @()
+        failedComputers = @()
+        allArtifacts   = @()
+        allPublishers  = @{}
+        eventSummary   = @{
+            TotalEvents   = 0
+            AllowedCount  = 0
+            AuditCount    = 0
+            BlockedCount  = 0
+        }
+    }
+
+    # Scan each computer
+    foreach ($computerName in $ComputerNames) {
+        Write-Verbose "Scanning $computerName..."
+
+        $scanParams = @{
+            ComputerName = $computerName
+            DaysBack     = $DaysBack
+            MaxEvents    = $MaxEvents
+        }
+
+        if ($Credential) {
+            $scanParams.Credential = $Credential
+        }
+
+        $scanResult = Get-RemoteAppLockerEvents @scanParams
+
+        if ($scanResult.success) {
+            $results.successCount++
+            $results.computers += @{
+                computerName   = $computerName
+                system         = $scanResult.system
+                hasPolicy      = $scanResult.hasPolicy
+                policyMode     = $scanResult.policyMode
+                artifactCount  = $scanResult.artifactCount
+                eventSummary   = $scanResult.eventSummary
+            }
+
+            # Aggregate artifacts (add source computer to each)
+            if ($scanResult.artifacts) {
+                foreach ($artifact in $scanResult.artifacts) {
+                    # Ensure source computer is set
+                    if (-not $artifact.sourceComputer) {
+                        $artifact.sourceComputer = $computerName
+                    }
+                    $results.allArtifacts += $artifact
+
+                    # Track publishers across all computers
+                    $pub = $artifact.publisher
+                    if ($pub -and $pub -ne 'Unknown') {
+                        if (-not $results.allPublishers.ContainsKey($pub)) {
+                            $results.allPublishers[$pub] = @{
+                                count     = 0
+                                computers = @()
+                                files     = @()
+                            }
+                        }
+                        $results.allPublishers[$pub].count++
+                        if ($results.allPublishers[$pub].computers -notcontains $computerName) {
+                            $results.allPublishers[$pub].computers += $computerName
+                        }
+                        if ($results.allPublishers[$pub].files -notcontains $artifact.name) {
+                            $results.allPublishers[$pub].files += $artifact.name
+                        }
+                    }
+                }
+            }
+
+            # Aggregate event counts
+            if ($scanResult.eventSummary) {
+                $results.eventSummary.TotalEvents += $scanResult.eventSummary.TotalEvents
+                $results.eventSummary.AllowedCount += $scanResult.eventSummary.AllowedCount
+                $results.eventSummary.AuditCount += $scanResult.eventSummary.AuditCount
+                $results.eventSummary.BlockedCount += $scanResult.eventSummary.BlockedCount
+            }
+        }
+        else {
+            $results.failedCount++
+            $results.failedComputers += @{
+                computerName = $computerName
+                error        = $scanResult.error
+            }
+
+            if (-not $ContinueOnError) {
+                $results.success = $false
+                $results.error = "Scan failed for $computerName`: $($scanResult.error)"
+                break
+            }
+        }
+    }
+
+    # Create deduplicated artifact list (by path)
+    $seenPaths = @{}
+    $uniqueArtifacts = @()
+    foreach ($artifact in $results.allArtifacts) {
+        $key = $artifact.path
+        if (-not $seenPaths.ContainsKey($key)) {
+            $seenPaths[$key] = $true
+            $uniqueArtifacts += $artifact
+        }
+    }
+    $results.uniqueArtifacts = $uniqueArtifacts
+    $results.uniqueArtifactCount = $uniqueArtifacts.Count
+
+    # Convert publisher hashtable to sorted array
+    $publisherList = @()
+    foreach ($pub in $results.allPublishers.Keys) {
+        $publisherList += @{
+            publisher     = $pub
+            totalCount    = $results.allPublishers[$pub].count
+            computerCount = $results.allPublishers[$pub].computers.Count
+            computers     = $results.allPublishers[$pub].computers
+            files         = $results.allPublishers[$pub].files
+        }
+    }
+    $results.publisherSummary = $publisherList | Sort-Object { $_.totalCount } -Descending
+
+    return $results
+}
+
+<#
+.SYNOPSIS
+    Convert AppLocker Events to Rule Generator Artifacts
+.DESCRIPTION
+    Filters and converts raw AppLocker event data to artifact format for rule generation.
+    Allows filtering by event type (Audit, Blocked) to create targeted allow rules.
+.PARAMETER Events
+    Array of events from Get-RemoteAppLockerEvents
+.PARAMETER IncludeEventTypes
+    Array of event types to include: 'Audit', 'Blocked', 'Allowed' (default: Audit, Blocked)
+.PARAMETER RequirePublisher
+    Only include artifacts with known publisher (default: false)
+.PARAMETER RequireHash
+    Only include artifacts with file hash (default: false)
+.OUTPUTS
+    Array of artifacts formatted for New-RulesFromArtifacts
+.EXAMPLE
+    $events = (Get-RemoteAppLockerEvents -ComputerName "WS01").events
+    $artifacts = ConvertTo-RuleGeneratorArtifacts -Events $events -IncludeEventTypes @('Audit', 'Blocked')
+    $rules = New-RulesFromArtifacts -Artifacts $artifacts -RuleType Publisher -Action Allow
+#>
+function ConvertTo-RuleGeneratorArtifacts {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [array]$Events,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Audit', 'Blocked', 'Allowed', 'Other')]
+        [string[]]$IncludeEventTypes = @('Audit', 'Blocked'),
+
+        [Parameter(Mandatory = $false)]
+        [switch]$RequirePublisher,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$RequireHash
+    )
+
+    if (-not $Events -or $Events.Count -eq 0) {
+        return @()
+    }
+
+    $artifacts = @()
+    $seenPaths = @{}
+
+    foreach ($event in $Events) {
+        # Filter by event type
+        if ($IncludeEventTypes -and $event.EventType -notin $IncludeEventTypes) {
+            continue
+        }
+
+        # Skip events without file path
+        if (-not $event.FilePath) {
+            continue
+        }
+
+        # Skip if publisher required but not available
+        if ($RequirePublisher -and (-not $event.Publisher -or $event.Publisher -eq 'Unknown')) {
+            continue
+        }
+
+        # Skip if hash required but not available
+        if ($RequireHash -and -not $event.FileHash) {
+            continue
+        }
+
+        # Deduplicate by path
+        if ($seenPaths.ContainsKey($event.FilePath)) {
+            continue
+        }
+        $seenPaths[$event.FilePath] = $true
+
+        # Create artifact compatible with Module3-RuleGenerator
+        $artifact = @{
+            name        = $event.FileName
+            path        = $event.FilePath
+            publisher   = if ($event.Publisher) { $event.Publisher } else { 'Unknown' }
+            hash        = $event.FileHash
+            version     = $null
+            productName = $event.ProductName
+            eventType   = $event.EventType
+            eventId     = $event.EventId
+            lastSeen    = $event.TimeCreated
+        }
+
+        $artifacts += $artifact
+    }
+
+    return $artifacts
+}
+
 # Export functions
 Export-ModuleMember -Function Get-DirectorySafetyClassification, Get-DirectoryFilesSafe,
                               Get-AllADComputers, Get-ComputersByOU, Test-ComputerOnline,
                               Get-ExecutableArtifacts, Get-RemoteArtifacts,
-                              Export-ScanResults, Import-ScanResults
+                              Export-ScanResults, Import-ScanResults,
+                              Get-RemoteAppLockerEvents, Get-RemoteAppLockerEventsMultiple,
+                              ConvertTo-RuleGeneratorArtifacts

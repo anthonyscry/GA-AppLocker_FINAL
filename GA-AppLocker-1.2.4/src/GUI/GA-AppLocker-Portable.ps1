@@ -1227,6 +1227,8 @@ $Script:ScriptsAvailable = Test-Path (Join-Path $Script:AppRoot "Start-AppLocker
                         <Border Style="{StaticResource Card}">
                             <StackPanel>
                                 <TextBlock Text="Target (Compare To)" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="Inventory file to compare, or computer list when scanning endpoints"
+                                           Style="{StaticResource HintText}" Margin="0,0,0,6"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
@@ -1248,6 +1250,45 @@ $Script:ScriptsAvailable = Test-Path (Join-Path $Script:AppRoot "Start-AppLocker
                                     <ComboBoxItem Content="Hash - Compare by file hash"/>
                                     <ComboBoxItem Content="Publisher - Compare by publisher"/>
                                 </ComboBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Scan Credentials Card -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Scan Credentials" Style="{StaticResource CardTitle}"/>
+                                <TextBlock Text="Credentials for scanning remote computers"
+                                           Style="{StaticResource HintText}" Margin="0,0,0,10"/>
+                                <CheckBox x:Name="CompareUseLoggedInCredentials" Content="Use logged-in credentials"
+                                          IsChecked="True" Margin="0,0,0,12"/>
+                                <Border x:Name="CompareCustomCredentialsPanel" Visibility="Collapsed">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="16"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Username (DOMAIN\user or user@domain)" Style="{StaticResource FieldLabel}"/>
+                                            <TextBox x:Name="CompareUsername" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Password" Style="{StaticResource FieldLabel}"/>
+                                            <PasswordBox x:Name="ComparePassword"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Scan Options Card -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Text="Options" Style="{StaticResource CardTitle}"/>
+                                <CheckBox x:Name="CompareScanAllEndpoints" Content="Scan all endpoints from target list"
+                                          Margin="0,0,0,8"/>
+                                <TextBlock Text="When enabled, scans computers from a list file instead of comparing inventory files"
+                                           Style="{StaticResource HintText}" Margin="0,0,0,0"/>
                             </StackPanel>
                         </Border>
 
@@ -4384,13 +4425,82 @@ $controls['StartEvents'].Add_Click({
     Write-Log "Collection completed." -Level Success
 })
 
+# Compare Inventory - Credentials toggle
+$controls['CompareUseLoggedInCredentials'].Add_Checked({ $controls['CompareCustomCredentialsPanel'].Visibility = 'Collapsed' })
+$controls['CompareUseLoggedInCredentials'].Add_Unchecked({ $controls['CompareCustomCredentialsPanel'].Visibility = 'Visible' })
+
 $controls['StartCompare'].Add_Click({
-    $ref = $controls['CompareReferencePath'].Text; $target = $controls['CompareTargetPath'].Text
-    if (-not $ref -or -not $target -or -not (Test-Path $ref) -or -not (Test-Path $target)) { Write-Log "Select valid reference and target files." -Level Error; return }
+    $ref = $controls['CompareReferencePath'].Text
+    $target = $controls['CompareTargetPath'].Text
+    $outputPath = $controls['CompareOutputPath'].Text
     $method = switch ($controls['CompareMethod'].SelectedIndex) { 0 { "Name" } 1 { "NameVersion" } 2 { "Hash" } 3 { "Publisher" } default { "Name" } }
-    Write-Log "Comparing inventories..." -Level Info
-    Invoke-Script -ScriptName "utilities\Compare-SoftwareInventory.ps1" -Parameters @{ ReferencePath = $ref; ComparePath = $target; CompareBy = $method; OutputPath = $controls['CompareOutputPath'].Text }
-    Write-Log "Comparison completed." -Level Success
+
+    # Check if scanning endpoints with credentials
+    if ($controls['CompareScanAllEndpoints'].IsChecked) {
+        # Target path should be a computer list file
+        if (-not $target -or -not (Test-Path $target)) {
+            Write-Log "Please select a valid computer list file for endpoint scanning." -Level Error
+            return
+        }
+
+        # Build scan parameters
+        $scanParams = @{
+            ComputerList = $target
+            OutputPath = $outputPath
+        }
+
+        # Build credential if custom credentials are specified
+        if (-not $controls['CompareUseLoggedInCredentials'].IsChecked) {
+            $username = $controls['CompareUsername'].Text
+            $password = $controls['ComparePassword'].SecurePassword
+            if ($username -and $password.Length -gt 0) {
+                $scanParams['Credential'] = New-Object System.Management.Automation.PSCredential($username, $password)
+                Write-Log "Using custom credentials for: $username" -Level Info
+            } else {
+                Write-Log "Custom credentials selected but username or password is empty." -Level Error
+                return
+            }
+        } else {
+            Write-Log "Using logged-in credentials for remote scanning." -Level Info
+        }
+
+        Write-Log "Scanning endpoints from computer list..." -Level Info
+        Invoke-Script -ScriptName "Invoke-RemoteScan.ps1" -Parameters $scanParams
+
+        # After scan, compare with reference if provided
+        if ($ref -and (Test-Path $ref)) {
+            Write-Log "Scan complete. Comparing scanned inventory with baseline..." -Level Info
+            # Find latest scan output
+            $latestScan = Get-ChildItem -Path $outputPath -Directory -Filter "Scan-*" -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($latestScan) {
+                $scanInventory = Join-Path $latestScan.FullName "Executables.csv"
+                if (Test-Path $scanInventory) {
+                    Invoke-Script -ScriptName "utilities\Compare-SoftwareInventory.ps1" -Parameters @{
+                        ReferencePath = $ref
+                        ComparePath = $scanInventory
+                        CompareBy = $method
+                        OutputPath = $outputPath
+                    }
+                }
+            }
+        }
+        Write-Log "Endpoint scan and comparison completed." -Level Success
+    } else {
+        # Standard file-to-file comparison
+        if (-not $ref -or -not $target -or -not (Test-Path $ref) -or -not (Test-Path $target)) {
+            Write-Log "Select valid reference and target files." -Level Error
+            return
+        }
+        Write-Log "Comparing inventories..." -Level Info
+        Invoke-Script -ScriptName "utilities\Compare-SoftwareInventory.ps1" -Parameters @{
+            ReferencePath = $ref
+            ComparePath = $target
+            CompareBy = $method
+            OutputPath = $outputPath
+        }
+        Write-Log "Comparison completed." -Level Success
+    }
 })
 #endregion
 
