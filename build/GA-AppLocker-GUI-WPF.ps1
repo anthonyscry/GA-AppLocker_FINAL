@@ -539,17 +539,96 @@ function Get-DomainInfo {
 
 # Module 5: Event Monitor
 function Get-AppLockerEvents {
-    param([int]$MaxEvents = 100)
-    $logName = 'Microsoft-Windows-AppLocker/EXE and DLL'
-    try {
-        $events = Get-WinEvent -LogName $logName -MaxEvents $MaxEvents -ErrorAction Stop
-        $data = $events | ForEach-Object { @{
-            eventId = $_.Id; time = $_.TimeCreated; message = $_.Message -replace "`n", " " -replace "`r", ""
-        } }
-        return @{ success = $true; data = $data; count = $data.Count }
-    } catch {
-        return @{ success = $true; data = @(); count = 0; message = "No events found" }
+    param(
+        [int]$MaxEvents = 100,
+        [string]$ComputerName = $env:COMPUTERNAME
+    )
+
+    $logNames = @(
+        'Microsoft-Windows-AppLocker/EXE and DLL',
+        'Microsoft-Windows-AppLocker/MSI and Script'
+    )
+
+    $allEvents = @()
+
+    foreach ($logName in $logNames) {
+        try {
+            if ($ComputerName -eq $env:COMPUTERNAME -or [string]::IsNullOrEmpty($ComputerName)) {
+                $events = Get-WinEvent -LogName $logName -MaxEvents $MaxEvents -ErrorAction SilentlyContinue
+            } else {
+                $events = Get-WinEvent -LogName $logName -MaxEvents $MaxEvents -ComputerName $ComputerName -ErrorAction SilentlyContinue
+            }
+
+            if ($events) {
+                $allEvents += $events | ForEach-Object {
+                    @{
+                        computerName = $ComputerName
+                        logName = $logName -replace 'Microsoft-Windows-AppLocker/', ''
+                        eventId = $_.Id
+                        time = $_.TimeCreated
+                        level = switch ($_.Level) { 1 { "Critical" }; 2 { "Error" }; 3 { "Warning" }; 4 { "Information" }; default { "Info" } }
+                        message = $_.Message -replace "`n", " " -replace "`r", ""
+                    }
+                }
+            }
+        } catch { }
     }
+
+    $allEvents = $allEvents | Sort-Object { $_.time } -Descending | Select-Object -First $MaxEvents
+
+    return @{ success = $true; data = $allEvents; count = $allEvents.Count; computerName = $ComputerName }
+}
+
+# Get AppLocker events from multiple remote computers via WinRM
+function Get-RemoteAppLockerEvents {
+    param(
+        [string[]]$ComputerNames,
+        [int]$MaxEventsPerComputer = 50
+    )
+
+    $allEvents = @()
+    $results = @{ success = $true; computers = @(); failedComputers = @(); totalEvents = 0 }
+
+    foreach ($computer in $ComputerNames) {
+        try {
+            $computerEvents = Invoke-Command -ComputerName $computer -ScriptBlock {
+                param($MaxEvents)
+                $logNames = @('Microsoft-Windows-AppLocker/EXE and DLL', 'Microsoft-Windows-AppLocker/MSI and Script')
+                $events = @()
+                foreach ($logName in $logNames) {
+                    try {
+                        $logEvents = Get-WinEvent -LogName $logName -MaxEvents $MaxEvents -ErrorAction SilentlyContinue
+                        if ($logEvents) {
+                            $events += $logEvents | ForEach-Object {
+                                @{
+                                    logName = $logName -replace 'Microsoft-Windows-AppLocker/', ''
+                                    eventId = $_.Id
+                                    time = $_.TimeCreated.ToString("yyyy-MM-dd HH:mm:ss")
+                                    level = $_.LevelDisplayName
+                                    message = $_.Message -replace "`n", " " -replace "`r", ""
+                                }
+                            }
+                        }
+                    } catch { }
+                }
+                return $events
+            } -ArgumentList $MaxEventsPerComputer -ErrorAction Stop
+
+            if ($computerEvents) {
+                foreach ($evt in $computerEvents) { $evt.computerName = $computer; $allEvents += $evt }
+                $results.computers += @{ name = $computer; eventCount = $computerEvents.Count }
+            } else {
+                $results.computers += @{ name = $computer; eventCount = 0 }
+            }
+        }
+        catch {
+            $results.failedComputers += @{ name = $computer; error = $_.Exception.Message }
+        }
+    }
+
+    $results.data = $allEvents | Sort-Object { $_.time } -Descending
+    $results.totalEvents = $allEvents.Count
+    return $results
 }
 
 # Module 6: Compliance
@@ -1948,33 +2027,18 @@ $xamlString = @"
                 <StackPanel x:Name="PanelRules" Visibility="Collapsed">
                     <TextBlock Text="Rule Generator" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
-                    <Grid Margin="0,0,0,15">
-                        <TextBlock Text="Rule Type (Best Practice Order):" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center"/>
-                        <ComboBox x:Name="RuleTypeCombo" Width="250" Height="32" HorizontalAlignment="Left" Margin="10,5,0,0"
-                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="13">
-                            <ComboBox.Resources>
-                                <SolidColorBrush x:Key="PrimaryBrush" Color="#21262D"/>
-                                <Style TargetType="ComboBoxItem">
-                                    <Setter Property="Background" Value="#21262D"/>
-                                    <Setter Property="Foreground" Value="#E6EDF3"/>
-                                    <Setter Property="Padding" Value="8,4"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="#30363D"/>
-                                            <Setter Property="Foreground" Value="#58A6FF"/>
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#58A6FF"/>
-                                            <Setter Property="Foreground" Value="#FFFFFF"/>
-                                        </Trigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ComboBox.Resources>
-                            <ComboBoxItem Content="Publisher (Preferred)"/>
-                            <ComboBoxItem Content="Hash (Fallback)"/>
-                            <ComboBoxItem Content="Path (Exceptions Only)"/>
-                        </ComboBox>
-                    </Grid>
+                    <!-- Rule Type Selection -->
+                    <StackPanel Margin="0,0,0,15">
+                        <TextBlock Text="Rule Type:" FontSize="13" Foreground="#8B949E" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RuleTypePublisher" Content="Publisher (Preferred)" IsChecked="True"
+                                         Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0" VerticalContentAlignment="Center"/>
+                            <RadioButton x:Name="RuleTypeHash" Content="Hash (Fallback)"
+                                         Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0" VerticalContentAlignment="Center"/>
+                            <RadioButton x:Name="RuleTypePath" Content="Path (Exceptions Only)"
+                                         Foreground="#E6EDF3" FontSize="12" VerticalContentAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
 
                     <Grid Margin="0,10,0,15">
                         <Grid.ColumnDefinitions>
@@ -2588,7 +2652,9 @@ $ScanLocalBtn = $window.FindName("ScanLocalBtn")
 $ExportArtifactsBtn = $window.FindName("ExportArtifactsBtn")
 $ComprehensiveScanBtn = $window.FindName("ComprehensiveScanBtn")
 $ArtifactsList = $window.FindName("ArtifactsList")
-$RuleTypeCombo = $window.FindName("RuleTypeCombo")
+$RuleTypePublisher = $window.FindName("RuleTypePublisher")
+$RuleTypeHash = $window.FindName("RuleTypeHash")
+$RuleTypePath = $window.FindName("RuleTypePath")
 $ImportArtifactsBtn = $window.FindName("ImportArtifactsBtn")
 $ImportFolderBtn = $window.FindName("ImportFolderBtn")
 $MergeRulesBtn = $window.FindName("MergeRulesBtn")
@@ -3497,11 +3563,9 @@ $GenerateRulesBtn.Add_Click({
         return
     }
 
-    $ruleType = switch ($RuleTypeCombo.SelectedIndex) {
-        0 { "Publisher" }
-        1 { "Hash" }
-        2 { "Path" }
-    }
+    $ruleType = if ($RuleTypePublisher.IsChecked) { "Publisher" }
+                elseif ($RuleTypeHash.IsChecked) { "Hash" }
+                else { "Path" }
 
     $result = New-RulesFromArtifacts -Artifacts $script:CollectedArtifacts -RuleType $ruleType
 
