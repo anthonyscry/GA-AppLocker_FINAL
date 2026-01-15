@@ -2,7 +2,10 @@
 output/
 *.xml
 *.csv
-*.json
+
+# Keep specific config files
+!PSScriptAnalyzerSettings.psd1
+!build/ps2exe.config.json
 
 # Ignore log files
 logs/
@@ -28,7 +31,6 @@ desktop.ini
 
 # PowerShell specific
 *.ps1xml
-*.psd1
 
 # IDE specific
 .vscode/

@@ -1,0 +1,22 @@
+{
+  "iconFile": "build\\icon.ico",
+  "title": "GA-AppLocker Dashboard",
+  "description": "AppLocker Policy Management Dashboard",
+  "company": "GA-ASI",
+  "product": "GA-AppLocker Dashboard",
+  "copyright": "Copyright (c) 2024",
+  "version": "1.0.0.0",
+  "fileVersion": "1.0.0.0",
+  "requireAdmin": true,
+  "noConsole": false,
+  "singleInstance": false,
+  "dpiAware": true,
+  "longPaths": true,
+  "resourceInfo": {
+    "CompanyName": "GA-ASI",
+    "FileDescription": "AppLocker Policy Management Dashboard",
+    "ProductName": "GA-AppLocker Dashboard",
+    "OriginalFilename": "GA-AppLocker-Dashboard.exe",
+    "InternalName": "GAAppLocker"
+  }
+}
