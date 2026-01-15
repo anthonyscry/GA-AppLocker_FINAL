@@ -547,6 +547,52 @@ function New-RulesFromArtifacts {
     }
 }
 
+# Create default deny rules for common bypass locations (best practice)
+function New-DefaultDenyRules {
+    param(
+        [string]$UserOrGroupSid = "S-1-1-0"  # Everyone by default
+    )
+
+    $rules = @()
+
+    # Common bypass locations to deny
+    $bypassLocations = @(
+        @{ Path = "%TEMP%\*"; Name = "Block TEMP folder" }
+        @{ Path = "%TMP%\*"; Name = "Block TMP folder" }
+        @{ Path = "%USERPROFILE%\AppData\Local\Temp\*"; Name = "Block User Temp folder" }
+        @{ Path = "%LOCALAPPDATA%\Temp\*"; Name = "Block LocalAppData Temp" }
+        @{ Path = "%USERPROFILE%\Downloads\*"; Name = "Block Downloads folder" }
+        @{ Path = "C:\Users\*\Downloads\*"; Name = "Block All User Downloads" }
+        @{ Path = "%APPDATA%\*"; Name = "Block AppData Roaming" }
+        @{ Path = "%LOCALAPPDATA%\*"; Name = "Block AppData Local" }
+        @{ Path = "C:\Windows\Temp\*"; Name = "Block Windows Temp" }
+        @{ Path = "C:\ProgramData\*"; Name = "Block ProgramData" }
+    )
+
+    foreach ($location in $bypassLocations) {
+        $guid = "{" + (New-Guid).ToString() + "}"
+        $xml = "<FilePathRule Id=`"$guid`" Name=`"$($location.Name)`" Description=`"Deny execution from $($location.Path)`" UserOrGroupSid=`"$UserOrGroupSid`" Action=`"Deny`"><Conditions><FilePathCondition Path=`"$($location.Path)`"/></Conditions></FilePathRule>"
+
+        $rules += @{
+            success = $true
+            type = "Path"
+            publisher = $location.Name
+            path = $location.Path
+            action = "Deny"
+            sid = $UserOrGroupSid
+            xml = $xml
+        }
+    }
+
+    return @{
+        success = $true
+        rules = $rules
+        count = $rules.Count
+        ruleType = "Path"
+        action = "Deny"
+    }
+}
+
 # Module 4: Domain Detection
 # NOTE: Named Get-DomainInfo to avoid conflict with ActiveDirectory\Get-ADDomain cmdlet
 function Get-DomainInfo {
@@ -1597,7 +1643,9 @@ function New-BrowserDenyRules {
 "@
 
         # Save policy
-        $policyPath = ".\AppLocker-BrowserDeny-Admins.xml"
+        $rulesDir = "C:\GA-AppLocker\Rules"
+        if (-not (Test-Path $rulesDir)) { New-Item -ItemType Directory -Path $rulesDir -Force | Out-Null }
+        $policyPath = Join-Path $rulesDir "AppLocker-BrowserDeny-Admins.xml"
         $policyXml | Out-File -FilePath $policyPath -Encoding UTF8 -Force
 
         $output += "`n=== POLICY GENERATED ===`n"
@@ -1960,8 +2008,12 @@ $xamlString = @"
                         </Grid.ColumnDefinitions>
 
                         <TextBlock Text="Time Range:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="DashboardTimeFilter" Grid.Column="1" Width="120" Height="28"
-                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,20,0">
+                        <ComboBox x:Name="DashboardTimeFilter" Grid.Column="1" Width="130" Height="26"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,15,0" FontSize="11">
+                            <ComboBox.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#21262D"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#30363D"/>
+                            </ComboBox.Resources>
                             <ComboBox.ItemContainerStyle>
                                 <Style TargetType="ComboBoxItem">
                                     <Setter Property="Background" Value="#21262D"/>
@@ -1978,8 +2030,12 @@ $xamlString = @"
                         </ComboBox>
 
                         <TextBlock Text="System:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="2" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="DashboardSystemFilter" Grid.Column="3" Width="150" Height="28"
-                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,20,0">
+                        <ComboBox x:Name="DashboardSystemFilter" Grid.Column="3" Width="150" Height="26"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,15,0" FontSize="11">
+                            <ComboBox.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#21262D"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#30363D"/>
+                            </ComboBox.Resources>
                             <ComboBox.ItemContainerStyle>
                                 <Style TargetType="ComboBoxItem">
                                     <Setter Property="Background" Value="#21262D"/>
@@ -1994,8 +2050,8 @@ $xamlString = @"
                             <ComboBoxItem Content="All Systems" IsSelected="True"/>
                         </ComboBox>
 
-                        <Button x:Name="RefreshDashboardBtn" Content="Refresh Dashboard"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="4" Height="28"/>
+                        <Button x:Name="RefreshDashboardBtn" Content="Refresh"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="4" Width="80" Height="26"/>
                     </Grid>
 
                     <!-- Output Area -->
@@ -2077,20 +2133,18 @@ $xamlString = @"
                         </StackPanel>
                     </Border>
 
-                    <!-- Import Buttons (Scan removed per user request) -->
+                    <!-- Import and Compare Buttons -->
                     <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="10"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="ImportBaselineBtn" Content="Import Baseline CSV" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
                         <Button x:Name="ImportTargetBtn" Content="Import Target CSV" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
-                    </Grid>
-
-                    <!-- Compare Button -->
-                    <Grid Margin="0,0,0,15">
-                        <Button x:Name="CompareSoftwareBtn" Content="Compare Software Lists" Style="{StaticResource PrimaryButton}" Width="250" HorizontalAlignment="Left"/>
+                        <Button x:Name="CompareSoftwareBtn" Content="Compare Lists" Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
                     </Grid>
 
                     <!-- Comparison Results -->
@@ -2279,8 +2333,12 @@ $xamlString = @"
 
                         <!-- AD Group -->
                         <TextBlock Text="Apply To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="6" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="180"
+                        <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="200"
                                   Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
+                            <ComboBox.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#21262D"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#30363D"/>
+                            </ComboBox.Resources>
                             <ComboBox.ItemContainerStyle>
                                 <Style TargetType="ComboBoxItem">
                                     <Setter Property="Background" Value="#21262D"/>
@@ -2288,21 +2346,16 @@ $xamlString = @"
                                     <Setter Property="Padding" Value="8,4"/>
                                     <Style.Triggers>
                                         <Trigger Property="IsHighlighted" Value="True">
-                                            <Setter Property="Background" Value="#388BFD"/>
-                                            <Setter Property="Foreground" Value="#FFFFFF"/>
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#238636"/>
+                                            <Setter Property="Background" Value="#30363D"/>
                                             <Setter Property="Foreground" Value="#FFFFFF"/>
                                         </Trigger>
                                     </Style.Triggers>
                                 </Style>
                             </ComboBox.ItemContainerStyle>
-                            <ComboBoxItem Content="Everyone (S-1-1-0)" IsSelected="True" Tag="S-1-1-0"/>
-                            <ComboBoxItem Content="Administrators (S-1-5-32-544)" Tag="S-1-5-32-544"/>
-                            <ComboBoxItem Content="Users (S-1-5-32-545)" Tag="S-1-5-32-545"/>
-                            <ComboBoxItem Content="Domain Users" Tag="DomainUsers"/>
-                            <ComboBoxItem Content="Domain Admins" Tag="DomainAdmins"/>
+                            <ComboBoxItem Content="AppLocker-Admins" IsSelected="True" Tag="AppLocker-Admins"/>
+                            <ComboBoxItem Content="AppLocker-StandardUsers" Tag="AppLocker-StandardUsers"/>
+                            <ComboBoxItem Content="AppLocker-Service-Accounts" Tag="AppLocker-Service-Accounts"/>
+                            <ComboBoxItem Content="AppLocker-Installers" Tag="AppLocker-Installers"/>
                             <ComboBoxItem Content="Custom (Enter SID below)" Tag="Custom"/>
                         </ComboBox>
                     </Grid>
@@ -2330,21 +2383,22 @@ $xamlString = @"
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="8"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button x:Name="ImportArtifactsBtn" Content="Import CSV"
+                        <Button x:Name="ImportArtifactsBtn" Content="Import Artifact"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
                         <Button x:Name="ImportFolderBtn" Content="Import Folder"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
-                        <Button x:Name="CreateRulesFromEventsBtn" Content="From Events"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
                         <Button x:Name="MergeRulesBtn" Content="Merge Rules"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="6"/>
+                                Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
                         <Button x:Name="GenerateRulesBtn" Content="Generate Rules"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="8"/>
+                                Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
                     </Grid>
+
+                    <!-- Default Deny Rules Button -->
+                    <Button x:Name="DefaultDenyRulesBtn" Content="Add Default Deny Rules (Block Bypass Locations)"
+                            Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,10"
+                            ToolTip="Adds deny rules for TEMP, Downloads, AppData and other bypass locations"/>
 
                     <!-- Rules Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
@@ -2409,7 +2463,7 @@ $xamlString = @"
                             CornerRadius="6" Padding="10" MinHeight="200" MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="EventsOutput"
-                                       Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first."
+                                       Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first.&#x0a;Export events to CSV, then use Import CSV in Rule Generator to create rules."
                                        FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
@@ -2599,21 +2653,46 @@ $xamlString = @"
                                 Style="{StaticResource PrimaryButton}" Grid.Column="4"/>
                     </Grid>
 
-                    <!-- Discovered Computers List -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="8" Height="150">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Discovered Computers (Ctrl+Click to multi-select)" FontSize="10" FontWeight="Bold"
-                                       Foreground="#8B949E" Margin="0,0,0,4"/>
-                            <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
-                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
-                                     SelectionMode="Extended"/>
-                        </Grid>
-                    </Border>
+                    <!-- Online/Offline Computers Grid -->
+                    <Grid Margin="0,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Online Computers List -->
+                        <Border Grid.Column="0" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="8" Height="140">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Online Computers (Ctrl+Click to multi-select)" FontSize="10" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,0,0,4"/>
+                                <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
+                                         Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
+                                         SelectionMode="Extended"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Offline Computers List -->
+                        <Border Grid.Column="2" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="8" Height="140">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Offline Computers" FontSize="10" FontWeight="Bold"
+                                           Foreground="#F85149" Margin="0,0,0,4"/>
+                                <ListBox x:Name="OfflineComputersList" Grid.Row="1" Background="#0D1117"
+                                         Foreground="#8B949E" BorderThickness="0" FontFamily="Consolas" FontSize="9"
+                                         SelectionMode="Extended"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
 
                     <!-- Status Line -->
                     <TextBlock x:Name="DiscoveryStatus" Text="Ready to discover computers"
@@ -2981,9 +3060,9 @@ $CustomSidPanel = $window.FindName("CustomSidPanel")
 $CustomSidText = $window.FindName("CustomSidText")
 $ImportArtifactsBtn = $window.FindName("ImportArtifactsBtn")
 $ImportFolderBtn = $window.FindName("ImportFolderBtn")
-$CreateRulesFromEventsBtn = $window.FindName("CreateRulesFromEventsBtn")
 $MergeRulesBtn = $window.FindName("MergeRulesBtn")
 $GenerateRulesBtn = $window.FindName("GenerateRulesBtn")
+$DefaultDenyRulesBtn = $window.FindName("DefaultDenyRulesBtn")
 $RulesOutput = $window.FindName("RulesOutput")
 $ScanLocalEventsBtn = $window.FindName("ScanLocalEventsBtn")
 $ScanRemoteEventsBtn = $window.FindName("ScanRemoteEventsBtn")
@@ -3015,6 +3094,7 @@ $TestConnectivityBtn = $window.FindName("TestConnectivityBtn")
 $SelectAllComputersBtn = $window.FindName("SelectAllComputersBtn")
 $ScanSelectedBtn = $window.FindName("ScanSelectedBtn")
 $DiscoveredComputersList = $window.FindName("DiscoveredComputersList")
+$OfflineComputersList = $window.FindName("OfflineComputersList")
 $DiscoveryOutput = $window.FindName("DiscoveryOutput")
 $DiscoveryStatus = $window.FindName("DiscoveryStatus")
 
@@ -3117,7 +3197,7 @@ function Write-Log {
         [string]$Level = "INFO"
     )
 
-    $logDir = ".\Logs"
+    $logDir = "C:\GA-AppLocker\Logs"
     if (-not (Test-Path $logDir)) {
         New-Item -ItemType Directory -Path $logDir -Force | Out-Null
     }
@@ -3128,6 +3208,36 @@ function Write-Log {
 
     try {
         Add-Content -Path $logFile -Value $logEntry -ErrorAction Stop
+    } catch {
+        # Silently fail if logging fails
+    }
+}
+
+# Log console/output text to file
+function Write-OutputLog {
+    param(
+        [string]$Section,
+        [string]$Output
+    )
+
+    $logDir = "C:\GA-AppLocker\Logs"
+    if (-not (Test-Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logFile = Join-Path $logDir "GA-AppLocker-$(Get-Date -Format 'yyyy-MM-dd').log"
+
+    try {
+        $header = "[$timestamp] [OUTPUT] === $Section ==="
+        Add-Content -Path $logFile -Value $header -ErrorAction Stop
+        # Log each line of output
+        $Output -split "`n" | ForEach-Object {
+            if ($_.Trim()) {
+                Add-Content -Path $logFile -Value "    $_" -ErrorAction SilentlyContinue
+            }
+        }
+        Add-Content -Path $logFile -Value "" -ErrorAction SilentlyContinue
     } catch {
         # Silently fail if logging fails
     }
@@ -4061,16 +4171,11 @@ $ComprehensiveScanBtn.Add_Click({
     Write-Log "Starting comprehensive AaronLocker-style scan"
     $ArtifactsList.Items.Clear()
 
-    # Ask for output folder
-    $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
-    $folderDialog.Description = "Select output folder for scan artifacts"
-    $folderDialog.SelectedPath = "C:\GA-AppLocker\Scans"
-
-    if ($folderDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
-        return
+    # Use default output folder directly (no dialog)
+    $outputPath = "C:\GA-AppLocker\Scans"
+    if (-not (Test-Path $outputPath)) {
+        New-Item -ItemType Directory -Path $outputPath -Force | Out-Null
     }
-
-    $outputPath = $folderDialog.SelectedPath
     $max = [int]$MaxFilesText.Text
 
     $ArtifactsList.Items.Add("Starting comprehensive scan...")
@@ -4115,15 +4220,124 @@ $ComprehensiveScanBtn.Add_Click({
 $ImportArtifactsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json|All Files (*.*)|*.*"
-    $openDialog.Title = "Import Scan Artifacts"
+    $openDialog.Title = "Import Artifacts (scans, events, or any file list)"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker"
     if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        Write-Log "Importing artifacts from $($openDialog.FileName)"
         $ext = [System.IO.Path]::GetExtension($openDialog.FileName)
-        if ($ext -eq ".csv") {
-            $script:CollectedArtifacts = Import-Csv -Path $openDialog.FileName
-        } else {
-            $script:CollectedArtifacts = Get-Content -Path $openDialog.FileName | ConvertFrom-Json
+
+        try {
+            $rawData = if ($ext -eq ".csv") {
+                Import-Csv -Path $openDialog.FileName
+            } else {
+                Get-Content -Path $openDialog.FileName | ConvertFrom-Json
+            }
+
+            if ($rawData.Count -eq 0) {
+                [System.Windows.MessageBox]::Show("No data found in file.", "Import Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                return
+            }
+
+            # Intelligently map columns to standard artifact format
+            $artifacts = @()
+            $firstRow = $rawData[0]
+            $properties = $firstRow.PSObject.Properties.Name
+
+            # Detect file path column (various possible names)
+            $pathColumn = $properties | Where-Object { $_ -match '^(Path|FullPath|FilePath|FileName|File|Name)$' } | Select-Object -First 1
+            if (-not $pathColumn) {
+                $pathColumn = $properties | Where-Object { $_ -match 'Path|File|Name' } | Select-Object -First 1
+            }
+
+            # Detect publisher column
+            $publisherColumn = $properties | Where-Object { $_ -match '^(Publisher|Vendor|Company|Signer|Fqbn)$' } | Select-Object -First 1
+            if (-not $publisherColumn) {
+                $publisherColumn = $properties | Where-Object { $_ -match 'Publisher|Vendor|Company|Sign' } | Select-Object -First 1
+            }
+
+            # Detect hash column
+            $hashColumn = $properties | Where-Object { $_ -match '^(Hash|SHA256|SHA1|MD5|FileHash)$' } | Select-Object -First 1
+
+            # Detect event type column (for event exports)
+            $eventTypeColumn = $properties | Where-Object { $_ -match '^(type|EventType|Action|Status)$' } | Select-Object -First 1
+
+            if (-not $pathColumn) {
+                [System.Windows.MessageBox]::Show("Could not find file path column. Expected: Path, FullPath, FilePath, or FileName", "Import Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                return
+            }
+
+            $RulesOutput.Text = "=== IMPORTING ARTIFACTS ===`n`n"
+            $RulesOutput.Text += "File: $($openDialog.FileName)`n"
+            $RulesOutput.Text += "Total rows: $($rawData.Count)`n`n"
+            $RulesOutput.Text += "Detected columns:`n"
+            $RulesOutput.Text += "  Path: $pathColumn`n"
+            $RulesOutput.Text += "  Publisher: $(if ($publisherColumn) { $publisherColumn } else { '(none)' })`n"
+            $RulesOutput.Text += "  Hash: $(if ($hashColumn) { $hashColumn } else { '(none)' })`n"
+            $RulesOutput.Text += "  Event Type: $(if ($eventTypeColumn) { $eventTypeColumn } else { '(none)' })`n`n"
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $seenPaths = @{}
+            foreach ($row in $rawData) {
+                $path = $row.$pathColumn
+                if (-not $path -or $seenPaths.ContainsKey($path.ToLower())) { continue }
+                $seenPaths[$path.ToLower()] = $true
+
+                $publisher = if ($publisherColumn) { $row.$publisherColumn } else { "" }
+                $hash = if ($hashColumn) { $row.$hashColumn } else { "" }
+                $eventType = if ($eventTypeColumn) { $row.$eventTypeColumn } else { "" }
+
+                # Determine file type from extension
+                $fileType = switch -Regex ($path) {
+                    '\.exe$' { "Exe" }
+                    '\.dll$' { "Dll" }
+                    '\.msi$' { "Msi" }
+                    '\.(ps1|bat|cmd|vbs|js)$' { "Script" }
+                    default { "Exe" }
+                }
+
+                $artifacts += [PSCustomObject]@{
+                    Path = $path
+                    FileName = [System.IO.Path]::GetFileName($path)
+                    FullPath = $path
+                    Publisher = $publisher
+                    Hash = $hash
+                    Type = $fileType
+                    EventType = $eventType
+                }
+            }
+
+            if ($artifacts.Count -eq 0) {
+                $RulesOutput.Text += "ERROR: No valid file paths found in data."
+                return
+            }
+
+            $script:CollectedArtifacts = $artifacts
+
+            # Count by type
+            $exeCount = ($artifacts | Where-Object Type -eq "Exe").Count
+            $dllCount = ($artifacts | Where-Object Type -eq "Dll").Count
+            $msiCount = ($artifacts | Where-Object Type -eq "Msi").Count
+            $scriptCount = ($artifacts | Where-Object Type -eq "Script").Count
+            $withPublisher = ($artifacts | Where-Object { $_.Publisher -and $_.Publisher -ne "Unknown" }).Count
+
+            $RulesOutput.Text += "=== IMPORTED $($artifacts.Count) UNIQUE ARTIFACTS ===`n`n"
+            $RulesOutput.Text += "Breakdown:`n"
+            $RulesOutput.Text += "  EXE: $exeCount`n"
+            $RulesOutput.Text += "  DLL: $dllCount`n"
+            $RulesOutput.Text += "  MSI: $msiCount`n"
+            $RulesOutput.Text += "  Script: $scriptCount`n`n"
+            $RulesOutput.Text += "  With Publisher info: $withPublisher (can use Publisher rules)`n"
+            $RulesOutput.Text += "  Without Publisher: $($artifacts.Count - $withPublisher) (will need Hash rules)`n`n"
+
+            $RulesOutput.Text += "BEST PRACTICE: Use Publisher rules for signed files, Hash for unsigned.`n`n"
+            $RulesOutput.Text += "Select rule type, action, and group, then click 'Generate Rules'."
+
+            Write-Log "Imported $($artifacts.Count) artifacts from $($openDialog.FileName)"
+            [System.Windows.MessageBox]::Show("Imported $($artifacts.Count) unique artifacts.`n`nWith Publisher: $withPublisher`nWithout Publisher: $($artifacts.Count - $withPublisher)`n`nSelect options and click Generate Rules.", "Import Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        } catch {
+            $RulesOutput.Text = "ERROR importing file: $($_.Exception.Message)"
+            Write-Log "Import failed: $($_.Exception.Message)" -Level "ERROR"
         }
-        $RulesOutput.Text = "Imported $($script:CollectedArtifacts.Count) artifacts. Select rule type and click Generate Rules."
     }
 })
 
@@ -4165,6 +4379,40 @@ $ImportFolderBtn.Add_Click({
         } else {
             [System.Windows.MessageBox]::Show("No valid artifact data found in CSV files.", "Import Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         }
+    }
+})
+
+# Default Deny Rules - adds deny rules for common bypass locations
+$DefaultDenyRulesBtn.Add_Click({
+    Write-Log "Adding default deny rules for bypass locations"
+
+    $sid = Get-SelectedSid
+    $groupName = $RuleGroupCombo.SelectedItem.Content
+
+    $RulesOutput.Text = "=== GENERATING DEFAULT DENY RULES ===`n`n"
+    $RulesOutput.Text += "These rules block execution from common bypass locations.`n"
+    $RulesOutput.Text += "Applied to: $groupName`n`n"
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $result = New-DefaultDenyRules -UserOrGroupSid $sid
+
+    if ($result.count -gt 0) {
+        $script:GeneratedRules = $result.rules
+
+        $RulesOutput.Text += "=== GENERATED $($result.count) DENY RULES ===`n`n"
+        $RulesOutput.Text += "BLOCKED LOCATIONS:`n"
+        foreach ($rule in $result.rules) {
+            $RulesOutput.Text += "  [DENY] $($rule.path)`n"
+        }
+
+        $RulesOutput.Text += "`nBest Practice: These rules help prevent execution from`n"
+        $RulesOutput.Text += "user-writable locations commonly used by malware.`n`n"
+        $RulesOutput.Text += "Use 'Export Rules' in Deployment to save these rules."
+
+        Write-Log "Generated $($result.count) default deny rules"
+        [System.Windows.MessageBox]::Show("Generated $($result.count) default deny rules.`n`nThese block execution from:`n- TEMP folders`n- Downloads folder`n- AppData folders`n- ProgramData folder`n`nUse Export Rules to save.", "Default Deny Rules Created", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+    } else {
+        $RulesOutput.Text += "ERROR: Failed to generate deny rules."
     }
 })
 
@@ -4232,22 +4480,39 @@ function Get-SelectedSid {
 
     $tag = $selectedItem.Tag
     switch ($tag) {
-        "S-1-1-0" { return "S-1-1-0" }
-        "S-1-5-32-544" { return "S-1-5-32-544" }
-        "S-1-5-32-545" { return "S-1-5-32-545" }
-        "DomainUsers" {
+        "AppLocker-Admins" {
             try {
-                $domainSid = (Get-ADDomain -ErrorAction Stop).DomainSID.Value
-                return "$domainSid-513"
+                $group = Get-ADGroup "AppLocker-Admins" -ErrorAction Stop
+                return $group.SID.Value
             } catch {
+                Write-Log "AppLocker-Admins group not found, using Everyone" -Level "WARN"
                 return "S-1-1-0"
             }
         }
-        "DomainAdmins" {
+        "AppLocker-StandardUsers" {
             try {
-                $domainSid = (Get-ADDomain -ErrorAction Stop).DomainSID.Value
-                return "$domainSid-512"
+                $group = Get-ADGroup "AppLocker-StandardUsers" -ErrorAction Stop
+                return $group.SID.Value
             } catch {
+                Write-Log "AppLocker-StandardUsers group not found, using Everyone" -Level "WARN"
+                return "S-1-1-0"
+            }
+        }
+        "AppLocker-Service-Accounts" {
+            try {
+                $group = Get-ADGroup "AppLocker-Service-Accounts" -ErrorAction Stop
+                return $group.SID.Value
+            } catch {
+                Write-Log "AppLocker-Service-Accounts group not found, using Everyone" -Level "WARN"
+                return "S-1-1-0"
+            }
+        }
+        "AppLocker-Installers" {
+            try {
+                $group = Get-ADGroup "AppLocker-Installers" -ErrorAction Stop
+                return $group.SID.Value
+            } catch {
+                Write-Log "AppLocker-Installers group not found, using Everyone" -Level "WARN"
                 return "S-1-1-0"
             }
         }
@@ -4262,7 +4527,7 @@ function Get-SelectedSid {
 
 $GenerateRulesBtn.Add_Click({
     if ($script:CollectedArtifacts.Count -eq 0) {
-        $RulesOutput.Text = "ERROR: No artifacts imported. Use Import CSV, Import Folder, or From Events first."
+        $RulesOutput.Text = "ERROR: No artifacts imported. Use Import Artifact or Import Folder first."
         return
     }
 
@@ -4293,44 +4558,7 @@ $GenerateRulesBtn.Add_Click({
     Write-Log "Generated $($result.count) $ruleType rules with Action=$action, SID=$sid"
 })
 
-# Create Rules from Events button
-$CreateRulesFromEventsBtn.Add_Click({
-    if ($script:AllEvents.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No events loaded. Go to Event Monitor and scan for events first.", "No Events", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        return
-    }
-
-    $RulesOutput.Text = "Creating artifacts from $($script:AllEvents.Count) events..."
-
-    # Convert events to artifacts format
-    $eventArtifacts = @()
-    foreach ($event in $script:AllEvents) {
-        # Parse event message to extract file info
-        $artifact = @{
-            FileName = $event.FileName
-            FullPath = $event.FilePath
-            Publisher = $event.Publisher
-            EventType = $event.EventType
-            Computer = $event.ComputerName
-        }
-        if ($artifact.FileName -or $artifact.FullPath) {
-            $eventArtifacts += [PSCustomObject]$artifact
-        }
-    }
-
-    if ($eventArtifacts.Count -eq 0) {
-        $RulesOutput.Text = "ERROR: Could not extract file information from events."
-        return
-    }
-
-    # Add to collected artifacts
-    $script:CollectedArtifacts = $eventArtifacts
-
-    $RulesOutput.Text = "Loaded $($eventArtifacts.Count) artifacts from events.`n`nReady to generate rules - click 'Generate Rules'"
-    [System.Windows.MessageBox]::Show("Loaded $($eventArtifacts.Count) artifacts from Event Viewer.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-})
-
-# Events events
+# Events filters
 $FilterAllBtn.Add_Click({
     $script:EventFilter = "All"
     Write-Log "Event filter set to: All"
@@ -4394,15 +4622,37 @@ $ScanLocalEventsBtn.Add_Click({
         try {
             $exeEvents = Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/EXE and DLL' -MaxEvents 500 -ErrorAction SilentlyContinue
             foreach ($evt in $exeEvents) {
+                # Try to parse from event XML first (more reliable)
+                $filePath = ""
+                $fileName = ""
+                $publisher = "Unknown"
+                try {
+                    $xml = [xml]$evt.ToXml()
+                    $eventData = $xml.Event.EventData.Data
+                    foreach ($data in $eventData) {
+                        if ($data.Name -eq "FilePath") { $filePath = $data.'#text' }
+                        if ($data.Name -eq "Fqbn" -and $data.'#text') {
+                            $fqbn = $data.'#text'
+                            if ($fqbn -match "O=([^,]+)") { $publisher = $Matches[1] }
+                        }
+                    }
+                } catch { }
+                # Fallback to message parsing
+                if (-not $filePath -and $evt.Message) {
+                    if ($evt.Message -match '([A-Z]:\\[^\s]+\.(exe|dll|com))') { $filePath = $Matches[1] }
+                    elseif ($evt.Message -match '(%[^%]+%\\[^\s]+\.(exe|dll|com))') { $filePath = $Matches[1] }
+                }
+                if ($filePath) { $fileName = Split-Path $filePath -Leaf -ErrorAction SilentlyContinue }
+
                 $events += [PSCustomObject]@{
                     ComputerName = $env:COMPUTERNAME
                     TimeCreated = $evt.TimeCreated
                     EventId = $evt.Id
                     EventType = switch ($evt.Id) { 8002 { "Allowed" } 8003 { "Audit" } 8004 { "Blocked" } default { "Other" } }
                     Message = $evt.Message
-                    FilePath = if ($evt.Message -match '([A-Z]:\\[^"]+\.(exe|dll))') { $Matches[1] } else { "" }
-                    FileName = if ($evt.Message -match '\\([^\\]+\.(exe|dll))') { $Matches[1] } else { "" }
-                    Publisher = if ($evt.Message -match 'was (allowed|blocked).*signed by ([^\.]+)') { $Matches[2] } else { "Unknown" }
+                    FilePath = $filePath
+                    FileName = $fileName
+                    Publisher = $publisher
                 }
             }
             $EventsOutput.Text += "EXE/DLL log: $($exeEvents.Count) events`n"
@@ -4415,15 +4665,35 @@ $ScanLocalEventsBtn.Add_Click({
         try {
             $msiEvents = Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/MSI and Script' -MaxEvents 500 -ErrorAction SilentlyContinue
             foreach ($evt in $msiEvents) {
+                $filePath = ""
+                $fileName = ""
+                $publisher = "Unknown"
+                try {
+                    $xml = [xml]$evt.ToXml()
+                    $eventData = $xml.Event.EventData.Data
+                    foreach ($data in $eventData) {
+                        if ($data.Name -eq "FilePath") { $filePath = $data.'#text' }
+                        if ($data.Name -eq "Fqbn" -and $data.'#text') {
+                            $fqbn = $data.'#text'
+                            if ($fqbn -match "O=([^,]+)") { $publisher = $Matches[1] }
+                        }
+                    }
+                } catch { }
+                if (-not $filePath -and $evt.Message) {
+                    if ($evt.Message -match '([A-Z]:\\[^\s]+\.(msi|msp|ps1|bat|cmd|vbs|js))') { $filePath = $Matches[1] }
+                    elseif ($evt.Message -match '(%[^%]+%\\[^\s]+\.(msi|msp|ps1|bat|cmd|vbs|js))') { $filePath = $Matches[1] }
+                }
+                if ($filePath) { $fileName = Split-Path $filePath -Leaf -ErrorAction SilentlyContinue }
+
                 $events += [PSCustomObject]@{
                     ComputerName = $env:COMPUTERNAME
                     TimeCreated = $evt.TimeCreated
                     EventId = $evt.Id
                     EventType = switch ($evt.Id) { 8002 { "Allowed" } 8003 { "Audit" } 8004 { "Blocked" } default { "Other" } }
                     Message = $evt.Message
-                    FilePath = if ($evt.Message -match '([A-Z]:\\[^"]+\.(msi|ps1|vbs|js))') { $Matches[1] } else { "" }
-                    FileName = if ($evt.Message -match '\\([^\\]+\.(msi|ps1|vbs|js))') { $Matches[1] } else { "" }
-                    Publisher = "Unknown"
+                    FilePath = $filePath
+                    FileName = $fileName
+                    Publisher = $publisher
                 }
             }
             $EventsOutput.Text += "MSI/Script log: $($msiEvents.Count) events`n"
@@ -4439,7 +4709,7 @@ $ScanLocalEventsBtn.Add_Click({
         $audit = ($events | Where-Object EventType -eq "Audit").Count
         $blocked = ($events | Where-Object EventType -eq "Blocked").Count
         $EventsOutput.Text += "Allowed: $allowed | Audit: $audit | Blocked: $blocked`n`n"
-        $EventsOutput.Text += "Use filters above to view specific event types.`nClick 'From Events' in Rule Generator to create rules."
+        $EventsOutput.Text += "Use filters above to view specific event types.`nExport to CSV, then use Import Artifact in Rule Generator."
 
         Write-Log "Local events scanned: $($events.Count) total"
     } catch {
@@ -4512,7 +4782,7 @@ $ScanRemoteEventsBtn.Add_Click({
 
     $script:AllEvents = $allEvents
     $EventsOutput.Text += "`n`n--- TOTAL: $($allEvents.Count) events from $($computers.Count) computers ---"
-    $EventsOutput.Text += "`n`nClick 'From Events' in Rule Generator to create rules."
+    $EventsOutput.Text += "`n`nExport to CSV, then use Import Artifact in Rule Generator."
 })
 
 # Import Events button
@@ -4527,7 +4797,7 @@ $ImportEventsBtn.Add_Click({
             $imported = Import-Csv -Path $openDialog.FileName
             $script:AllEvents = $imported
             $EventsOutput.Text = "=== EVENTS IMPORTED ===`n`nLoaded $($imported.Count) events from:`n$($openDialog.FileName)`n`n"
-            $EventsOutput.Text += "Use filters above to view specific event types.`nClick 'From Events' in Rule Generator to create rules."
+            $EventsOutput.Text += "Use filters above to view specific event types.`nExport to CSV, then use Import Artifact in Rule Generator."
             Write-Log "Imported $($imported.Count) events from $($openDialog.FileName)"
         } catch {
             $EventsOutput.Text = "ERROR importing events: $($_.Exception.Message)"
@@ -4769,11 +5039,25 @@ $ForceGPUpdateBtn.Add_Click({
 
         $successCount = 0
         $failCount = 0
+        $skippedCount = 0
         $results = @()
 
         foreach ($computer in $computers) {
+            # Quick ping check first - skip offline machines
+            $WinRMOutput.Text += "[$computer] Checking..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $pingResult = Test-Connection -ComputerName $computer -Count 1 -Quiet -ErrorAction SilentlyContinue
+            if (-not $pingResult) {
+                $skippedCount++
+                $results += "[$computer] OFFLINE"
+                $WinRMOutput.Text = $WinRMOutput.Text -replace "\[$computer\] Checking...", "[$computer] OFFLINE (skipped)"
+                [System.Windows.Forms.Application]::DoEvents()
+                continue
+            }
+
             try {
-                $WinRMOutput.Text += "[$computer] Running gpupdate..."
+                $WinRMOutput.Text = $WinRMOutput.Text -replace "\[$computer\] Checking...", "[$computer] Running gpupdate..."
                 [System.Windows.Forms.Application]::DoEvents()
 
                 # Use Invoke-Command to run gpupdate remotely
@@ -4793,13 +5077,15 @@ $ForceGPUpdateBtn.Add_Click({
             [System.Windows.Forms.Application]::DoEvents()
         }
 
-        $WinRMOutput.Text += "`n`n=== SUMMARY ===`nSuccess: $successCount`nFailed: $failCount`nTotal: $($computers.Count)"
+        $WinRMOutput.Text += "`n`n=== SUMMARY ===`nSuccess: $successCount`nFailed: $failCount`nOffline/Skipped: $skippedCount`nTotal: $($computers.Count)"
 
-        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount", "Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        Write-Log "Force GPUpdate completed: $successCount success, $failCount failed"
+        Write-OutputLog "Force GPUpdate" $WinRMOutput.Text
+        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount`nOffline/Skipped: $skippedCount", "Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        Write-Log "Force GPUpdate completed: $successCount success, $failCount failed, $skippedCount offline"
     }
     catch {
         $WinRMOutput.Text = "=== ERROR ===`n`n$($_.Exception.Message)`n`nMake sure Active Directory module is available."
+        Write-OutputLog "Force GPUpdate Error" $WinRMOutput.Text
         [System.Windows.MessageBox]::Show("Failed to run GPUpdate:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         Write-Log "Force GPUpdate failed: $($_.Exception.Message)" -Level "ERROR"
     }
@@ -4815,6 +5101,7 @@ $DiscoverComputersBtn.Add_Click({
     }
 
     $DiscoveredComputersList.Items.Clear()
+    $OfflineComputersList.Items.Clear()
     $DiscoveryOutput.Text = "Searching Active Directory for computers...`n`nPlease wait..."
     [System.Windows.Forms.Application]::DoEvents()
 
@@ -4827,13 +5114,35 @@ $DiscoverComputersBtn.Add_Click({
                      Select-Object Name, OperatingSystem, LastLogonDate |
                      Sort-Object Name
 
+        $DiscoveryOutput.Text = "Found $($computers.Count) computers. Checking connectivity...`n"
+        [System.Windows.Forms.Application]::DoEvents()
+
+        $onlineCount = 0
+        $offlineCount = 0
+
         foreach ($comp in $computers) {
-            $DiscoveredComputersList.Items.Add("$($comp.Name) | $($comp.OperatingSystem) | Last: $($comp.LastLogonDate)")
+            $DiscoveryOutput.Text += "Pinging $($comp.Name)..."
+            [System.Windows.Forms.Application]::DoEvents()
+
+            # Quick ping check
+            $pingResult = Test-Connection -ComputerName $comp.Name -Count 1 -Quiet -ErrorAction SilentlyContinue
+
+            if ($pingResult) {
+                $DiscoveredComputersList.Items.Add("$($comp.Name) | $($comp.OperatingSystem) | Last: $($comp.LastLogonDate)")
+                $onlineCount++
+                $DiscoveryOutput.Text = $DiscoveryOutput.Text -replace "Pinging $($comp.Name)...", "Pinging $($comp.Name)... ONLINE`n"
+            } else {
+                $OfflineComputersList.Items.Add("$($comp.Name) | $($comp.OperatingSystem) | Last: $($comp.LastLogonDate)")
+                $offlineCount++
+                $DiscoveryOutput.Text = $DiscoveryOutput.Text -replace "Pinging $($comp.Name)...", "Pinging $($comp.Name)... offline`n"
+            }
+            [System.Windows.Forms.Application]::DoEvents()
         }
 
-        $DiscoveryOutput.Text = "Found $($computers.Count) computers matching filter '$filter'`n`nSelect computers and click 'Test Connectivity' or 'Scan Selected'"
-        $DiscoveryStatus.Text = "Discovered $($computers.Count) computers"
-        Write-Log "AD Discovery found $($computers.Count) computers"
+        $DiscoveryOutput.Text += "`n=== DISCOVERY COMPLETE ===`nTotal: $($computers.Count)`nOnline: $onlineCount`nOffline: $offlineCount"
+        $DiscoveryStatus.Text = "Online: $onlineCount | Offline: $offlineCount | Total: $($computers.Count)"
+        Write-Log "AD Discovery found $($computers.Count) computers ($onlineCount online, $offlineCount offline)"
+        Write-OutputLog "AD Discovery" $DiscoveryOutput.Text
     }
     catch {
         $DiscoveryOutput.Text = "ERROR: $($_.Exception.Message)`n`nMake sure the Active Directory module is installed."
@@ -4971,15 +5280,27 @@ $ScanSelectedBtn.Add_Click({
         } catch {
             $winrmFail += $comp
             $errorMsg = $_.Exception.Message
+            $reason = "Unknown"
             if ($errorMsg -match "Access is denied") {
-                $DiscoveryOutput.Text += " FAILED (Access Denied)"
-            } elseif ($errorMsg -match "WinRM cannot complete") {
-                $DiscoveryOutput.Text += " FAILED (WinRM not enabled)"
-            } elseif ($errorMsg -match "network path was not found") {
-                $DiscoveryOutput.Text += " FAILED (Unreachable)"
+                $reason = "Access Denied"
+            } elseif ($errorMsg -match "WinRM cannot complete|cannot process the request") {
+                $reason = "WinRM not enabled"
+            } elseif ($errorMsg -match "network path was not found|cannot find the computer") {
+                $reason = "Unreachable"
+            } elseif ($errorMsg -match "client cannot connect|connection attempt failed") {
+                $reason = "Connection refused"
+            } elseif ($errorMsg -match "firewall") {
+                $reason = "Firewall blocking"
+            } elseif ($errorMsg -match "timed out|timeout") {
+                $reason = "Timeout"
+            } elseif ($errorMsg -match "not a Windows") {
+                $reason = "Not Windows"
             } else {
-                $DiscoveryOutput.Text += " FAILED"
+                # Extract short reason from error
+                $reason = ($errorMsg -split ':')[0].Trim()
+                if ($reason.Length -gt 30) { $reason = $reason.Substring(0, 30) + "..." }
             }
+            $DiscoveryOutput.Text += " FAILED ($reason)"
             Write-Log "WinRM FAIL: $comp - $errorMsg" -Level "ERROR"
         }
         [System.Windows.Forms.Application]::DoEvents()
