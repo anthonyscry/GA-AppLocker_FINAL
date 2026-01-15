@@ -7,10 +7,16 @@ try {
     Add-Type -AssemblyName PresentationFramework -ErrorAction Stop
     Add-Type -AssemblyName PresentationCore -ErrorAction Stop
     Add-Type -AssemblyName WindowsBase -ErrorAction Stop
+    Add-Type -AssemblyName System.Windows.Forms -ErrorAction SilentlyContinue
 } catch {
-    Write-Host "ERROR: Failed to load WPF assemblies. This application requires .NET Framework 4.5 or later." -ForegroundColor Red
-    Write-Host "Press any key to exit..." -ForegroundColor Yellow
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    $msg = "ERROR: Failed to load WPF assemblies.`n`nThis application requires .NET Framework 4.5 or later.`n`nError: $($_.Exception.Message)"
+    try {
+        [System.Windows.Forms.MessageBox]::Show($msg, "GA-AppLocker Startup Error", "OK", "Error")
+    } catch {
+        Write-Host $msg -ForegroundColor Red
+        Write-Host "Press any key to exit..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    }
     exit 1
 }
 
@@ -2752,9 +2758,27 @@ $xamlString = @"
 try {
     $window = [Windows.Markup.XamlReader]::Parse($xamlString)
 } catch {
-    Write-Host "ERROR: Failed to load WPF GUI: $_" -ForegroundColor Red
-    Write-Host "Press any key to exit..." -ForegroundColor Yellow
-    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    $errorMsg = "Failed to load GUI.`n`nError: $($_.Exception.Message)"
+    if ($_.Exception.InnerException) {
+        $errorMsg += "`n`nInner: $($_.Exception.InnerException.Message)"
+    }
+
+    # Write to log file
+    $logPath = "C:\GA-AppLocker\Logs\startup-error.log"
+    try {
+        $logDir = Split-Path $logPath -Parent
+        if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir -Force | Out-Null }
+        $errorMsg | Out-File -FilePath $logPath -Encoding UTF8
+    } catch { }
+
+    # Show MessageBox
+    try {
+        [System.Windows.MessageBox]::Show($errorMsg, "GA-AppLocker Startup Error", "OK", "Error")
+    } catch {
+        Write-Host "ERROR: $errorMsg" -ForegroundColor Red
+        Write-Host "Press any key to exit..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+    }
     exit 1
 }
 

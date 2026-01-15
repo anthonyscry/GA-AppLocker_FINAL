@@ -1445,7 +1445,15 @@ function Import-RulesFromXml {
     }
 
     try {
-        [xml]$xml = Get-Content -Path $XmlPath -Raw
+        # Use secure XML parsing to prevent XXE attacks
+        $xmlReaderSettings = New-Object System.Xml.XmlReaderSettings
+        $xmlReaderSettings.DtdProcessing = [System.Xml.DtdProcessing]::Prohibit
+        $xmlReaderSettings.XmlResolver = $null
+
+        $xmlReader = [System.Xml.XmlReader]::Create($XmlPath, $xmlReaderSettings)
+        $xml = New-Object System.Xml.XmlDocument
+        $xml.Load($xmlReader)
+        $xmlReader.Close()
 
         $rules = @()
 

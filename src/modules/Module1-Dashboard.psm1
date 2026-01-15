@@ -26,21 +26,21 @@ function Get-AppLockerEventStats {
         $logExists = Get-WinEvent -ListLog $logName -ErrorAction Stop
         if (-not $logExists) {
             return @{
-                success = $true
+                success = $false
                 allowed = 0
                 audit = 0
                 blocked = 0
-                message = 'AppLocker log not found'
+                error = 'AppLocker log not found'
             }
         }
     }
     catch {
         return @{
-            success = $true
+            success = $false
             allowed = 0
             audit = 0
             blocked = 0
-            message = 'AppLocker log not available'
+            error = 'AppLocker log not available'
         }
     }
 
@@ -61,12 +61,24 @@ function Get-AppLockerEventStats {
         }
     }
     catch {
+        # No events is a valid state (empty log), return success with zeros
+        # But distinguish from actual errors
+        if ($_.Exception.Message -like '*No events were found*') {
+            return @{
+                success = $true
+                allowed = 0
+                audit = 0
+                blocked = 0
+                total = 0
+                message = 'No events found'
+            }
+        }
         return @{
-            success = $true
+            success = $false
             allowed = 0
             audit = 0
             blocked = 0
-            message = 'No events found'
+            error = $_.Exception.Message
         }
     }
 }
@@ -143,14 +155,14 @@ function Get-PolicyHealthScore {
     }
     catch {
         return @{
-            success = $true
+            success = $false
             score = 0
             hasPolicy = $false
             hasExe = $false
             hasMsi = $false
             hasScript = $false
             hasDll = $false
-            message = 'No AppLocker policy'
+            error = 'Failed to retrieve AppLocker policy: ' + $_.Exception.Message
         }
     }
 
