@@ -8,6 +8,32 @@ Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
 <#
 .SYNOPSIS
+    Encode string for safe HTML output
+.DESCRIPTION
+    Encodes HTML special characters to prevent XSS attacks
+.PARAMETER Value
+    The value to encode
+#>
+function ConvertTo-HtmlEncoded {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrEmpty($Value)) {
+        return ''
+    }
+
+    # Use .NET's built-in HTML encoding
+    return [System.Web.HttpUtility]::HtmlEncode($Value)
+}
+
+<#
+.SYNOPSIS
     Create Evidence Folder Structure
 .DESCRIPTION
     Creates the folder structure for storing compliance evidence
@@ -287,6 +313,11 @@ function New-ComplianceReport {
         $compliance = Get-ComplianceSummary
         $data = $compliance.data
 
+        # HTML-encode user-controllable values to prevent XSS
+        $safeTimestamp = ConvertTo-HtmlEncoded -Value $data.timestamp
+        $safeComputerName = ConvertTo-HtmlEncoded -Value $data.computerName
+        $safeAssessment = ConvertTo-HtmlEncoded -Value $data.assessment
+
         $html = @"
 <!DOCTYPE html>
 <html>
@@ -316,8 +347,8 @@ function New-ComplianceReport {
 <body>
     <div class="container">
         <h1>AppLocker Compliance Report</h1>
-        <p class="timestamp">Generated: $($data.timestamp)</p>
-        <p class="timestamp">Computer: $($data.computerName)</p>
+        <p class="timestamp">Generated: $safeTimestamp</p>
+        <p class="timestamp">Computer: $safeComputerName</p>
 
         <h2>Policy Health Score</h2>
         <div class="summary">
@@ -332,7 +363,7 @@ function New-ComplianceReport {
         </div>
 
         <div class="assessment" style="background: $(if ($data.assessment -like 'Excellent') { '#d4edda' } elseif ($data.assessment -like 'Good') { '#fff3cd' } else { '#f8d7da' }); color: $(if ($data.assessment -like 'Excellent') { '#155724' } elseif ($data.assessment -like 'Good') { '#856404' } else { '#721c24' });">
-            Assessment: $($data.assessment)
+            Assessment: $safeAssessment
         </div>
 
         <h2>Rule Categories</h2>

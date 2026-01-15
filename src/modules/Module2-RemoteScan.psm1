@@ -6,6 +6,16 @@
 # Import Common library
 Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
+# Import variables from Common module into local scope
+$script:UnsafeDir = (Get-Module Common).ExportedVariables['UnsafeDir'].Value
+$script:SafeDir = (Get-Module Common).ExportedVariables['SafeDir'].Value
+$script:UnknownDir = (Get-Module Common).ExportedVariables['UnknownDir'].Value
+
+# Fallback if module variables aren't accessible
+if (-not $script:UnsafeDir) { $script:UnsafeDir = "UnsafeDir" }
+if (-not $script:SafeDir) { $script:SafeDir = "SafeDir" }
+if (-not $script:UnknownDir) { $script:UnknownDir = "UnknownDir" }
+
 <#
 .SYNOPSIS
     Classify Directory Safety
@@ -25,7 +35,7 @@ function Get-DirectorySafetyClassification {
     )
 
     if ([string]::IsNullOrWhiteSpace($DirectoryPath)) {
-        return $UnknownDir
+        return $script:UnknownDir
     }
 
     # Normalize the path
@@ -46,7 +56,7 @@ function Get-DirectorySafetyClassification {
 
     foreach ($pattern in $unsafePatterns) {
         if ($normalizedPath -match $pattern) {
-            return $UnsafeDir
+            return $script:UnsafeDir
         }
     }
 
@@ -64,12 +74,12 @@ function Get-DirectorySafetyClassification {
 
     foreach ($pattern in $safePatterns) {
         if ($normalizedPath -match $pattern) {
-            return $SafeDir
+            return $script:SafeDir
         }
     }
 
     # Default to unknown for unclassified paths
-    return $UnknownDir
+    return $script:UnknownDir
 }
 
 <#
@@ -120,9 +130,11 @@ function Get-DirectoryFilesSafe {
         # Check for junction/reparse point (from AaronLocker)
         try {
             $item = Get-Item -LiteralPath $currentPath -Force -ErrorAction Stop
-            if ($item.LinkType -eq 'Junction' -or $item.Target -is [System.IO.DirectoryInfo]) {
-                $reparsePoint = [System.IO.Directory]::EnumerateFiles($currentPath, '*', [System.IO.EnumerationOptions]::new())
-                # Skip scanning into junctions/reparse points to avoid infinite loops
+            # Skip any reparse points (junctions, symbolic links) to avoid infinite loops
+            # LinkType is 'Junction', 'SymbolicLink', 'HardLink' or $null for regular dirs
+            # Target is a string array with the link destination, or $null for regular dirs
+            if ($item.LinkType -or ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint)) {
+                # Skip scanning into reparse points
                 continue
             }
         }
@@ -364,7 +376,7 @@ function Get-ExecutableArtifacts {
 
     # Check directory safety classification (from AaronLocker)
     $safetyClass = Get-DirectorySafetyClassification -DirectoryPath $TargetPath
-    if ($safetyClass -eq $UnsafeDir -and -not $IncludeUnsafe) {
+    if ($safetyClass -eq $script:UnsafeDir -and -not $IncludeUnsafe) {
         return @{
             success = $false
             error = "Path is in unsafe directory: $TargetPath. Use -IncludeUnsafe to scan anyway."
@@ -396,7 +408,7 @@ function Get-ExecutableArtifacts {
 
             # Check parent directory safety
             $parentSafety = Get-DirectorySafetyClassification -DirectoryPath $parentDir
-            if ($parentSafety -eq $UnsafeDir -and -not $IncludeUnsafe) {
+            if ($parentSafety -eq $script:UnsafeDir -and -not $IncludeUnsafe) {
                 $filteredOut++
                 continue
             }
