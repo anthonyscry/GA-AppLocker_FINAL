@@ -1,0 +1,162 @@
+[
+  {
+    "name": "chrome.exe",
+    "publisher": "Google LLC",
+    "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "hash": "A2B4C6D8E0F1A3B5C7D9E0F1A3B5C7D9E0F1A3B5C7D9E0F1A3B5C7D9E0F1A3B5",
+    "version": "120.0.6099.109",
+    "category": "Browser"
+  },
+  {
+    "name": "firefox.exe",
+    "publisher": "Mozilla Corporation",
+    "path": "C:\\Program Files\\Mozilla Firefox\\firefox.exe",
+    "hash": "B2D4E6F8A0B2C4D6E8F0A2B4C6D8E0F2A4B6C8D0E2F4A6B8C0D2E4F6A8B0C2D4E6",
+    "version": "121.0",
+    "category": "Browser"
+  },
+  {
+    "name": "notepad++.exe",
+    "publisher": "Notepad++ Team",
+    "path": "C:\\Program Files\\Notepad++\\notepad++.exe",
+    "hash": "C3E5F7A9B1D3F5A7C9E1F3A5B7C9D1E3F5A7B9C1D3E5F7A9B1C3D5E7F9A1B3C5D7E9",
+    "version": "8.5.8",
+    "category": "Editor"
+  },
+  {
+    "name": "vlc.exe",
+    "publisher": "VideoLAN",
+    "path": "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe",
+    "hash": "D4F6A8B0C2D4E6F8A0B2C4D6E8F0A2B4C6D8E0F2A4B6C8D0E2F4A6B8C0D2E4F6A8",
+    "version": "3.0.20",
+    "category": "Media"
+  },
+  {
+    "name": "7zFM.exe",
+    "publisher": "Igor Pavlov",
+    "path": "C:\\Program Files\\7-Zip\\7zFM.exe",
+    "hash": "E5G7B9C1D3F5A7B9C1D3E5F7A9B1C3D5E7F9A1B3C5D7E9F1A3B5C7D9E1F3A5B7C9D1E3",
+    "version": "23.01",
+    "category": "Utility"
+  },
+  {
+    "name": "Code.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Program Files\\Microsoft VS Code\\Code.exe",
+    "hash": "F6H8C0D2E4F6A8B0C2D4E6F8A0B2C4D6E8F0A2B4C6D8E0F2A4B6C8D0E2F4A6B8C0",
+    "version": "1.85.1",
+    "category": "Development"
+  },
+  {
+    "name": "explorer.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Windows\\explorer.exe",
+    "hash": "G7I9D1E3F5A7B9C1D3E5F7A9B1C3D5E7F9A1B3C5D7E9F1A3B5C7D9E1F3A5B7C9D1E3",
+    "version": "10.0.22621",
+    "category": "System"
+  },
+  {
+    "name": "powershell.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "hash": "H8J0E2F4A6B8C0D2E4F6A8B0C2D4E6F8A0B2C4D6E8F0A2B4C6D8E0F2A4B6C8D0E2F4A6",
+    "version": "5.1.22621",
+    "category": "System"
+  },
+  {
+    "name": "cmd.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Windows\\System32\\cmd.exe",
+    "hash": "I9K1F3A5B7C9D1E3F5A7B9C1D3E5F7A9B1C3D5E7F9A1B3C5D7E9F1A3B5C7D9E1F3A5B7C9D1E3F5A7",
+    "version": "10.0.22621",
+    "category": "System"
+  },
+  {
+    "name": "python.exe",
+    "publisher": "Python Software Foundation",
+    "path": "C:\\Program Files\\Python311\\python.exe",
+    "hash": "O5Q7L9N1P3R5T7V9X1B3D5F7H9J1L3N5P7R9T1V3X5B7D9F1H3J5L7N9P1R3T5V7X9",
+    "version": "3.11.7",
+    "category": "Development"
+  },
+  {
+    "name": "node.exe",
+    "publisher": "Node.js Foundation",
+    "path": "C:\\Program Files\\nodejs\\node.exe",
+    "hash": "P6R8M0O2Q4S6U8W0Y2A4C6E8G0I2K4M6O8Q0S2U4W6Y8A0C2E4G6I8K0M2O4Q6S8U0W2",
+    "version": "20.11.0",
+    "category": "Development"
+  },
+  {
+    "name": "docker.exe",
+    "publisher": "Docker Inc.",
+    "path": "C:\\Program Files\\Docker\\Docker\\Docker.exe",
+    "hash": "R8T0O2Q4S6U8W0Y2A4C6E8G0I2K4M6O8Q0S2U4W6Y8A0C2E4G6I8K0M2O4Q6S8U0W2Y4",
+    "version": "24.0.7",
+    "category": "Development"
+  },
+  {
+    "name": "winword.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\WINWORD.EXE",
+    "hash": "L2N4I6K8M0O2Q4S6U8W0Y2A4C6E8G0I2K4M6O8Q0S2U4W6Y8A0C2E4G6I8K0M2O4Q6S8",
+    "version": "16.0.17029",
+    "category": "Productivity"
+  },
+  {
+    "name": "excel.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\EXCEL.EXE",
+    "hash": "M3O5J7L9N1P3R5T7V9X1B3D5F7H9J1L3N5P7R9T1V3X5B7D9F1H3J5L7N9P1R3T5",
+    "version": "16.0.17029",
+    "category": "Productivity"
+  },
+  {
+    "name": "Teams.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Users\\%USERNAME%\\AppData\\Local\\Microsoft\\Teams\\current\\Teams.exe",
+    "hash": "N4P6K8M0O2Q4S6U8W0Y2A4C6E8G0I2K4M6O8Q0S2U4W6Y8A0C2E4G6I8K0M2O4Q6S8",
+    "version": "1.5.00.28173",
+    "category": "Communication"
+  },
+  {
+    "name": "Outlook.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Program Files\\Microsoft Office\\root\\Office16\\OUTLOOK.EXE",
+    "hash": "O5Q7L9N1P3R5T7V9X1B3D5F7H9J1L3N5P7R9T1V3X5B7D9F1H3J5L7N9P1R3T5V7",
+    "version": "16.0.17029",
+    "category": "Productivity"
+  },
+  {
+    "name": "chrome_proxy.exe",
+    "publisher": "Google LLC",
+    "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome_proxy.exe",
+    "hash": "P6R8M0O2Q4S6U8W0Y2A4C6E8G0I2K4M6O8Q0S2U4W6Y8A0C2E4G6I8K0M2O4Q6S8U0",
+    "version": "120.0.6099.109",
+    "category": "Browser"
+  },
+  {
+    "name": "msedge.exe",
+    "publisher": "Microsoft Corporation",
+    "path": "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+    "hash": "Q7S9N1P3R5T7V9X1B3D5F7H9J1L3N5P7R9T1V3X5B7D9F1H3J5L7N9P1R3T5V7X9",
+    "version": "120.0.2210.91",
+    "category": "Browser"
+  },
+  {
+    "name": "java.exe",
+    "publisher": "Oracle America",
+    "path": "C:\\Program Files\\Java\\jdk-21\\bin\\java.exe",
+    "hash": "R8T0O2Q4S6U8W0Y2A4C6E8G0I2K4M6O8Q0S2U4W6Y8A0C2E4G6I8K0M2O4Q6S8U0W2",
+    "version": "21.0.1",
+    "category": "Development"
+  },
+  {
+    "name": "git.exe",
+    "publisher": "Git for Windows",
+    "path": "C:\\Program Files\\Git\\cmd\\git.exe",
+    "hash": "S9U1P3R5T7V9X1B3D5F7H9J1L3N5P7R9T1V3X5B7D9F1H3J5L7N9P1R3T5V7X9B1",
+    "version": "2.43.0",
+    "category": "Development"
+  }
+]
