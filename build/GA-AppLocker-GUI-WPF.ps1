@@ -11,7 +11,7 @@ try {
 } catch {
     $msg = "ERROR: Failed to load WPF assemblies.`n`nThis application requires .NET Framework 4.5 or later.`n`nError: $($_.Exception.Message)"
     try {
-        [System.Windows.Forms.MessageBox]::Show($msg, "GA-AppLocker Startup Error", "OK", "Error")
+        [System.Windows.Forms.MessageBox]::Show($msg, "GA-AppLocker Startup Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     } catch {
         Write-Host $msg -ForegroundColor Red
         Write-Host "Press any key to exit..." -ForegroundColor Yellow
@@ -1889,61 +1889,118 @@ $xamlString = @"
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
                         <!-- Policy Health Card -->
                         <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Margin="0,0,10,10" Padding="20">
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Policy Health" FontSize="12" Foreground="#8B949E"/>
-                                <TextBlock x:Name="HealthScore" Text="--" FontSize="32" FontWeight="Bold"
-                                           Foreground="#3FB950" Margin="0,10,0,0"/>
-                                <TextBlock x:Name="HealthStatus" Text="Loading..." FontSize="11" Foreground="#6E7681"/>
+                                <TextBlock Text="Policy Health" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="HealthScore" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,8,0,0"/>
+                                <TextBlock x:Name="HealthStatus" Text="Loading..." FontSize="10" Foreground="#6E7681"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Events Card -->
                         <Border Grid.Column="1" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Margin="0,0,10,10" Padding="20">
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Total Events" FontSize="12" Foreground="#8B949E"/>
-                                <TextBlock x:Name="TotalEvents" Text="--" FontSize="32" FontWeight="Bold"
-                                           Foreground="#58A6FF" Margin="0,10,0,0"/>
-                                <TextBlock x:Name="EventsStatus" Text="Loading..." FontSize="11" Foreground="#6E7681"/>
+                                <TextBlock Text="Total Events" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="TotalEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#58A6FF" Margin="0,8,0,0"/>
+                                <TextBlock x:Name="EventsStatus" Text="Loading..." FontSize="10" Foreground="#6E7681"/>
                             </StackPanel>
                         </Border>
 
                         <!-- Allowed Card -->
                         <Border Grid.Column="2" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Margin="0,0,10,10" Padding="20">
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Allowed" FontSize="12" Foreground="#8B949E"/>
-                                <TextBlock x:Name="AllowedEvents" Text="--" FontSize="32" FontWeight="Bold"
-                                           Foreground="#3FB950" Margin="0,10,0,0"/>
-                                <TextBlock FontSize="11" Foreground="#6E7681">Event ID 8002</TextBlock>
+                                <TextBlock Text="Allowed" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="AllowedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8002</TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Audited Card -->
+                        <Border Grid.Column="3" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="Audited" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="AuditedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#D29922" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8003</TextBlock>
                             </StackPanel>
                         </Border>
 
                         <!-- Blocked Card -->
-                        <Border Grid.Column="3" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                CornerRadius="8" Margin="0,0,0,10" Padding="20">
+                        <Border Grid.Column="4" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,0,10" Padding="12">
                             <StackPanel>
-                                <TextBlock Text="Blocked" FontSize="12" Foreground="#8B949E"/>
-                                <TextBlock x:Name="BlockedEvents" Text="--" FontSize="32" FontWeight="Bold"
-                                           Foreground="#F85149" Margin="0,10,0,0"/>
-                                <TextBlock FontSize="11" Foreground="#6E7681">Event ID 8004</TextBlock>
+                                <TextBlock Text="Blocked" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="BlockedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#F85149" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8004</TextBlock>
                             </StackPanel>
                         </Border>
                     </Grid>
 
-                    <!-- Refresh Button -->
-                    <Button x:Name="RefreshDashboardBtn" Content="Refresh Dashboard"
-                            Style="{StaticResource PrimaryButton}" Width="180" HorizontalAlignment="Left"
-                            Margin="0,20,0,0"/>
+                    <!-- Filters Row -->
+                    <Grid Margin="0,20,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Time Range:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="DashboardTimeFilter" Grid.Column="1" Width="120" Height="28"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,20,0">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#30363D"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                            <ComboBoxItem Content="Last 7 Days" IsSelected="True"/>
+                            <ComboBoxItem Content="Last 30 Days"/>
+                        </ComboBox>
+
+                        <TextBlock Text="System:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="2" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="DashboardSystemFilter" Grid.Column="3" Width="150" Height="28"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,20,0">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#30363D"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                            <ComboBoxItem Content="All Systems" IsSelected="True"/>
+                        </ComboBox>
+
+                        <Button x:Name="RefreshDashboardBtn" Content="Refresh Dashboard"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="4" Height="28"/>
+                    </Grid>
 
                     <!-- Output Area -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,10,0,0" Padding="15" MinHeight="200">
+                            CornerRadius="8" Margin="0,15,0,0" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="DashboardOutput" Text="Loading dashboard..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2045,18 +2102,58 @@ $xamlString = @"
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Comparison Results" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="200">
-                                <DataGrid x:Name="GapAnalysisGrid" Background="#0D1117" Foreground="#E6EDF3"
-                                           BorderThickness="0" FontSize="11" FontFamily="Consolas"
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="250">
+                                <DataGrid x:Name="GapAnalysisGrid" Background="#161B22" Foreground="#E6EDF3"
+                                           BorderThickness="1" BorderBrush="#30363D" FontSize="11" FontFamily="Consolas"
                                            GridLinesVisibility="Horizontal" HeadersVisibility="Column"
                                            AutoGenerateColumns="False" IsReadOnly="True"
-                                           CanUserAddRows="False" CanUserDeleteRows="False">
+                                           CanUserAddRows="False" CanUserDeleteRows="False"
+                                           RowBackground="#161B22" AlternatingRowBackground="#1C2128"
+                                           HorizontalGridLinesBrush="#30363D">
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#21262D"/>
+                                            <Setter Property="Foreground" Value="#E6EDF3"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Padding" Value="8,6"/>
+                                            <Setter Property="BorderBrush" Value="#30363D"/>
+                                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Padding" Value="6,4"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Foreground" Value="#E6EDF3"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#388BFD"/>
+                                                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.CellStyle>
                                     <DataGrid.Columns>
-                                        <DataGridTextColumn Header="Software Name" Binding="{Binding Name}" Width="200"/>
-                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="100"/>
+                                        <DataGridTextColumn Header="Software Name" Binding="{Binding Name}" Width="200">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="100">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
                                         <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120">
                                             <DataGridTextColumn.ElementStyle>
                                                 <Style TargetType="TextBlock">
+                                                    <Setter Property="Padding" Value="4,2"/>
                                                     <Style.Triggers>
                                                         <DataTrigger Binding="{Binding Status}" Value="Missing in Target">
                                                             <Setter Property="Foreground" Value="#F85149"/>
@@ -2072,13 +2169,28 @@ $xamlString = @"
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding Status}" Value="Match">
                                                             <Setter Property="Foreground" Value="#3FB950"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
                                             </DataGridTextColumn.ElementStyle>
                                         </DataGridTextColumn>
-                                        <DataGridTextColumn Header="Baseline Version" Binding="{Binding BaselineVersion}" Width="100"/>
-                                        <DataGridTextColumn Header="Target Version" Binding="{Binding TargetVersion}" Width="100"/>
+                                        <DataGridTextColumn Header="Baseline Ver" Binding="{Binding BaselineVersion}" Width="100">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Target Ver" Binding="{Binding TargetVersion}" Width="100">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
                                     </DataGrid.Columns>
                                 </DataGrid>
                             </ScrollViewer>
@@ -2169,6 +2281,23 @@ $xamlString = @"
                         <TextBlock Text="Apply To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="6" Margin="0,0,8,0"/>
                         <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="180"
                                   Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#388BFD"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#238636"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
                             <ComboBoxItem Content="Everyone (S-1-1-0)" IsSelected="True" Tag="S-1-1-0"/>
                             <ComboBoxItem Content="Administrators (S-1-5-32-544)" Tag="S-1-5-32-544"/>
                             <ComboBoxItem Content="Users (S-1-5-32-545)" Tag="S-1-5-32-545"/>
@@ -2219,7 +2348,7 @@ $xamlString = @"
 
                     <!-- Rules Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" MinHeight="180">
+                            CornerRadius="6" Padding="10" MinHeight="180" MaxHeight="350">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
                                        FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
@@ -2277,7 +2406,7 @@ $xamlString = @"
 
                     <!-- Events Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" MinHeight="200">
+                            CornerRadius="6" Padding="10" MinHeight="200" MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="EventsOutput"
                                        Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first."
@@ -2422,7 +2551,7 @@ $xamlString = @"
                     </Grid>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200">
+                            CornerRadius="8" Padding="15" MinHeight="200" MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="WinRMOutput" Text="Create/Update WinRM GPO to enable remote management. Force GPUpdate to push to all computers."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2472,17 +2601,17 @@ $xamlString = @"
 
                     <!-- Discovered Computers List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="8" Height="80">
+                            CornerRadius="6" Padding="8" Height="150">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="Discovered Computers" FontSize="10" FontWeight="Bold"
+                            <TextBlock Grid.Row="0" Text="Discovered Computers (Ctrl+Click to multi-select)" FontSize="10" FontWeight="Bold"
                                        Foreground="#8B949E" Margin="0,0,0,4"/>
                             <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
                                      Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
-                                     SelectionMode="Multiple"/>
+                                     SelectionMode="Extended"/>
                         </Grid>
                     </Border>
 
@@ -2635,7 +2764,7 @@ $xamlString = @"
 
                     <!-- Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200">
+                            CornerRadius="8" Padding="15" MinHeight="200" MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="AppLockerSetupOutput" Text="Click 'Initialize' to create AppLocker structure..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2729,6 +2858,7 @@ $xamlString = @"
                         <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
                             <WrapPanel>
                                 <Button x:Name="HelpBtnWorkflow" Content="Workflow" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnPolicyGuide" Content="Policy Guide" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                                 <Button x:Name="HelpBtnRules" Content="Rule Best Practices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                                 <Button x:Name="HelpBtnTroubleshooting" Content="Troubleshooting" Style="{StaticResource SecondaryButton}"/>
                             </WrapPanel>
@@ -2773,7 +2903,7 @@ try {
 
     # Show MessageBox
     try {
-        [System.Windows.MessageBox]::Show($errorMsg, "GA-AppLocker Startup Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show($errorMsg, "GA-AppLocker Startup Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     } catch {
         Write-Host "ERROR: $errorMsg" -ForegroundColor Red
         Write-Host "Press any key to exit..." -ForegroundColor Yellow
@@ -2828,7 +2958,10 @@ $HealthStatus = $window.FindName("HealthStatus")
 $TotalEvents = $window.FindName("TotalEvents")
 $EventsStatus = $window.FindName("EventsStatus")
 $AllowedEvents = $window.FindName("AllowedEvents")
+$AuditedEvents = $window.FindName("AuditedEvents")
 $BlockedEvents = $window.FindName("BlockedEvents")
+$DashboardTimeFilter = $window.FindName("DashboardTimeFilter")
+$DashboardSystemFilter = $window.FindName("DashboardSystemFilter")
 $RefreshDashboardBtn = $window.FindName("RefreshDashboardBtn")
 $DashboardOutput = $window.FindName("DashboardOutput")
 
@@ -2907,6 +3040,7 @@ $AboutVersion = $window.FindName("AboutVersion")
 $HelpTitle = $window.FindName("HelpTitle")
 $HelpText = $window.FindName("HelpText")
 $HelpBtnWorkflow = $window.FindName("HelpBtnWorkflow")
+$HelpBtnPolicyGuide = $window.FindName("HelpBtnPolicyGuide")
 $HelpBtnRules = $window.FindName("HelpBtnRules")
 $HelpBtnTroubleshooting = $window.FindName("HelpBtnTroubleshooting")
 
@@ -3229,6 +3363,247 @@ ESCALATION PATH:
 5. Contact GA-ASI security team for advanced issues
 "@
         }
+        "PolicyGuide" {
+            return @"
+=== APPLOCKER POLICY BUILD GUIDE ===
+
+OBJECTIVE:
+Allow who may execute trusted code, deny where code can never run,
+validate in Audit, then enforce - without breaking services or failing audit.
+
+--- CORE MENTAL MODEL ---
+* AppLocker evaluates security principal + rule match
+* Explicit Deny always wins
+* Publisher rules apply everywhere unless denied
+* Each rule collection is independent
+* "Must exist" does NOT mean "allowed everything"
+
+--- EXECUTION DECISION ORDER ---
+1. Explicit Deny
+2. Explicit Allow
+3. Implicit Deny (only if nothing matches)
+
+If you allow broadly, you must deny explicitly.
+
+=== MANDATORY ALLOW PRINCIPALS ===
+(Referenced in every rule collection: EXE, Script, MSI, DLL)
+
+[ ] NT AUTHORITY\SYSTEM
+[ ] NT AUTHORITY\LOCAL SERVICE
+[ ] NT AUTHORITY\NETWORK SERVICE
+[ ] BUILTIN\Administrators
+
+IMPORTANT: These principals are NOT allowed everything.
+They are allowed only what your rules explicitly permit.
+They are still subject to Explicit Deny rules.
+
+=== CUSTOM APPLOCKER GROUPS ===
+
+[ ] DOMAIN\AppLocker-Admins
+[ ] DOMAIN\AppLocker-StandardUsers
+[ ] DOMAIN\AppLocker-Service-Accounts
+[ ] DOMAIN\AppLocker-Installers (optional but recommended)
+
+Rules of use:
+* Service accounts -> only in AppLocker-Service-Accounts
+* No service accounts in Administrators
+* Deny interactive logon for service accounts via GPO
+
+=== GROUP MEMBERSHIP + MINIMUM PERMISSIONS ===
+
+1. AppLocker-Admins
+   Who: Domain/Server/Platform admins, Security administrators
+   Minimum permissions:
+   * EXE -> Microsoft + approved vendor publishers
+   * Script -> Microsoft-signed scripts
+   * MSI -> Microsoft + vendor installers
+   * DLL -> Microsoft-signed DLLs
+   Still blocked by Deny paths!
+   Purpose: admin survivability without blanket trust
+
+2. AppLocker-StandardUsers
+   Who: Regular end users
+   Minimum permissions:
+   * EXE -> Explicitly approved vendor apps only
+   * Script -> None
+   * MSI -> None
+   * DLL -> Only via allowed EXEs
+   Denied: installers, scripts, user-writable paths
+   Purpose: least-privilege execution
+
+3. AppLocker-Service-Accounts
+   Who: Domain service accounts (svc_sql, svc_backup, SCCM, monitoring)
+   Minimum permissions:
+   * EXE -> Vendor-signed binaries
+   * Script -> Vendor-signed scripts (if required)
+   * MSI -> Only if service self-updates
+   * DLL -> Vendor-signed DLLs
+   Mandatory controls:
+   * No admin rights
+   * No interactive logon
+   * No path-based allows
+   Purpose: prevent outages without privilege creep
+
+4. AppLocker-Installers (Optional)
+   Who: Desktop Support (Tier 2+), Imaging/deployment, SCCM/Intune
+   Minimum permissions:
+   * MSI -> Vendor + Microsoft installers
+   * EXE -> Vendor installer bootstrap EXEs only
+   * Script -> None unless explicitly required
+   * DLL -> None directly
+   Purpose: controlled software introduction
+
+=== MICROSOFT / WINDOWS SIGNED CODE ===
+
+NEVER do this:
+  Microsoft Publisher -> Everyone
+
+CORRECT pattern:
+  Microsoft Publisher ->
+  [ ] SYSTEM
+  [ ] LOCAL SERVICE
+  [ ] NETWORK SERVICE
+  [ ] BUILTIN\Administrators
+
+This allows OS & services but does NOT give users blanket execution.
+
+=== SERVICE ACCOUNTS ===
+
+Built-in services:
+* Run as SYSTEM / NT SERVICE*
+* Covered by Microsoft publisher rules
+* No path allows required
+
+Domain service accounts:
+[ ] Members of DOMAIN\AppLocker-Service-Accounts
+[ ] Allowed via publisher rules only
+[ ] No admin rights
+[ ] No local logon
+
+=== EXPLICIT DENY RULES (REQUIRED) ===
+
+Create Deny-Path rules for Everyone:
+[ ] %USERPROFILE%\Downloads\*
+[ ] %APPDATA%\*
+[ ] %LOCALAPPDATA%\Temp\*
+[ ] %TEMP%\*
+
+Why:
+* Prevent signed binary abuse
+* Close living-off-the-land execution paths
+* Override all Allows (including SYSTEM)
+
+=== MINIMUM RULE ASSIGNMENTS BY COLLECTION ===
+
+EXECUTABLES (EXE):
+Allow:
+[ ] SYSTEM -> Microsoft Publisher
+[ ] Admins -> Microsoft + Vendor Publisher
+[ ] Service Accounts -> Vendor Publisher
+[ ] Users -> Explicitly approved apps only
+[ ] Installers -> Vendor installer EXEs only
+Deny:
+[ ] User-writable paths (above)
+
+SCRIPTS (PS1, BAT, CMD, VBS) - Highest Risk:
+Allow:
+[ ] SYSTEM -> Microsoft Publisher
+[ ] Admins -> Microsoft Publisher
+[ ] Service Accounts -> Vendor Publisher
+Do NOT allow:
+[ ] Standard users
+[ ] Everyone
+
+MSI / INSTALLERS:
+Allow:
+[ ] SYSTEM -> Microsoft Publisher
+[ ] Installers Group -> Vendor Publisher
+[ ] Admins -> Vendor Publisher
+Deny:
+[ ] Everyone else
+
+DLL (Enable LAST):
+Allow:
+[ ] SYSTEM -> Microsoft Publisher
+[ ] Admins -> Microsoft Publisher
+[ ] Service Accounts -> Vendor Publisher
+ALWAYS Audit first!
+
+=== AUDIT MODE VALIDATION (REQUIRED) ===
+
+[ ] EXE audit clean
+[ ] Script audit clean
+[ ] MSI audit clean
+[ ] DLL audited 7-14 days
+[ ] Event ID 8004 reviewed
+[ ] Services start normally
+[ ] Scheduled tasks run
+[ ] Patch & agent updates succeed
+
+If it runs in Audit, it will run in Enforce.
+
+=== RULE CREATION ORDER (Follow Exactly) ===
+
+Phase 0 - Prep:
+[ ] Identify service accounts
+[ ] Create AppLocker AD groups
+
+Phase 1 - EXE:
+[ ] Microsoft publisher rules
+[ ] Vendor publisher rules
+[ ] Explicit Deny paths
+[ ] Enable Audit
+
+Phase 2 - Scripts:
+[ ] Microsoft scripts -> SYSTEM/Admins
+[ ] Vendor scripts -> Service Accounts
+[ ] Audit and review
+
+Phase 3 - MSI:
+[ ] Microsoft MSIs -> SYSTEM
+[ ] Vendor MSIs -> Installers/Admins
+[ ] Audit patch cycles
+
+Phase 4 - DLL (LAST):
+[ ] Enable Audit
+[ ] Review 7-14 days
+[ ] Add vendor DLL publishers as needed
+
+Phase 5 - Enforce:
+[ ] EXE -> Enforce
+[ ] Scripts -> Enforce
+[ ] MSI -> Enforce
+[ ] DLL -> Enforce (last)
+
+=== COMMON BLIND SPOTS ===
+
+[ ] Scheduled Tasks (often SYSTEM)
+[ ] Self-updating agents (AV, monitoring, backup)
+[ ] ProgramData execution (audit before denying)
+[ ] DLL rules enabled too early
+
+=== ENFORCEMENT GATE (ALL must be true) ===
+
+[ ] SYSTEM not blocked
+[ ] No service failures
+[ ] No Everyone allows
+[ ] Explicit Deny rules exist
+[ ] Audit evidence retained
+
+=== AUDITOR-APPROVED SUMMARY ===
+
+"Application execution is controlled using publisher-based AppLocker
+rules scoped to defined administrative, installer, service, and user
+security groups. User-writable directories are explicitly denied to
+prevent abuse of signed binaries. All policies were validated in
+audit mode prior to enforcement."
+
+=== FINAL ONE-LINE MODEL ===
+
+Allow who may run trusted code, deny where code can never run,
+and never enforce what you didn't audit.
+"@
+        }
     }
 }
 
@@ -3540,24 +3915,108 @@ $NavAbout.Add_Click({
 
 # Dashboard events
 function Refresh-Data {
+    $DashboardOutput.Text = "Loading dashboard data..."
+    [System.Windows.Forms.Application]::DoEvents()
+
+    # Get time filter
+    $timeFilter = $DashboardTimeFilter.SelectedItem.Content
+    $daysBack = if ($timeFilter -eq "Last 7 Days") { 7 } else { 30 }
+    $cutoffDate = (Get-Date).AddDays(-$daysBack)
+
+    # Get system filter
+    $systemFilter = $DashboardSystemFilter.SelectedItem.Content
+
+    # Get policy health from local system
     $summary = Get-DashboardSummary
     $HealthScore.Text = $summary.policyHealth.score
     $HealthStatus.Text = if ($summary.policyHealth.score -eq 100) { "All categories enabled" } else { "Score: $($summary.policyHealth.score)/100" }
-    $TotalEvents.Text = $summary.events.total
-    $EventsStatus.Text = if ($summary.events.total -gt 0) { "Events found" } else { "No events" }
-    $AllowedEvents.Text = $summary.events.allowed
-    $BlockedEvents.Text = $summary.events.blocked
+
+    # Scan event files from C:\GA-AppLocker\Events
+    $eventsPath = "C:\GA-AppLocker\Events"
+    $allFileEvents = @()
+    $systems = @()
+
+    if (Test-Path $eventsPath) {
+        $eventFiles = Get-ChildItem -Path $eventsPath -Filter "*.csv" -ErrorAction SilentlyContinue |
+                      Where-Object { $_.LastWriteTime -ge $cutoffDate }
+
+        foreach ($file in $eventFiles) {
+            try {
+                $fileEvents = Import-Csv -Path $file.FullName -ErrorAction SilentlyContinue
+                foreach ($evt in $fileEvents) {
+                    # Track unique systems
+                    if ($evt.ComputerName -and $evt.ComputerName -notin $systems) {
+                        $systems += $evt.ComputerName
+                    }
+                    # Apply system filter
+                    if ($systemFilter -eq "All Systems" -or $evt.ComputerName -eq $systemFilter) {
+                        $allFileEvents += $evt
+                    }
+                }
+            } catch { }
+        }
+
+        # Update system filter dropdown
+        $currentSelection = $DashboardSystemFilter.SelectedItem.Content
+        $DashboardSystemFilter.Items.Clear()
+        $allItem = New-Object System.Windows.Controls.ComboBoxItem
+        $allItem.Content = "All Systems"
+        $DashboardSystemFilter.Items.Add($allItem) | Out-Null
+        foreach ($sys in ($systems | Sort-Object)) {
+            $item = New-Object System.Windows.Controls.ComboBoxItem
+            $item.Content = $sys
+            $DashboardSystemFilter.Items.Add($item) | Out-Null
+        }
+        # Restore selection
+        foreach ($item in $DashboardSystemFilter.Items) {
+            if ($item.Content -eq $currentSelection) {
+                $DashboardSystemFilter.SelectedItem = $item
+                break
+            }
+        }
+        if ($null -eq $DashboardSystemFilter.SelectedItem) {
+            $DashboardSystemFilter.SelectedIndex = 0
+        }
+    }
+
+    # Count events from files
+    $fileAllowed = ($allFileEvents | Where-Object { $_.Id -eq "8002" -or $_.type -eq "Allowed" }).Count
+    $fileAudited = ($allFileEvents | Where-Object { $_.Id -eq "8003" -or $_.type -eq "Audit" }).Count
+    $fileBlocked = ($allFileEvents | Where-Object { $_.Id -eq "8004" -or $_.type -eq "Blocked" }).Count
+    $fileTotal = $allFileEvents.Count
+
+    # Combine with live local events
+    $liveTotal = [int]$summary.events.total
+    $liveAllowed = [int]$summary.events.allowed
+    $liveAudited = [int]$summary.events.audit
+    $liveBlocked = [int]$summary.events.blocked
+
+    $TotalEvents.Text = ($fileTotal + $liveTotal).ToString()
+    $AllowedEvents.Text = ($fileAllowed + $liveAllowed).ToString()
+    $AuditedEvents.Text = ($fileAudited + $liveAudited).ToString()
+    $BlockedEvents.Text = ($fileBlocked + $liveBlocked).ToString()
+    $EventsStatus.Text = if (($fileTotal + $liveTotal) -gt 0) { "Events found" } else { "No events" }
+
+    # Update output
+    $output = "Dashboard refreshed at $(Get-Date -Format 'HH:mm:ss')`n`n"
+    $output += "=== EVENT SOURCES ===`n"
+    $output += "Live Events (local): $liveTotal`n"
+    $output += "File Events ($eventsPath): $fileTotal`n"
+    $output += "Files scanned: $(if (Test-Path $eventsPath) { (Get-ChildItem $eventsPath -Filter '*.csv' | Where-Object { $_.LastWriteTime -ge $cutoffDate }).Count } else { 0 })`n"
+    $output += "Time filter: $timeFilter`n"
+    $output += "System filter: $systemFilter`n"
+    $output += "Systems found: $($systems.Count)`n"
+    $DashboardOutput.Text = $output
 }
 
 $RefreshDashboardBtn.Add_Click({
     Refresh-Data
-    $DashboardOutput.Text = "Dashboard refreshed at $(Get-Date -Format 'HH:mm:ss')"
 })
 
 # Artifacts events
 $ExportArtifactsBtn.Add_Click({
     if ($script:CollectedArtifacts.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No artifacts to export. Run a scan first.", "No Data", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No artifacts to export. Run a scan first.", "No Data", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -3567,7 +4026,7 @@ $ExportArtifactsBtn.Add_Click({
     $saveDialog.FileName = "Artifacts-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $ext = [System.IO.Path]::GetExtension($saveDialog.FileName)
         if ($ext -eq ".csv") {
             $script:CollectedArtifacts | Export-Csv -Path $saveDialog.FileName -NoTypeInformation
@@ -3575,7 +4034,7 @@ $ExportArtifactsBtn.Add_Click({
             $script:CollectedArtifacts | ConvertTo-Json -Depth 10 | Out-File -FilePath $saveDialog.FileName -Encoding UTF8
         }
         Write-Log "Exported $($script:CollectedArtifacts.Count) artifacts to $($saveDialog.FileName)"
-        [System.Windows.MessageBox]::Show("Exported $($script:CollectedArtifacts.Count) artifacts to $($saveDialog.FileName)", "Export Complete", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Exported $($script:CollectedArtifacts.Count) artifacts to $($saveDialog.FileName)", "Export Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
 
@@ -3607,7 +4066,7 @@ $ComprehensiveScanBtn.Add_Click({
     $folderDialog.Description = "Select output folder for scan artifacts"
     $folderDialog.SelectedPath = "C:\GA-AppLocker\Scans"
 
-    if ($folderDialog.ShowDialog() -ne "OK") {
+    if ($folderDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
         return
     }
 
@@ -3626,26 +4085,27 @@ $ComprehensiveScanBtn.Add_Click({
     if ($result.success) {
         $ArtifactsList.Items.Add("=== COMPREHENSIVE SCAN COMPLETE ===")
         $ArtifactsList.Items.Add("")
-        $ArtifactsList.Items.Add("Output Folder: $($result.outputPath)")
+        $ArtifactsList.Items.Add("Output Folder: $($result.scanFolder)")
         $ArtifactsList.Items.Add("Computer: $($result.computerName)")
-        $ArtifactsList.Items.Add("Scan Time: $($result.scanTime)")
+        $ArtifactsList.Items.Add("Duration: $($result.duration) seconds")
         $ArtifactsList.Items.Add("")
         $ArtifactsList.Items.Add("=== ARTIFACTS CREATED ===")
-        foreach ($file in $result.files) {
-            $ArtifactsList.Items.Add("  $file")
+        foreach ($key in $result.files.Keys) {
+            $ArtifactsList.Items.Add("  $key.csv")
         }
         $ArtifactsList.Items.Add("")
         $ArtifactsList.Items.Add("=== COUNTS ===")
-        $ArtifactsList.Items.Add("  Executables: $($result.executableCount)")
-        $ArtifactsList.Items.Add("  Publishers: $($result.publisherCount)")
-        $ArtifactsList.Items.Add("  Installed Software: $($result.softwareCount)")
-        $ArtifactsList.Items.Add("  Running Processes: $($result.processCount)")
-        $ArtifactsList.Items.Add("  Writable Directories: $($result.writableDirCount)")
+        $ArtifactsList.Items.Add("  Executables: $($result.stats.Executables)")
+        $ArtifactsList.Items.Add("  Publishers: $($result.stats.Publishers)")
+        $ArtifactsList.Items.Add("  Installed Software: $($result.stats.InstalledSoftware)")
+        $ArtifactsList.Items.Add("  Running Processes: $($result.stats.RunningProcesses)")
+        $ArtifactsList.Items.Add("  Writable Directories: $($result.stats.WritableDirectories)")
 
-        [System.Windows.MessageBox]::Show("Comprehensive scan complete!`n`nArtifacts saved to:`n$($result.outputPath)`n`nFiles created:`n$($result.files -join "`n")", "Scan Complete", "OK", "Information")
+        $fileList = ($result.files.Keys | ForEach-Object { "$_.csv" }) -join "`n"
+        [System.Windows.MessageBox]::Show("Comprehensive scan complete!`n`nArtifacts saved to:`n$($result.scanFolder)`n`nFiles created:`n$fileList", "Scan Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $ArtifactsList.Items.Add("ERROR: $($result.error)")
-        [System.Windows.MessageBox]::Show("Scan failed: $($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Scan failed: $($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 
     Write-Log "Comprehensive scan complete"
@@ -3656,7 +4116,7 @@ $ImportArtifactsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json|All Files (*.*)|*.*"
     $openDialog.Title = "Import Scan Artifacts"
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $ext = [System.IO.Path]::GetExtension($openDialog.FileName)
         if ($ext -eq ".csv") {
             $script:CollectedArtifacts = Import-Csv -Path $openDialog.FileName
@@ -3672,13 +4132,14 @@ $ImportFolderBtn.Add_Click({
     Write-Log "Import folder (recursive) clicked"
     $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $folderDialog.Description = "Select folder containing artifact CSV files (will search recursively)"
+    $folderDialog.SelectedPath = "C:\GA-AppLocker\Scans"
 
-    if ($folderDialog.ShowDialog() -eq "OK") {
+    if ($folderDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $folderPath = $folderDialog.SelectedPath
         $csvFiles = Get-ChildItem -Path $folderPath -Filter "*.csv" -Recurse -File -ErrorAction SilentlyContinue
 
         if ($csvFiles.Count -eq 0) {
-            [System.Windows.MessageBox]::Show("No CSV files found in folder or subfolders.", "No Files Found", "OK", "Warning")
+            [System.Windows.MessageBox]::Show("No CSV files found in folder or subfolders.", "No Files Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
             return
         }
 
@@ -3700,9 +4161,9 @@ $ImportFolderBtn.Add_Click({
         if ($allArtifacts.Count -gt 0) {
             $script:CollectedArtifacts = $allArtifacts
             $RulesOutput.Text = "Imported $($allArtifacts.Count) artifacts from $($importedFiles.Count) files:`n`n$($importedFiles -join "`n")`n`nSelect rule type and click Generate Rules."
-            [System.Windows.MessageBox]::Show("Imported $($allArtifacts.Count) artifacts from $($importedFiles.Count) CSV files.", "Import Complete", "OK", "Information")
+            [System.Windows.MessageBox]::Show("Imported $($allArtifacts.Count) artifacts from $($importedFiles.Count) CSV files.", "Import Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
-            [System.Windows.MessageBox]::Show("No valid artifact data found in CSV files.", "Import Failed", "OK", "Warning")
+            [System.Windows.MessageBox]::Show("No valid artifact data found in CSV files.", "Import Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         }
     }
 })
@@ -3716,7 +4177,7 @@ $MergeRulesBtn.Add_Click({
     $openDialog.Title = "Select AppLocker Rules XML to Merge"
     $openDialog.Multiselect = $true
 
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $mergedCount = 0
         $fileNames = @()
 
@@ -3747,9 +4208,9 @@ $MergeRulesBtn.Add_Click({
 
         if ($mergedCount -gt 0) {
             $RulesOutput.Text = "Merged $mergedCount rules from:`n$($fileNames -join "`n")`n`nTotal rules: $($script:GeneratedRules.Count)`n`nUse Export Rules in Deployment to save merged ruleset."
-            [System.Windows.MessageBox]::Show("Merged $mergedCount rules.`n`nTotal rules now: $($script:GeneratedRules.Count)", "Merge Complete", "OK", "Information")
+            [System.Windows.MessageBox]::Show("Merged $mergedCount rules.`n`nTotal rules now: $($script:GeneratedRules.Count)", "Merge Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
-            [System.Windows.MessageBox]::Show("No rules found in selected files.", "Merge Failed", "OK", "Warning")
+            [System.Windows.MessageBox]::Show("No rules found in selected files.", "Merge Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         }
     }
 })
@@ -3835,7 +4296,7 @@ $GenerateRulesBtn.Add_Click({
 # Create Rules from Events button
 $CreateRulesFromEventsBtn.Add_Click({
     if ($script:AllEvents.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No events loaded. Go to Event Monitor and scan for events first.", "No Events", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No events loaded. Go to Event Monitor and scan for events first.", "No Events", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -3866,7 +4327,7 @@ $CreateRulesFromEventsBtn.Add_Click({
     $script:CollectedArtifacts = $eventArtifacts
 
     $RulesOutput.Text = "Loaded $($eventArtifacts.Count) artifacts from events.`n`nReady to generate rules - click 'Generate Rules'"
-    [System.Windows.MessageBox]::Show("Loaded $($eventArtifacts.Count) artifacts from Event Viewer.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", "OK", "Information")
+    [System.Windows.MessageBox]::Show("Loaded $($eventArtifacts.Count) artifacts from Event Viewer.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
 })
 
 # Events events
@@ -3896,7 +4357,7 @@ $FilterAuditBtn.Add_Click({
 
 $ExportEventsBtn.Add_Click({
     if ($script:AllEvents.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No events to export. Click Refresh first.", "No Data", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No events to export. Click Refresh first.", "No Data", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -3904,9 +4365,9 @@ $ExportEventsBtn.Add_Click({
     $saveDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json|Text Files (*.txt)|*.txt"
     $saveDialog.Title = "Export Events"
     $saveDialog.FileName = "AppLockerEvents-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
-    $saveDialog.InitialDirectory = "C:\GA-AppLocker\Scans"
+    $saveDialog.InitialDirectory = "C:\GA-AppLocker\Events"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $ext = [System.IO.Path]::GetExtension($saveDialog.FileName)
         if ($ext -eq ".csv") {
             $script:AllEvents | Export-Csv -Path $saveDialog.FileName -NoTypeInformation
@@ -3916,7 +4377,7 @@ $ExportEventsBtn.Add_Click({
             $script:AllEvents | ForEach-Object { "[$($_.time)] [$($_.type)] $($_.message)" } | Out-File -FilePath $saveDialog.FileName -Encoding UTF8
         }
         Write-Log "Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)"
-        [System.Windows.MessageBox]::Show("Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)", "Export Complete", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)", "Export Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
 
@@ -3993,14 +4454,14 @@ $ScanRemoteEventsBtn.Add_Click({
     $computerInput = $EventComputersText.Text.Trim()
 
     if ($computerInput -match "^\(|comma-separated") {
-        [System.Windows.MessageBox]::Show("Please enter computer names or use 'Load from Discovery' first.", "No Computers", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Please enter computer names or use 'Load from Discovery' first.", "No Computers", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
     $computers = $computerInput -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 
     if ($computers.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No computers specified.", "No Computers", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No computers specified.", "No Computers", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4059,9 +4520,9 @@ $ImportEventsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openDialog.Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*"
     $openDialog.Title = "Import Events"
-    $openDialog.InitialDirectory = "C:\GA-AppLocker\Scans"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker\Events"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         try {
             $imported = Import-Csv -Path $openDialog.FileName
             $script:AllEvents = $imported
@@ -4091,7 +4552,7 @@ $LoadFromDiscoveryBtn.Add_Click({
         $EventsOutput.Text = "Loaded $($computers.Count) selected computers from AD Discovery.`n`nClick 'Scan Remote' to get events."
         Write-Log "Loaded $($computers.Count) computers from discovery selection"
     } else {
-        [System.Windows.MessageBox]::Show("No computers available. Go to AD Discovery first and discover computers.", "No Computers", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No computers available. Go to AD Discovery first and discover computers.", "No Computers", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
 
@@ -4142,7 +4603,7 @@ $GenerateEvidenceBtn.Add_Click({
 $CreateGP0Btn.Add_Click({
     Write-Log "Create GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4154,15 +4615,15 @@ $CreateGP0Btn.Add_Click({
     if ($result.success) {
         if ($result.isNew) {
             $DeploymentStatus.Text = "SUCCESS: AppLocker GPO created!`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nNext Steps:`n1. Export rules from Rule Generator`n2. Import rules to GPO via Group Policy Management`n3. Set enforcement mode (start with Audit)`n4. Monitor events before enforcing"
-            [System.Windows.MessageBox]::Show("AppLocker GPO created successfully!`n`nGPO: $($result.gpoName)`nLinked to: $($result.linkedTo)", "Success", "OK", "Information")
+            [System.Windows.MessageBox]::Show("AppLocker GPO created successfully!`n`nGPO: $($result.gpoName)`nLinked to: $($result.linkedTo)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
             $DeploymentStatus.Text = "GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs."
-            [System.Windows.MessageBox]::Show("GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs.", "GPO Exists", "OK", "Information")
+            [System.Windows.MessageBox]::Show("GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs.", "GPO Exists", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         }
         Write-Log "AppLocker GPO created/found: $($result.gpoName)"
     } else {
         $DeploymentStatus.Text = "ERROR: Failed to create GPO`n`n$($result.error)`n`nMake sure you are running as Domain Admin with Group Policy module installed."
-        [System.Windows.MessageBox]::Show("Failed to create AppLocker GPO:`n$($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to create AppLocker GPO:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         Write-Log "Failed to create AppLocker GPO: $($result.error)" -Level "ERROR"
     }
 })
@@ -4170,7 +4631,7 @@ $CreateGP0Btn.Add_Click({
 $LinkGP0Btn.Add_Click({
     Write-Log "Link GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("GPO linking requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("GPO linking requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4185,7 +4646,7 @@ $LinkGP0Btn.Add_Click({
         # Check if AppLocker GPO exists
         $gpo = Get-GPO -Name "AppLocker Policy" -ErrorAction SilentlyContinue
         if (-not $gpo) {
-            [System.Windows.MessageBox]::Show("AppLocker GPO not found. Please create it first using 'Create GPO'.", "GPO Not Found", "OK", "Warning")
+            [System.Windows.MessageBox]::Show("AppLocker GPO not found. Please create it first using 'Create GPO'.", "GPO Not Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
             $DeploymentStatus.Text = "ERROR: AppLocker GPO not found.`n`nPlease create it first using the 'Create GPO' button."
             return
         }
@@ -4194,17 +4655,17 @@ $LinkGP0Btn.Add_Click({
         $existingLink = Get-GPInheritance -Target $domainDN | Select-Object -ExpandProperty GpoLinks | Where-Object { $_.DisplayName -eq "AppLocker Policy" }
         if ($existingLink) {
             $DeploymentStatus.Text = "GPO 'AppLocker Policy' is already linked to the domain root.`n`nLinked to: $domainDN"
-            [System.Windows.MessageBox]::Show("GPO is already linked to the domain root.", "Already Linked", "OK", "Information")
+            [System.Windows.MessageBox]::Show("GPO is already linked to the domain root.", "Already Linked", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
             New-GPLink -Name "AppLocker Policy" -Target $domainDN -LinkEnabled Yes -ErrorAction Stop
             $DeploymentStatus.Text = "SUCCESS: GPO linked to domain!`n`nGPO: AppLocker Policy`nLinked to: $domainDN`n`nThe policy will apply during the next Group Policy refresh."
-            [System.Windows.MessageBox]::Show("GPO linked to domain successfully!`n`nLinked to: $domainDN", "Success", "OK", "Information")
+            [System.Windows.MessageBox]::Show("GPO linked to domain successfully!`n`nLinked to: $domainDN", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         }
         Write-Log "GPO linking complete: AppLocker Policy -> $domainDN"
     }
     catch {
         $DeploymentStatus.Text = "ERROR: Failed to link GPO`n`n$($_.Exception.Message)"
-        [System.Windows.MessageBox]::Show("Failed to link GPO:`n$($_.Exception.Message)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to link GPO:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         Write-Log "Failed to link GPO: $($_.Exception.Message)" -Level "ERROR"
     }
 })
@@ -4213,7 +4674,7 @@ $LinkGP0Btn.Add_Click({
 $CreateWinRMGpoBtn.Add_Click({
     Write-Log "Create WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("WinRM GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("WinRM GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4226,11 +4687,11 @@ $CreateWinRMGpoBtn.Add_Click({
         $action = if ($result.isNew) { "CREATED" } else { "UPDATED" }
         $WinRMOutput.Text = "=== WINRM GPO $action ===`n`nSUCCESS: GPO $($result.message)`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nConfigured Settings:`n`nWinRM Service:`n  • Auto-config: Enabled`n  • IPv4 Filter: * (all)`n  • IPv6 Filter: * (all)`n  • Basic Auth: Enabled`n  • Unencrypted Traffic: Disabled`n`nWinRM Client:`n  • Basic Auth: Enabled`n  • TrustedHosts: * (all)`n  • Unencrypted Traffic: Disabled`n`nFirewall Rules:`n  • WinRM HTTP (5985): Allowed`n  • WinRM HTTPS (5986): Allowed`n`nService: Automatic startup`n`nTo force immediate update: gpupdate /force"
         Write-Log "WinRM GPO $action successfully: $($result.gpoName)"
-        [System.Windows.MessageBox]::Show("WinRM GPO $action successfully!`n`nGPO: $($result.gpoName)`n`nLinked to: $($result.linkedTo)", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("WinRM GPO $action successfully!`n`nGPO: $($result.gpoName)`n`nLinked to: $($result.linkedTo)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $WinRMOutput.Text = "=== WINRM GPO FAILED ===`n`nERROR: $($result.error)`n`nPossible causes:`n  • Not running as Domain Admin`n  • Group Policy module not available`n  • Insufficient permissions`n`nPlease run as Domain Administrator and try again."
         Write-Log "Failed to create/update WinRM GPO: $($result.error)" -Level "ERROR"
-        [System.Windows.MessageBox]::Show("Failed to create/update WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to create/update WinRM GPO:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
 
@@ -4238,7 +4699,7 @@ $CreateWinRMGpoBtn.Add_Click({
 $EnableWinRMGpoBtn.Add_Click({
     Write-Log "Enable WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4246,31 +4707,31 @@ $EnableWinRMGpoBtn.Add_Click({
 
     if ($result.success) {
         $WinRMOutput.Text = "=== GPO LINK ENABLED ===`n`nWinRM GPO link has been ENABLED.`n`nThe policy will now apply to computers in the domain.`n`nRun 'gpupdate /force' on target machines to apply immediately."
-        [System.Windows.MessageBox]::Show("WinRM GPO link enabled!", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("WinRM GPO link enabled!", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $WinRMOutput.Text = "ERROR: $($result.error)"
-        [System.Windows.MessageBox]::Show("Failed to enable GPO link:`n$($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to enable GPO link:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
 
 $DisableWinRMGpoBtn.Add_Click({
     Write-Log "Disable WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
-    $confirm = [System.Windows.MessageBox]::Show("Are you sure you want to disable the WinRM GPO link?`n`nThis will prevent the GPO from applying to new computers.", "Confirm Disable", "YesNo", "Warning")
+    $confirm = [System.Windows.MessageBox]::Show("Are you sure you want to disable the WinRM GPO link?`n`nThis will prevent the GPO from applying to new computers.", "Confirm Disable", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Warning)
 
-    if ($confirm -eq "Yes") {
+    if ($confirm -eq [System.Windows.MessageBoxResult]::Yes) {
         $result = Set-WinRMGpoState -Enabled $false
 
         if ($result.success) {
             $WinRMOutput.Text = "=== GPO LINK DISABLED ===`n`nWinRM GPO link has been DISABLED.`n`nThe policy will no longer apply to computers.`n`nNote: Already applied settings may remain until manually removed."
-            [System.Windows.MessageBox]::Show("WinRM GPO link disabled!", "Success", "OK", "Information")
+            [System.Windows.MessageBox]::Show("WinRM GPO link disabled!", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
             $WinRMOutput.Text = "ERROR: $($result.error)"
-            [System.Windows.MessageBox]::Show("Failed to disable GPO link:`n$($result.error)", "Error", "OK", "Error")
+            [System.Windows.MessageBox]::Show("Failed to disable GPO link:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         }
     }
 })
@@ -4279,18 +4740,18 @@ $DisableWinRMGpoBtn.Add_Click({
 $ForceGPUpdateBtn.Add_Click({
     Write-Log "Force GPUpdate button clicked"
     if ($script:IsWorkgroup -or -not $script:HasRSAT) {
-        [System.Windows.MessageBox]::Show("This feature requires domain membership and RSAT tools.", "Not Available", "OK", "Information")
+        [System.Windows.MessageBox]::Show("This feature requires domain membership and RSAT tools.", "Not Available", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
     $confirm = [System.Windows.MessageBox]::Show(
         "This will run 'gpupdate /force' on all domain computers.`n`nThis requires:`n  • WinRM already enabled on target machines`n  • Administrative access to remote computers`n`nContinue?",
         "Confirm Force GPUpdate",
-        "YesNo",
-        "Question"
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Question
     )
 
-    if ($confirm -ne "Yes") { return }
+    if ($confirm -ne [System.Windows.MessageBoxResult]::Yes) { return }
 
     $WinRMOutput.Text = "=== FORCE GPUPDATE ===`n`nGathering domain computers...`n"
     [System.Windows.Forms.Application]::DoEvents()
@@ -4334,12 +4795,12 @@ $ForceGPUpdateBtn.Add_Click({
 
         $WinRMOutput.Text += "`n`n=== SUMMARY ===`nSuccess: $successCount`nFailed: $failCount`nTotal: $($computers.Count)"
 
-        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount", "Complete", "OK", "Information")
+        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount", "Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         Write-Log "Force GPUpdate completed: $successCount success, $failCount failed"
     }
     catch {
         $WinRMOutput.Text = "=== ERROR ===`n`n$($_.Exception.Message)`n`nMake sure Active Directory module is available."
-        [System.Windows.MessageBox]::Show("Failed to run GPUpdate:`n$($_.Exception.Message)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to run GPUpdate:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         Write-Log "Force GPUpdate failed: $($_.Exception.Message)" -Level "ERROR"
     }
 })
@@ -4348,7 +4809,7 @@ $ForceGPUpdateBtn.Add_Click({
 $DiscoverComputersBtn.Add_Click({
     Write-Log "Discover computers button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("AD Discovery requires Active Directory. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("AD Discovery requires Active Directory. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         $DiscoveryOutput.Text = "=== WORKGROUP MODE ===`n`nAD Discovery is only available in domain mode.`n`nUse 'Scan Localhost' in Artifacts tab instead."
         return
     }
@@ -4383,7 +4844,7 @@ $DiscoverComputersBtn.Add_Click({
 $TestConnectivityBtn.Add_Click({
     Write-Log "Test connectivity button clicked"
     if ($DiscoveredComputersList.SelectedItems.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please select at least one computer to test.", "No Selection", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Please select at least one computer to test.", "No Selection", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4480,7 +4941,7 @@ $SelectAllComputersBtn.Add_Click({
 $ScanSelectedBtn.Add_Click({
     Write-Log "Scan selected button clicked"
     if ($DiscoveredComputersList.SelectedItems.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please select at least one computer to scan.", "No Selection", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Please select at least one computer to scan.", "No Selection", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4536,7 +4997,7 @@ $ScanSelectedBtn.Add_Click({
         $DiscoveryOutput.Text += "`n3. Verify firewall allows WinRM (TCP 5985/5986)"
         $DiscoveryOutput.Text += "`n4. Check that WinRM service is running"
         $DiscoveryOutput.Text += "`n`nRun 'winrm quickconfig' on target to verify setup"
-        [System.Windows.MessageBox]::Show("No computers reachable via WinRM.`n`nSee console output for troubleshooting steps.", "WinRM Failed", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("No computers reachable via WinRM.`n`nSee console output for troubleshooting steps.", "WinRM Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
@@ -4593,7 +5054,7 @@ $ScanSelectedBtn.Add_Click({
         $DiscoveryOutput.Text += "`n`nFailed computers: $($winrmFail -join ', ')"
     }
 
-    [System.Windows.MessageBox]::Show("Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`nFrom $($winrmOK.Count) computers`n`nGo to Rule Generator to create rules.", "Scan Complete", "OK", "Information")
+    [System.Windows.MessageBox]::Show("Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`nFrom $($winrmOK.Count) computers`n`nGo to Rule Generator to create rules.", "Scan Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     Write-Log "Remote scan complete: $($allArtifacts.Count) artifacts from $($winrmOK.Count) computers"
 })
 
@@ -4601,7 +5062,7 @@ $ScanSelectedBtn.Add_Click({
 $ExportGroupsBtn.Add_Click({
     Write-Log "Export groups button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         $GroupMgmtOutput.Text = "=== WORKGROUP MODE ===`n`nAD Group Management is only available in domain mode.`n`nPlease run from a domain-joined computer with Active Directory module installed."
         return
     }
@@ -4612,7 +5073,7 @@ $ExportGroupsBtn.Add_Click({
     $saveDialog.FileName = "AD_GroupMembership_Export.csv"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $result = Export-ADGroupMembership -Path $saveDialog.FileName
 
         if ($result.success) {
@@ -4627,7 +5088,7 @@ $ExportGroupsBtn.Add_Click({
 $ImportGroupsBtn.Add_Click({
     Write-Log "Import groups button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4636,7 +5097,7 @@ $ImportGroupsBtn.Add_Click({
     $openDialog.Title = "Import AD Groups from CSV"
     $openDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $dryRun = $DryRunCheck.IsChecked
         $allowRemovals = $AllowRemovalsCheck.IsChecked
         $includeProtected = $IncludeProtectedCheck.IsChecked
@@ -4651,7 +5112,7 @@ $ImportGroupsBtn.Add_Click({
             [System.Windows.Forms.Application]::DoEvents()
 
             if (-not $dryRun) {
-                [System.Windows.MessageBox]::Show("Group membership changes applied!`n`nProcessed: $($result.stats.GroupsProcessed)`nAdds: $($result.stats.Adds)`nRemovals: $($result.stats.Removals)", "Import Complete", "OK", "Information")
+                [System.Windows.MessageBox]::Show("Group membership changes applied!`n`nProcessed: $($result.stats.GroupsProcessed)`nAdds: $($result.stats.Adds)`nRemovals: $($result.stats.Removals)", "Import Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
             }
         } else {
             $GroupMgmtOutput.Text = "ERROR: $($result.error)"
@@ -4663,7 +5124,7 @@ $ImportGroupsBtn.Add_Click({
 $BootstrapAppLockerBtn.Add_Click({
     Write-Log "Bootstrap AppLocker button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("AppLocker Setup requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("AppLocker Setup requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         $AppLockerSetupOutput.Text = "=== WORKGROUP MODE ===`n`nAppLocker Setup is only available in domain mode.`n`nPlease run from a domain-joined computer with Active Directory module installed."
         return
     }
@@ -4688,18 +5149,18 @@ $BootstrapAppLockerBtn.Add_Click({
 $RemoveOUProtectionBtn.Add_Click({
     Write-Log "Remove OU Protection button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("This feature requires Domain Controller access.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("This feature requires Domain Controller access.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
     $confirm = [System.Windows.MessageBox]::Show(
         "This will remove protection from all AppLocker OUs, allowing them to be deleted.`n`nAre you sure you want to continue?",
         "Confirm Remove Protection",
-        "YesNo",
-        "Warning"
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Warning
     )
 
-    if ($confirm -ne "Yes") {
+    if ($confirm -ne [System.Windows.MessageBoxResult]::Yes) {
         return
     }
 
@@ -4710,10 +5171,10 @@ $RemoveOUProtectionBtn.Add_Click({
 
     if ($result.success) {
         $AppLockerSetupOutput.Text = $result.output
-        [System.Windows.MessageBox]::Show("Protection removed from $($result.processedCount) OUs.`n`nYou can now delete OUs and objects under AppLocker.", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Protection removed from $($result.processedCount) OUs.`n`nYou can now delete OUs and objects under AppLocker.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $AppLockerSetupOutput.Text = "ERROR: $($result.error)"
-        [System.Windows.MessageBox]::Show("Failed to remove protection: $($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to remove protection: $($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
 
@@ -4725,7 +5186,7 @@ $CreateBrowserDenyBtn.Add_Click({
     if ($result.success) {
         $AppLockerSetupOutput.Text = $result.output
         Write-Log "Browser deny rules created: $($result.browsersDenied) browsers denied"
-        [System.Windows.MessageBox]::Show("Browser deny rules created!`n`nBrowsers denied: $($result.browsersDenied)`n`nPolicy saved to: $($result.policyPath)", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Browser deny rules created!`n`nBrowsers denied: $($result.browsersDenied)`n`nPolicy saved to: $($result.policyPath)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $AppLockerSetupOutput.Text = "ERROR: $($result.error)"
         Write-Log "Browser deny rules failed: $($result.error)" -Level "ERROR"
@@ -4736,6 +5197,11 @@ $CreateBrowserDenyBtn.Add_Click({
 $HelpBtnWorkflow.Add_Click({
     $HelpTitle.Text = "Help - Workflow"
     $HelpText.Text = Get-HelpContent "Workflow"
+})
+
+$HelpBtnPolicyGuide.Add_Click({
+    $HelpTitle.Text = "Help - Policy Build Guide"
+    $HelpText.Text = Get-HelpContent "PolicyGuide"
 })
 
 $HelpBtnRules.Add_Click({
@@ -4756,12 +5222,17 @@ $ImportBaselineBtn.Add_Click({
     $openDialog.Title = "Import Baseline Software List"
     $openDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
-        $script:BaselineSoftware = Import-SoftwareList -Path $openDialog.FileName
-        if ($script:BaselineSoftware.Count -gt 0) {
-            [System.Windows.MessageBox]::Show("Baseline imported!`n`nLoaded $($script:BaselineSoftware.Count) software items.", "Success", "OK", "Information")
-        } else {
-            [System.Windows.MessageBox]::Show("Failed to import baseline. Check logs for details.", "Error", "OK", "Error")
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        try {
+            $script:BaselineSoftware = Import-SoftwareList -Path $openDialog.FileName
+            if ($script:BaselineSoftware.Count -gt 0) {
+                [System.Windows.MessageBox]::Show("Baseline imported!`n`nLoaded $($script:BaselineSoftware.Count) software items.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            } else {
+                [System.Windows.MessageBox]::Show("No software items found in file.", "Warning", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+            }
+        } catch {
+            Write-Log "Import baseline failed: $($_.Exception.Message)" -Level "ERROR"
+            [System.Windows.MessageBox]::Show("Failed to import baseline: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         }
     }
 })
@@ -4773,12 +5244,17 @@ $ImportTargetBtn.Add_Click({
     $openDialog.Title = "Import Target Software List"
     $openDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
-        $script:TargetSoftware = Import-SoftwareList -Path $openDialog.FileName
-        if ($script:TargetSoftware.Count -gt 0) {
-            [System.Windows.MessageBox]::Show("Target imported!`n`nLoaded $($script:TargetSoftware.Count) software items.", "Success", "OK", "Information")
-        } else {
-            [System.Windows.MessageBox]::Show("Failed to import target. Check logs for details.", "Error", "OK", "Error")
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        try {
+            $script:TargetSoftware = Import-SoftwareList -Path $openDialog.FileName
+            if ($script:TargetSoftware.Count -gt 0) {
+                [System.Windows.MessageBox]::Show("Target imported!`n`nLoaded $($script:TargetSoftware.Count) software items.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            } else {
+                [System.Windows.MessageBox]::Show("No software items found in file.", "Warning", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+            }
+        } catch {
+            Write-Log "Import target failed: $($_.Exception.Message)" -Level "ERROR"
+            [System.Windows.MessageBox]::Show("Failed to import target: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         }
     }
 })
@@ -4787,34 +5263,39 @@ $CompareSoftwareBtn.Add_Click({
     Write-Log "Compare software button clicked"
 
     if ($script:BaselineSoftware.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please scan or import a baseline first.", "No Baseline", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("Please scan or import a baseline first.", "No Baseline", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
     if ($script:TargetSoftware.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please scan or import a target first.", "No Target", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("Please scan or import a target first.", "No Target", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
-    $results = Compare-SoftwareLists -Baseline $script:BaselineSoftware -Target $script:TargetSoftware
+    try {
+        $results = Compare-SoftwareLists -Baseline $script:BaselineSoftware -Target $script:TargetSoftware
 
-    # Update DataGrid
-    $GapAnalysisGrid.ItemsSource = $results
+        # Update DataGrid
+        $GapAnalysisGrid.ItemsSource = $results
 
-    # Update stats
-    $GapTotalCount.Text = $results.Count
-    $GapMissingCount.Text = ($results | Where-Object { $_.Status -eq "Missing in Target" }).Count
-    $GapExtraCount.Text = ($results | Where-Object { $_.Status -eq "Extra in Target" }).Count
-    $GapVersionCount.Text = ($results | Where-Object { $_.Status -eq "Version Mismatch" }).Count
+        # Update stats
+        $GapTotalCount.Text = $results.Count
+        $GapMissingCount.Text = ($results | Where-Object { $_.Status -eq "Missing in Target" }).Count
+        $GapExtraCount.Text = ($results | Where-Object { $_.Status -eq "Extra in Target" }).Count
+        $GapVersionCount.Text = ($results | Where-Object { $_.Status -eq "Version Mismatch" }).Count
 
-    Write-Log "Comparison complete: Total=$($results.Count), Missing=$($GapMissingCount.Text), Extra=$($GapExtraCount.Text), Version Diff=$($GapVersionCount.Text)"
+        Write-Log "Comparison complete: Total=$($results.Count), Missing=$($GapMissingCount.Text), Extra=$($GapExtraCount.Text), Version Diff=$($GapVersionCount.Text)"
+    } catch {
+        Write-Log "Compare software failed: $($_.Exception.Message)" -Level "ERROR"
+        [System.Windows.MessageBox]::Show("Comparison failed: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+    }
 })
 
 $ExportGapAnalysisBtn.Add_Click({
     Write-Log "Export gap analysis button clicked"
 
     if ($GapAnalysisGrid.Items.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No comparison results to export.", "No Data", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("No comparison results to export.", "No Data", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
@@ -4824,10 +5305,15 @@ $ExportGapAnalysisBtn.Add_Click({
     $saveDialog.FileName = "Software_Gap_Analysis_$(Get-Date -Format 'yyyy-MM-dd').csv"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
-        $GapAnalysisGrid.Items | Export-Csv -Path $saveDialog.FileName -NoTypeInformation -Encoding UTF8
-        [System.Windows.MessageBox]::Show("Exported to: $($saveDialog.FileName)", "Success", "OK", "Information")
-        Write-Log "Gap analysis exported: $($saveDialog.FileName)"
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        try {
+            $GapAnalysisGrid.Items | Export-Csv -Path $saveDialog.FileName -NoTypeInformation -Encoding UTF8
+            [System.Windows.MessageBox]::Show("Exported to: $($saveDialog.FileName)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            Write-Log "Gap analysis exported: $($saveDialog.FileName)"
+        } catch {
+            Write-Log "Export gap analysis failed: $($_.Exception.Message)" -Level "ERROR"
+            [System.Windows.MessageBox]::Show("Export failed: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        }
     }
 })
 
@@ -4836,7 +5322,7 @@ $ExportRulesBtn.Add_Click({
     Write-Log "Export rules button clicked"
 
     if ($script:GeneratedRules.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No generated rules to export. Please generate rules first using the Rule Generator tab.", "No Rules", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("No generated rules to export. Please generate rules first using the Rule Generator tab.", "No Rules", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
@@ -4846,11 +5332,11 @@ $ExportRulesBtn.Add_Click({
     $saveDialog.FileName = "AppLocker-Rules_$(Get-Date -Format 'yyyy-MM-dd').xml"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         # Generate AppLocker XML from rules
         $xmlContent = Convert-RulesToAppLockerXml -Rules $script:GeneratedRules
         $xmlContent | Out-File -FilePath $saveDialog.FileName -Encoding UTF8 -Force
-        [System.Windows.MessageBox]::Show("Rules exported to: $($saveDialog.FileName)`n`nYou can now import this XML into a GPO using Group Policy Management.", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Rules exported to: $($saveDialog.FileName)`n`nYou can now import this XML into a GPO using Group Policy Management.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         Write-Log "Rules exported: $($saveDialog.FileName)"
     }
 })
@@ -4863,10 +5349,10 @@ $ImportRulesBtn.Add_Click({
     $openDialog.Title = "Import AppLocker Rules"
     $openDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $DeploymentStatus.Text = "Importing rules from: $($openDialog.FileName)`n`nNote: Use Group Policy Management console to import XML into GPO.`n`n1. Open GPO`n2. Go to: Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Application Control Policies -> AppLocker`n3. Right-click -> Import Policy`n`nThis feature prepares the XML for manual import."
         Write-Log "Rules imported for GPO deployment: $($openDialog.FileName)"
-        [System.Windows.MessageBox]::Show("Rules loaded!`n`nTo apply to a GPO:`n1. Open Group Policy Management`n2. Edit target GPO`n3. Navigate to: Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Application Control Policies -> AppLocker`n4. Right-click -> Import Policy`n5. Select the exported XML file", "Import Ready", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Rules loaded!`n`nTo apply to a GPO:`n1. Open Group Policy Management`n2. Edit target GPO`n3. Navigate to: Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Application Control Policies -> AppLocker`n4. Right-click -> Import Policy`n5. Select the exported XML file", "Import Ready", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
 
@@ -4939,6 +5425,7 @@ $window.add_Loaded({
         # Domain-joined but no RSAT - limited features
         $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | RSAT not installed - Install RSAT for GPO features"
         $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D29922")
+        $EnvironmentText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#000000")
 
         # Disable GPO-related buttons (need RSAT)
         $CreateGP0Btn.IsEnabled = $false
@@ -4955,6 +5442,7 @@ $window.add_Loaded({
         # Domain with RSAT - full features
         $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | Full features available"
         $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#238636")
+        $EnvironmentText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFFFFF")
 
         # Enable all buttons
         $CreateGP0Btn.IsEnabled = $true
