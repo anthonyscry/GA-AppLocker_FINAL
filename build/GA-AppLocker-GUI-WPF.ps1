@@ -282,6 +282,473 @@ function Set-WinRMGpoLink {
     }
 }
 
+# Module 8: Group Management Functions
+function Export-ADGroupMembership {
+    param([string]$Path)
+
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop | Out-Null
+
+        $groupCount = 0
+        $results = Get-ADGroup -Filter * -ErrorAction Stop |
+            ForEach-Object {
+                $group = $_
+                $groupCount++
+
+                Write-Progress -Activity "Exporting AD Groups" -Status "Processing $($group.Name)" -PercentComplete (($groupCount / (Get-ADGroup -Filter * | Measure-Object).Count) * 100)
+
+                $Members = Get-ADGroupMember $group -Recursive:$false -ErrorAction SilentlyContinue |
+                           Select-Object -ExpandProperty SamAccountName
+
+                [PSCustomObject]@{
+                    GroupName = $group.Name
+                    Members   = ($Members -join ';')
+                }
+            }
+
+        $results | Export-Csv $Path -NoTypeInformation -Encoding UTF8 -ErrorAction Stop
+
+        $actualCount = (Import-Csv $Path).Count
+        Write-Log "Export complete: $Path ($actualCount groups)"
+
+        # Create template for desired state
+        $desiredPath = $Path -replace '_Export\.csv$', '_Desired.csv'
+        if ($desiredPath -eq $Path) {
+            $desiredPath = $Path -replace '\.csv$', '_Desired.csv'
+        }
+
+        Copy-Item $Path $desiredPath -Force
+        Write-Log "Template created: $desiredPath"
+
+        return @{
+            success = $true
+            exportPath = $Path
+            desiredPath = $desiredPath
+            count = $actualCount
+            message = "Exported $actualCount groups. Template created for editing."
+        }
+    }
+    catch {
+        Write-Log "Export failed: $($_.Exception.Message)" -Level "ERROR"
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
+function Import-ADGroupMembership {
+    param(
+        [string]$Path,
+        [bool]$DryRun,
+        [bool]$Removals,
+        [bool]$IncludeProtected
+    )
+
+    # Tier-0 Protected Groups
+    $ProtectedGroups = @(
+        "Domain Admins",
+        "Enterprise Admins",
+        "Schema Admins",
+        "Administrators",
+        "Account Operators",
+        "Backup Operators",
+        "Server Operators",
+        "Group Policy Creator Owners"
+    )
+
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop | Out-Null
+
+        if (-not (Test-Path $Path)) {
+            return @{
+                success = $false
+                error = "CSV file not found: $Path"
+            }
+        }
+
+        $DesiredGroups = Import-Csv $Path
+
+        if (-not $DesiredGroups) {
+            return @{
+                success = $false
+                error = "No data found in CSV file"
+            }
+        }
+
+        # Track statistics
+        $stats = @{
+            TotalGroups    = 0
+            GroupsProcessed = 0
+            Adds           = 0
+            Removals       = 0
+            Errors         = 0
+            Skipped        = 0
+        }
+        $stats.TotalGroups = $DesiredGroups.Count
+
+        $output = "=== AD GROUP MEMBERSHIP IMPORT ===`n`n"
+        $output += "Configuration:`n  Dry Run: $DryRun`n  Allow Removals: $Removals`n  Include Protected: $IncludeProtected`n`n"
+        $output += "Processing $($stats.TotalGroups) groups...`n`n"
+
+        foreach ($Row in $DesiredGroups) {
+
+            $GroupName = $Row.GroupName
+            $DesiredMembers = $Row.Members -split ';' | Where-Object { $_ -ne "" }
+
+            $output += "----------------------------------------`n"
+            $output += "GROUP: $GroupName`n"
+            $output += "----------------------------------------`n"
+
+            # Check if protected
+            if (($ProtectedGroups -contains $GroupName) -and -not $IncludeProtected) {
+                $output += "[SKIPPED] Protected group - use 'Include Tier-0' to modify`n`n"
+                $stats.Skipped++
+                continue
+            }
+
+            try {
+                $Group = Get-ADGroup $GroupName -ErrorAction Stop
+            }
+            catch {
+                $output += "[ERROR] Group not found in AD: $GroupName`n`n"
+                $stats.Errors++
+                continue
+            }
+
+            $stats.GroupsProcessed++
+
+            $CurrentMembers = Get-ADGroupMember $Group -Recursive:$false -ErrorAction SilentlyContinue
+            $CurrentSam = @($CurrentMembers | ForEach-Object { $_.SamAccountName })
+
+            # ---- ADD MISSING MEMBERS ----
+            foreach ($Member in $DesiredMembers) {
+                if ($CurrentSam -notcontains $Member) {
+
+                    # Verify member exists
+                    try {
+                        $null = Get-ADObject -LDAPFilter "(sAMAccountName=$Member)" -ErrorAction Stop
+                    }
+                    catch {
+                        $output += "[ERROR] Member not found: $Member`n"
+                        $stats.Errors++
+                        continue
+                    }
+
+                    $output += "[ADD] $Member -> $GroupName`n"
+
+                    if (-not $DryRun) {
+                        try {
+                            Add-ADGroupMember -Identity $GroupName -Members $Member -ErrorAction Stop
+                            $stats.Adds++
+                        }
+                        catch {
+                            $output += "[ERROR] Failed to add $Member`: $($_.Exception.Message)`n"
+                            $stats.Errors++
+                        }
+                    }
+                    else {
+                        $stats.Adds++
+                    }
+                }
+            }
+
+            # ---- REMOVE EXTRA MEMBERS (OPTIONAL) ----
+            if ($Removals) {
+                foreach ($Existing in $CurrentMembers) {
+                    if ($DesiredMembers -notcontains $Existing.SamAccountName) {
+
+                        $output += "[REMOVE] $($Existing.SamAccountName) <- $GroupName`n"
+
+                        if (-not $DryRun) {
+                            try {
+                                Remove-ADGroupMember `
+                                    -Identity $GroupName `
+                                    -Members $Existing.SamAccountName `
+                                    -Confirm:$false `
+                                    -ErrorAction Stop
+                                $stats.Removals++
+                            }
+                            catch {
+                                $output += "[ERROR] Failed to remove $($Existing.SamAccountName): $($_.Exception.Message)`n"
+                                $stats.Errors++
+                            }
+                        }
+                        else {
+                            $stats.Removals++
+                        }
+                    }
+                }
+            }
+        }
+
+        # ---- SUMMARY ----
+        $output += "`n========================================`n"
+        $output += "IMPORT SUMMARY`n"
+        $output += "========================================`n"
+        $output += "Total Groups in CSV: $($stats.TotalGroups)`n"
+        $output += "Groups Processed: $($stats.GroupsProcessed)`n"
+        $output += "Skipped (Protected): $($stats.Skipped)`n"
+        $output += "Adds: $($stats.Adds)`n"
+        $output += "Removals: $($stats.Removals)`n"
+        $output += "Errors: $($stats.Errors)`n"
+        $output += "========================================`n"
+
+        if ($DryRun) {
+            $output += "`nDRY RUN COMPLETE - No changes were applied`n"
+            $output += "Re-run with Dry Run unchecked to apply changes`n"
+        }
+        else {
+            $output += "`nCHANGES APPLIED TO ACTIVE DIRECTORY`n"
+        }
+
+        Write-Log "Group import complete: Processed=$($stats.GroupsProcessed), Adds=$($stats.Adds), Removals=$($stats.Removals), Errors=$($stats.Errors)"
+
+        return @{
+            success = $true
+            output = $output
+            stats = $stats
+            dryRun = $DryRun
+        }
+    }
+    catch {
+        Write-Log "Import failed: $($_.Exception.Message)" -Level "ERROR"
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
+# Module 9: AppLocker Setup Functions
+function Initialize-AppLockerStructure {
+    param(
+        [string]$OUName = "AppLocker",
+        [bool]$AutoPopulateAdmins = $true,
+        [string]$DomainFQDN = $null
+    )
+
+    try {
+        Import-Module ActiveDirectory -ErrorAction Stop | Out-Null
+
+        # Get domain info
+        if (-not $DomainFQDN) {
+            $DomainFQDN = (Get-ADDomain -ErrorAction Stop).DNSRoot
+        }
+
+        $DomainDN = (Get-ADDomain $DomainFQDN -ErrorAction Stop).DistinguishedName
+        $OUDN = "OU=$OUName,$DomainDN"
+
+        $output = "=== APPLOCKER INITIALIZATION ===`n`n"
+        $output += "Domain: $DomainFQDN`n"
+        $output += "Target OU: $OUDN`n`n"
+
+        # Group definitions
+        $AllowGroups = @(
+            "AppLocker-Admin",
+            "AppLocker-Installers",
+            "AppLocker-StandardUsers",
+            "AppLocker-Dev",
+            "AppLocker-Audit"
+        )
+
+        $DenyGroups = @(
+            "AppLocker-Deny-Executables",
+            "AppLocker-Deny-Scripts",
+            "AppLocker-Deny-DLLs",
+            "AppLocker-Deny-PackagedApps"
+        )
+
+        # ---- CREATE OU ----
+        $ouExists = Get-ADOrganizationalUnit -Filter "DistinguishedName -eq '$OUDN'" -ErrorAction SilentlyContinue
+
+        if (-not $ouExists) {
+            New-ADOrganizationalUnit -Name $OUName -Path $DomainDN -ProtectedFromAccidentalDeletion $true -ErrorAction Stop | Out-Null
+            $output += "[CREATED] OU: $OUDN`n"
+            Write-Log "Created OU: $OUDN"
+        }
+        else {
+            $output += "[EXISTS] OU: $OUDN`n"
+            Write-Log "OU already exists: $OUDN"
+        }
+
+        # ---- CREATE GROUPS ----
+        $groupsCreated = 0
+        $groupsSkipped = 0
+
+        $allGroups = $AllowGroups + $DenyGroups
+
+        foreach ($Group in $allGroups) {
+            $groupExists = Get-ADGroup -Filter "Name -eq '$Group'" -SearchBase $OUDN -ErrorAction SilentlyContinue
+
+            if (-not $groupExists) {
+                $category = if ($Group -like "*Deny*") { "Deny" } else { "Allow" }
+                $description = "AppLocker $category group: $Group"
+
+                New-ADGroup -Name $Group -GroupScope Global -GroupCategory Security -Path $OUDN -Description $description -ErrorAction Stop | Out-Null
+                $output += "[CREATED] Group: $Group`n"
+                $groupsCreated++
+                Write-Log "Created group: $Group"
+            }
+            else {
+                $output += "[EXISTS] Group: $Group`n"
+                $groupsSkipped++
+            }
+        }
+
+        $output += "`nGroups: $groupsCreated created, $groupsSkipped skipped`n"
+
+        # ---- AUTO-POPULATE DOMAIN ADMINS ----
+        if ($AutoPopulateAdmins) {
+            $output += "`n--- Auto-Populating AppLocker-Admin ---`n"
+
+            try {
+                $domainAdminsGroup = Get-ADGroup "Domain Admins" -ErrorAction Stop
+                $appLockerAdminGroup = Get-ADGroup "AppLocker-Admin" -ErrorAction Stop
+
+                $domainAdmins = Get-ADGroupMember $domainAdminsGroup -Recursive:$false -ErrorAction SilentlyContinue |
+                                Select-Object -ExpandProperty SamAccountName
+
+                $addedCount = 0
+                $skippedCount = 0
+
+                foreach ($Admin in $domainAdmins) {
+                    $existingMembers = Get-ADGroupMember $appLockerAdminGroup -Recursive:$false -ErrorAction SilentlyContinue |
+                                       Select-Object -ExpandProperty SamAccountName
+
+                    if ($existingMembers -notcontains $Admin) {
+                        Add-ADGroupMember -Identity $appLockerAdminGroup -Members $Admin -ErrorAction Stop
+                        $output += "[ADDED] $Admin -> AppLocker-Admin`n"
+                        $addedCount++
+                        Write-Log "Added Domain Admin to AppLocker-Admin: $Admin"
+                    }
+                    else {
+                        $skippedCount++
+                    }
+                }
+
+                $output += "Domain Admin sync: $addedCount added, $skippedCount already present`n"
+            }
+            catch {
+                $output += "[ERROR] Failed to auto-populate: $($_.Exception.Message)`n"
+                Write-Log "Auto-populate failed: $($_.Exception.Message)" -Level "ERROR"
+            }
+        }
+
+        $output += "`n=== INITIALIZATION COMPLETE ===`n"
+
+        Write-Log "AppLocker initialization complete"
+
+        return @{
+            success = $true
+            output = $output
+            ouDN = $OUDN
+            groupsCreated = $groupsCreated
+            groupsSkipped = $groupsSkipped
+        }
+    }
+    catch {
+        Write-Log "AppLocker initialization failed: $($_.Exception.Message)" -Level "ERROR"
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
+function New-BrowserDenyRules {
+    param([string]$DomainFQDN = $null)
+
+    # Common browsers to deny for admin accounts
+    $browsers = @(
+        @{Name="Chrome"; Path="C:\Program Files\Google\Chrome\Application\chrome.exe"; PathX86="C:\Program Files (x86)\Google\Chrome\Application\chrome.exe"},
+        @{Name="Firefox"; Path="C:\Program Files\Mozilla Firefox\firefox.exe"; PathX86="C:\Program Files (x86)\Mozilla Firefox\firefox.exe"},
+        @{Name="Edge"; Path="C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"},
+        @{Name="Opera"; Path="C:\Program Files\Opera\launcher.exe"; PathX86="C:\Program Files (x86)\Opera\launcher.exe"},
+        @{Name="Brave"; Path="C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe"; PathX86="C:\Program Files (x86)\BraveSoftware\Brave-Browser\Application\brave.exe"},
+        @{Name="Vivaldi"; Path="C:\Program Files\Vivaldi\Application\vivaldi.exe"; PathX86="C:\Program Files (x86)\Vivaldi\Application\vivaldi.exe"},
+        @{Name="Internet Explorer"; Path="C:\Program Files\Internet Explorer\iexplore.exe"; PathX86="C:\Program Files (x86)\Internet Explorer\iexplore.exe"}
+    )
+
+    try {
+        if (-not $DomainFQDN) {
+            $domain = Get-ADDomain -ErrorAction Stop
+            $DomainFQDN = $domain.DNSRoot
+        }
+
+        $output = "=== BROWSER DENY RULES FOR ADMINS ===`n`n"
+        $output += "Target Group: $DomainFQDN\AppLocker-Admin`n"
+        $output += "Action: DENY (Admins should not have internet access)`n`n"
+
+        $policyXml = @"
+<AppLockerPolicy Version="1">
+  <RuleCollection Type="Executable" EnforcementMode="Enabled">
+"@
+
+        foreach ($browser in $browsers) {
+            $guid = [Guid]::NewGuid()
+
+            # Add primary path rule
+            $policyXml += @"
+    <FilePathRule Id="$guid" Name="Deny $($browser.Name) for Admins" Action="Deny" UserOrGroupSid="S-1-1-0" Conditions="">
+      <FilePathConditions>
+        <FilePathCondition Path="$($browser.Path)" />
+"@
+
+            # Add x86 path if exists
+            if ($browser.PathX86) {
+                $policyXml += @"
+        <FilePathCondition Path="$($browser.PathX86)" />
+"@
+            }
+
+            $policyXml += @"
+      </FilePathConditions>
+    </FilePathRule>
+"@
+
+            $output += "[RULE] Deny: $($browser.Name)`n"
+            $output += "       Path: $($browser.Path)`n"
+            if ($browser.PathX86) {
+                $output += "       x86: $($browser.PathX86)`n"
+            }
+            $output += "`n"
+        }
+
+        $policyXml += @"
+  </RuleCollection>
+</AppLockerPolicy>
+"@
+
+        # Save policy
+        $policyPath = ".\AppLocker-BrowserDeny-Admins.xml"
+        $policyXml | Out-File -FilePath $policyPath -Encoding UTF8 -Force
+
+        $output += "`n=== POLICY GENERATED ===`n"
+        $output += "Saved to: $policyPath`n"
+        $output += "`nNext Steps:`n"
+        $output += "1. Review the XML file`n"
+        $output += "2. Import into GPO using Local Security Policy or GP Management`n"
+        $output += "3. Test in Audit mode first before Enforcing`n"
+
+        Write-Log "Browser deny policy generated: $policyPath"
+
+        return @{
+            success = $true
+            output = $output
+            policyPath = $policyPath
+            browsersDenied = $browsers.Count
+        }
+    }
+    catch {
+        Write-Log "Browser deny policy generation failed: $($_.Exception.Message)" -Level "ERROR"
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
 # ============================================================
 # WPF XAML - Modern GitHub Dark Theme
 # ============================================================
@@ -398,39 +865,52 @@ $xamlString = @"
 
             <!-- Sidebar Navigation -->
             <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,0,1" Grid.Column="0">
-                <StackPanel Margin="0,10,0,10">
-                    <!-- Dashboard Button -->
-                    <Button x:Name="NavDashboard" Content="Dashboard" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5"/>
+                <DockPanel Margin="0,10,0,10">
+                    <StackPanel DockPanel.Dock="Bottom" Margin="4,0,4,12">
+                        <Button x:Name="NavHelp" Content="Help" Style="{StaticResource SecondaryButton}"
+                                HorizontalAlignment="Stretch" Margin="6,5"/>
+                        <Button x:Name="NavAbout" Content="About" Style="{StaticResource SecondaryButton}"
+                                HorizontalAlignment="Stretch" Margin="6,5"/>
+                    </StackPanel>
 
-                    <!-- AD Discovery Button -->
-                    <Button x:Name="NavDiscovery" Content="AD Discovery" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5"/>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
+                        <StackPanel>
+                            <!-- Dashboard -->
+                            <Button x:Name="NavDashboard" Content="Dashboard" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
 
-                    <!-- Artifacts Button -->
-                    <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <!-- SETUP Section -->
+                            <TextBlock Text="SETUP" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
+                            <Button x:Name="NavAppLockerSetup" Content="AppLocker Setup" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <Button x:Name="NavGroupMgmt" Content="Group Management" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <Button x:Name="NavDiscovery" Content="AD Discovery" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
 
-                    <!-- Rules Button -->
-                    <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <!-- SCANNING Section -->
+                            <TextBlock Text="SCANNING" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
+                            <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
 
-                    <!-- Deployment Button -->
-                    <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <!-- DEPLOYMENT Section -->
+                            <TextBlock Text="DEPLOYMENT" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
+                            <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <Button x:Name="NavWinRM" Content="WinRM Setup" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
 
-                    <!-- Events Button -->
-                    <Button x:Name="NavEvents" Content="Events" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5"/>
-
-                    <!-- Compliance Button -->
-                    <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5"/>
-
-                    <!-- WinRM Button -->
-                    <Button x:Name="NavWinRM" Content="WinRM Setup" Style="{StaticResource SecondaryButton}"
-                            HorizontalAlignment="Stretch" Margin="10,5"/>
-                </StackPanel>
+                            <!-- MONITORING Section -->
+                            <TextBlock Text="MONITORING" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
+                            <Button x:Name="NavEvents" Content="Events" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
             </Border>
 
             <!-- Content Panel -->
@@ -775,6 +1255,242 @@ $xamlString = @"
                         </ScrollViewer>
                     </Border>
                 </StackPanel>
+
+                <!-- Group Management Panel -->
+                <StackPanel x:Name="PanelGroupMgmt" Visibility="Collapsed">
+                    <TextBlock Text="Group Management" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="AD Group Membership Management" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Export AD groups to editable CSV, modify memberships, then import changes back."
+                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Export Section -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Export Current State" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Export all AD groups with current members to CSV" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <Button x:Name="ExportGroupsBtn" Content="Export Groups" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Import Section -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Import Desired State" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="120"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox x:Name="DryRunCheck" Content="Dry Run (Preview)" IsChecked="True" Grid.Column="0" Foreground="#E6EDF3"/>
+                                <CheckBox x:Name="AllowRemovalsCheck" Content="Allow Removals" Grid.Column="2" Foreground="#E6EDF3"/>
+                                <CheckBox x:Name="IncludeProtectedCheck" Content="Include Tier-0" Grid.Column="4" Foreground="#E6EDF3"/>
+                                <Button x:Name="ImportGroupsBtn" Content="Import Changes" Style="{StaticResource SecondaryButton}" Grid.Column="8"/>
+                            </Grid>
+                            <TextBlock Text="Tier-0 Protected Groups: Domain Admins, Enterprise Admins, Schema Admins, Administrators" FontSize="11" Foreground="#6E7681"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Output -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Height="280">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="GroupMgmtOutput" Text="Click 'Export Groups' to begin..."
+                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- AppLocker Setup Panel -->
+                <StackPanel x:Name="PanelAppLockerSetup" Visibility="Collapsed">
+                    <TextBlock Text="AppLocker Setup" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="AppLocker Bootstrap" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Create AppLocker OU, groups (allow/deny), and generate default policy. Auto-populates Domain Admins."
+                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Bootstrap Section -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Initialize AppLocker Structure" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="OU Name:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <TextBox x:Name="OUNameText" Text="AppLocker" Width="120" Height="28" Grid.Column="2" Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1" FontSize="12" Padding="5"/>
+                                <CheckBox x:Name="AutoPopulateCheck" Content="Auto-Populate Admins" IsChecked="True" Grid.Column="4" Foreground="#E6EDF3"/>
+                                <Button x:Name="BootstrapAppLockerBtn" Content="Initialize" Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Browser Deny Section -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Admin Browser Deny Rules" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Deny internet access for admin accounts (security best practice)" FontSize="11" Foreground="#D29922" Margin="0,0,0,5"/>
+                            <Grid Margin="0,5,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Create deny rules for common browsers in AppLocker-Admin" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <Button x:Name="CreateBrowserDenyBtn" Content="Create Deny Rules" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                            </Grid>
+                            <TextBlock FontSize="11" Foreground="#6E7681" TextWrapping="Wrap">
+                                Browsers: Chrome, Firefox, Edge, Opera, Brave, Vivaldi, Internet Explorer
+                            </TextBlock>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Output -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Height="250">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="AppLockerSetupOutput" Text="Click 'Initialize' to create AppLocker structure..."
+                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- About Panel -->
+                <ScrollViewer x:Name="PanelAbout" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <StackPanel Orientation="Horizontal">
+                                <Image x:Name="AboutLogo" Width="64" Height="64" Margin="0,0,20,0" VerticalAlignment="Center"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="GA-AppLocker Dashboard" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3"/>
+                                    <TextBlock x:Name="AboutVersion" Text="Version 1.0" FontSize="13" Foreground="#8B949E" Margin="0,4,0,0"/>
+                                    <TextBlock Text="AppLocker Policy Management - AaronLocker Aligned" FontSize="12" Foreground="#6E7681" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Description" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
+                                    <Run Text="GA-AppLocker Dashboard is a comprehensive tool for managing Application Whitelisting policies across Windows environments. "/>
+                                    <Run Text="Aligned with AaronLocker best practices, it provides audit-friendly workflows for discovering, scanning, rule generation, and deployment."/>
+                                    <LineBreak/>
+                                    <LineBreak/>
+                                    <Run Text="Designed for security professionals who need to implement least-privilege application control without disrupting business operations."/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Features" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
+                                    <Run Text="• AppLocker structure initialization (OU, groups, policies)"/>
+                                    <LineBreak/>
+                                    <Run Text="• AD group membership export/import with safety controls"/>
+                                    <LineBreak/>
+                                    <Run Text="• Automated artifact discovery and rule generation"/>
+                                    <LineBreak/>
+                                    <Run Text="• Publisher-first rule strategy with hash fallback"/>
+                                    <LineBreak/>
+                                    <Run Text="• GPO deployment with audit-first enforcement"/>
+                                    <LineBreak/>
+                                    <Run Text="• Real-time event monitoring and filtering"/>
+                                    <LineBreak/>
+                                    <Run Text="• Compliance evidence package generation"/>
+                                    <LineBreak/>
+                                    <Run Text="• WinRM remote management setup"/>
+                                    <LineBreak/>
+                                    <Run Text="• Admin browser deny rules for security"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Requirements" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
+                                    <Run Text="• Windows 10/11 or Windows Server 2019+"/>
+                                    <LineBreak/>
+                                    <Run Text="• PowerShell 5.1+"/>
+                                    <LineBreak/>
+                                    <Run Text="• Active Directory module (for domain features)"/>
+                                    <LineBreak/>
+                                    <Run Text="• Group Policy module (for GPO deployment)"/>
+                                    <LineBreak/>
+                                    <Run Text="• Administrator privileges recommended"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20">
+                            <StackPanel>
+                                <TextBlock Text="License" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                                <TextBlock Text="© 2026 GA-ASI. Internal use only." FontSize="11" Foreground="#6E7681"/>
+                                <TextBlock Text="Use in accordance with organizational security policies." FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Help Panel -->
+                <ScrollViewer x:Name="PanelHelp" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <WrapPanel>
+                                <Button x:Name="HelpBtnWorkflow" Content="Workflow" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnRules" Content="Rule Best Practices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnTroubleshooting" Content="Troubleshooting" Style="{StaticResource SecondaryButton}"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20">
+                            <StackPanel>
+                                <TextBlock x:Name="HelpTitle" Text="Help - Workflow" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                <TextBlock x:Name="HelpText" TextWrapping="Wrap" FontSize="12" Foreground="#8B949E" LineHeight="20">
+                                    <Run Text="Select a topic above to view help documentation."/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
             </Grid>
         </Grid>
     </Grid>
@@ -803,6 +1519,10 @@ $NavDeployment = $window.FindName("NavDeployment")
 $NavEvents = $window.FindName("NavEvents")
 $NavCompliance = $window.FindName("NavCompliance")
 $NavWinRM = $window.FindName("NavWinRM")
+$NavGroupMgmt = $window.FindName("NavGroupMgmt")
+$NavAppLockerSetup = $window.FindName("NavAppLockerSetup")
+$NavHelp = $window.FindName("NavHelp")
+$NavAbout = $window.FindName("NavAbout")
 
 $StatusText = $window.FindName("StatusText")
 $EnvironmentText = $window.FindName("EnvironmentText")
@@ -816,6 +1536,10 @@ $PanelDeployment = $window.FindName("PanelDeployment")
 $PanelEvents = $window.FindName("PanelEvents")
 $PanelCompliance = $window.FindName("PanelCompliance")
 $PanelWinRM = $window.FindName("PanelWinRM")
+$PanelGroupMgmt = $window.FindName("PanelGroupMgmt")
+$PanelAppLockerSetup = $window.FindName("PanelAppLockerSetup")
+$PanelHelp = $window.FindName("PanelHelp")
+$PanelAbout = $window.FindName("PanelAbout")
 
 # Dashboard controls
 $HealthScore = $window.FindName("HealthScore")
@@ -852,6 +1576,30 @@ $CreateWinRMGpoBtn = $window.FindName("CreateWinRMGpoBtn")
 $FullWorkflowBtn = $window.FindName("FullWorkflowBtn")
 $WinRMOutput = $window.FindName("WinRMOutput")
 
+# Group Management controls
+$ExportGroupsBtn = $window.FindName("ExportGroupsBtn")
+$ImportGroupsBtn = $window.FindName("ImportGroupsBtn")
+$DryRunCheck = $window.FindName("DryRunCheck")
+$AllowRemovalsCheck = $window.FindName("AllowRemovalsCheck")
+$IncludeProtectedCheck = $window.FindName("IncludeProtectedCheck")
+$GroupMgmtOutput = $window.FindName("GroupMgmtOutput")
+
+# AppLocker Setup controls
+$OUNameText = $window.FindName("OUNameText")
+$AutoPopulateCheck = $window.FindName("AutoPopulateCheck")
+$BootstrapAppLockerBtn = $window.FindName("BootstrapAppLockerBtn")
+$CreateBrowserDenyBtn = $window.FindName("CreateBrowserDenyBtn")
+$AppLockerSetupOutput = $window.FindName("AppLockerSetupOutput")
+
+# About and Help controls
+$AboutLogo = $window.FindName("AboutLogo")
+$AboutVersion = $window.FindName("AboutVersion")
+$HelpTitle = $window.FindName("HelpTitle")
+$HelpText = $window.FindName("HelpText")
+$HelpBtnWorkflow = $window.FindName("HelpBtnWorkflow")
+$HelpBtnRules = $window.FindName("HelpBtnRules")
+$HelpBtnTroubleshooting = $window.FindName("HelpBtnTroubleshooting")
+
 # Global variables
 $script:CollectedArtifacts = @()
 $script:IsWorkgroup = $false
@@ -882,6 +1630,239 @@ function Write-Log {
     }
 }
 
+# Help content function
+function Get-HelpContent {
+    param([string]$Topic)
+
+    switch ($Topic) {
+        "Workflow" {
+            return @"
+=== APPLOCKER DEPLOYMENT WORKFLOW ===
+
+Phase 1: SETUP
+1. AppLocker Setup - Initialize AD structure
+   • Creates AppLocker OU and groups
+   • Auto-populates Domain Admins to AppLocker-Admin
+   • Generates starter policy in audit mode
+
+2. Group Management - Configure AD groups
+   • Export current group membership
+   • Edit CSV to add/remove members
+   • Import changes (dry-run first, then apply)
+
+3. AD Discovery - Find target computers
+   • Discover computers by OU
+   • Test connectivity
+   • Select hosts for scanning
+
+Phase 2: SCANNING
+4. Artifacts - Collect executable inventory
+   • Scan local or remote computers
+   • Collect publisher, hash, path info
+   • Export to CSV for review
+
+5. Rule Generator - Create AppLocker rules
+   • Import artifacts from scan
+   • Generate Publisher rules (preferred)
+   • Generate Hash rules (fallback)
+   • Export rules for GPO deployment
+
+Phase 3: DEPLOYMENT
+6. Deployment - Deploy policies via GPO
+   • Create GPO with AppLocker policy
+   • Link to target OUs
+   • Start in Audit mode
+   • Monitor for 7-14 days
+
+7. WinRM Setup - Enable remote management
+   • Create WinRM GPO
+   • Configure firewall rules
+   • Test remote connectivity
+
+Phase 4: MONITORING
+8. Events - Monitor AppLocker events
+   • Filter by Allowed/Blocked/Audit
+   • Review false positives
+   • Export events for analysis
+
+9. Compliance - Generate evidence packages
+   • Collect policies and events
+   • Create audit artifacts
+   • Document compliance status
+
+BEST PRACTICES:
+• Always start in Audit mode
+• Use Publisher rules first
+• Use Hash rules only for unsigned files
+• Avoid Path rules except for exceptions
+• Create deny rules for user-writable paths
+• Test in pilot group before full deployment
+• Maintain break-glass admin access
+"@
+        }
+        "Rules" {
+            return @"
+=== APPLOCKER RULE BEST PRACTICES ===
+
+RULE TYPE PRIORITY (Highest to Lowest):
+1. Publisher Rules (Preferred)
+   • Most resilient to updates
+   • Covers all versions from publisher
+   • Example: Microsoft Corporation, Adobe Inc.
+
+2. Hash Rules (Fallback for unsigned)
+   • Most specific but fragile
+   • Changes with each file update
+   • Use only for unsigned executables
+   • Example: SHA256 hash
+
+3. Path Rules (Exceptions only)
+   • Too permissive, easily bypassed
+   • Use only for:
+     - Denying specific user-writable paths
+     - Allowing specific admin tools
+   • Example: %OSDRIVE%\Users\*\Downloads\*\*
+
+SECURITY PRINCIPLES:
+• DENY-FIRST MODEL
+  - Default deny all executables
+  - Explicitly allow only approved software
+  - Deny user-writable locations
+
+• LEAST PRIVILEGE
+  - Different rules for different user groups
+  - AppLocker-Admin: Full allow
+  - AppLocker-StandardUsers: Restricted
+  - AppLocker-Dev: Development tools
+
+• AUDIT BEFORE ENFORCE
+  - Deploy in Audit mode first
+  - Monitor for 7-14 days
+  - Review and address false positives
+  - Switch to Enforce only after validation
+
+RULE COLLECTIONS TO CONFIGURE:
+• Executable (.exe, .com)
+• Script (.ps1, .bat, .cmd, .vbs)
+• Windows Installer (.msi, .msp)
+• DLL (optional - advanced)
+• Packaged Apps/MSIX (Windows 10+)
+
+COMMON PITFALLS TO AVOID:
+• Using wildcards in path rules
+• Forgetting to update hash rules after updates
+• Not testing with actual user accounts
+• Skipping the audit phase
+• Forgetting service accounts
+• Not documenting exceptions
+
+GROUP STRATEGY:
+• AppLocker-Admin - Full system access
+• AppLocker-Installers - Software installation rights
+• AppLocker-StandardUsers - Restricted workstation users
+• AppLocker-Dev - Developer tools access
+• AppLocker-Deny-* - Explicit deny for risky paths
+
+ADMIN SECURITY:
+• Consider denying browsers for admin accounts
+• Admins should use separate workstations
+• Break-glass access for emergency situations
+• Document all exceptions and justifications
+"@
+        }
+        "Troubleshooting" {
+            return @"
+=== APPLOCKER TROUBLESHOOTING ===
+
+ISSUE: Events not appearing in Event Monitor
+SOLUTIONS:
+• Verify AppLocker ID 8001 (Policy Applied) appears first
+• Check Application Identity service is running
+• Verify policy is actually enforced (gpresult /r)
+• Restart Application Identity service if needed
+
+ISSUE: All executables being blocked
+SOLUTIONS:
+• Check if policy is in Enforce mode (should start as Audit)
+• Verify rule collection is enabled
+• Check for conflicting deny rules
+• Review event logs for specific blocked files
+
+ISSUE: False positives - legitimate apps blocked
+SOLUTIONS:
+• Add specific Publisher rule for the application
+• Check if app needs to run from user-writable location
+• Consider creating exception path rule
+• Review hash rule if app version changed
+
+ISSUE: Policy not applying to computers
+SOLUTIONS:
+• Run: gpresult /r /scope computer
+• Check GPO is linked to correct OU
+• Verify GPO security filtering
+• Force GP update: gpupdate /force
+• Check DNS resolution for domain controllers
+
+ISSUE: Cannot create GPO (access denied)
+SOLUTIONS:
+• Must be Domain Admin or have GPO creation rights
+• Check Group Policy Management console permissions
+• Verify RSAT is installed if running from workstation
+• Run PowerShell as Administrator
+
+ISSUE: WinRM connection failures
+SOLUTIONS:
+• Verify WinRM GPO has applied (gpupdate /force)
+• Check firewall allows port 5985/5986
+• Test with: Test-WsMan -ComputerName <target>
+• Ensure target computer has WinRM enabled
+
+ISSUE: Rule generation errors
+SOLUTIONS:
+• Verify artifact scan completed successfully
+• Check CSV format is correct (UTF-8 encoding)
+• Ensure Publisher info exists in file version
+• Use Hash rules for unsigned executables
+
+ISSUE: Group import fails
+SOLUTIONS:
+• Verify CSV format: GroupName,Members (semicolon-separated)
+• Check member accounts exist in AD
+• Ensure you have rights to modify group membership
+• Use dry-run first to preview changes
+
+ISSUE: High CPU/memory during scan
+SOLUTIONS:
+• Reduce MaxFiles setting
+• Scan specific directories instead of full drives
+• Run during off-peak hours
+• Use AD discovery to target specific computers
+
+USEFUL PowerShell COMMANDS:
+• Get-AppLockerPolicy -Effective
+• Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/EXE and DLL'
+• Test-AppLockerPolicy
+• Set-AppLockerPolicy
+• gpupdate /force
+• gpresult /r /scope computer
+
+LOG LOCATIONS:
+• AppLocker Events: Event Viewer -> Applications and Services -> Microsoft -> Windows -> AppLocker
+• Group Policy: Event Viewer -> Windows Logs -> System
+• Application ID: Services.msc -> Application Identity
+• Application Logs: C:\GA-AppLocker\Logs\
+
+ESCALATION PATH:
+1. Review this help documentation
+2. Check Application Logs in C:\GA-AppLocker\Logs\
+3. Consult internal security team
+4. Review Microsoft AppLocker documentation
+5. Contact GA-ASI security team for advanced issues
+"@
+        }
+    }
+}
+
 # Helper function to show panel
 function Show-Panel {
     param([string]$PanelName)
@@ -894,6 +1875,10 @@ function Show-Panel {
     $PanelEvents.Visibility = [System.Windows.Visibility]::Collapsed
     $PanelCompliance.Visibility = [System.Windows.Visibility]::Collapsed
     $PanelWinRM.Visibility = [System.Windows.Visibility]::Collapsed
+    $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Collapsed
+    $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Collapsed
+    $PanelHelp.Visibility = [System.Windows.Visibility]::Collapsed
+    $PanelAbout.Visibility = [System.Windows.Visibility]::Collapsed
 
     switch ($PanelName) {
         "Dashboard" { $PanelDashboard.Visibility = [System.Windows.Visibility]::Visible }
@@ -904,6 +1889,10 @@ function Show-Panel {
         "Events" { $PanelEvents.Visibility = [System.Windows.Visibility]::Visible }
         "Compliance" { $PanelCompliance.Visibility = [System.Windows.Visibility]::Visible }
         "WinRM" { $PanelWinRM.Visibility = [System.Windows.Visibility]::Visible }
+        "GroupMgmt" { $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Visible }
+        "AppLockerSetup" { $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible }
+        "Help" { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible }
+        "About" { $PanelAbout.Visibility = [System.Windows.Visibility]::Visible }
     }
 }
 
@@ -945,6 +1934,29 @@ $NavCompliance.Add_Click({
 
 $NavWinRM.Add_Click({
     Show-Panel "WinRM"
+    Update-StatusBar
+})
+
+$NavGroupMgmt.Add_Click({
+    Show-Panel "GroupMgmt"
+    Update-StatusBar
+})
+
+$NavAppLockerSetup.Add_Click({
+    Show-Panel "AppLockerSetup"
+    Update-StatusBar
+})
+
+$NavHelp.Add_Click({
+    Show-Panel "Help"
+    Update-StatusBar
+    # Load default help content
+    $HelpTitle.Text = "Help - Workflow"
+    $HelpText.Text = Get-HelpContent "Workflow"
+})
+
+$NavAbout.Add_Click({
+    Show-Panel "About"
     Update-StatusBar
 })
 
@@ -1208,6 +2220,124 @@ $FullWorkflowBtn.Add_Click({
     }
 })
 
+# Group Management events
+$ExportGroupsBtn.Add_Click({
+    Write-Log "Export groups button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        $GroupMgmtOutput.Text = "=== WORKGROUP MODE ===`n`nAD Group Management is only available in domain mode.`n`nPlease run from a domain-joined computer with Active Directory module installed."
+        return
+    }
+
+    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveDialog.Filter = "CSV Files (*.csv)|*.csv"
+    $saveDialog.Title = "Export AD Groups"
+    $saveDialog.FileName = "AD_GroupMembership_Export.csv"
+    $saveDialog.InitialDirectory = "C:\GA-AppLocker"
+
+    if ($saveDialog.ShowDialog() -eq "OK") {
+        $result = Export-ADGroupMembership -Path $saveDialog.FileName
+
+        if ($result.success) {
+            $GroupMgmtOutput.Text = $result.message + "`n`nExported to: $($result.exportPath)`n`nTemplate for editing: $($result.desiredPath)`n`nNext Steps:`n1. Edit the Desired CSV file`n2. Add/remove members as needed`n3. Use Import to apply changes"
+            Write-Log "Groups exported: $($result.count) groups"
+        } else {
+            $GroupMgmtOutput.Text = "ERROR: $($result.error)"
+        }
+    }
+})
+
+$ImportGroupsBtn.Add_Click({
+    Write-Log "Import groups button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        return
+    }
+
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "CSV Files (*.csv)|*.csv|All Files (*.*)|*.*"
+    $openDialog.Title = "Import AD Groups from CSV"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker"
+
+    if ($openDialog.ShowDialog() -eq "OK") {
+        $dryRun = $DryRunCheck.IsChecked
+        $allowRemovals = $AllowRemovalsCheck.IsChecked
+        $includeProtected = $IncludeProtectedCheck.IsChecked
+
+        Write-Log "Importing groups from: $($openDialog.FileName) - DryRun: $dryRun, AllowRemovals: $allowRemovals, IncludeProtected: $includeProtected"
+
+        $result = Import-ADGroupMembership -Path $openDialog.FileName -DryRun $dryRun -Removals $allowRemovals -IncludeProtected $includeProtected
+
+        if ($result.success) {
+            $GroupMgmtOutput.Text = $result.output
+            Write-Log "Group import complete: Processed=$($result.stats.GroupsProcessed), Adds=$($result.stats.Adds), Removals=$($result.stats.Removals)"
+            [System.Windows.Forms.Application]::DoEvents()
+
+            if (-not $dryRun) {
+                [System.Windows.MessageBox]::Show("Group membership changes applied!`n`nProcessed: $($result.stats.GroupsProcessed)`nAdds: $($result.stats.Adds)`nRemovals: $($result.stats.Removals)", "Import Complete", "OK", "Information")
+            }
+        } else {
+            $GroupMgmtOutput.Text = "ERROR: $($result.error)"
+        }
+    }
+})
+
+# AppLocker Setup events
+$BootstrapAppLockerBtn.Add_Click({
+    Write-Log "Bootstrap AppLocker button clicked"
+    if ($script:IsWorkgroup) {
+        [System.Windows.MessageBox]::Show("AppLocker Setup requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        $AppLockerSetupOutput.Text = "=== WORKGROUP MODE ===`n`nAppLocker Setup is only available in domain mode.`n`nPlease run from a domain-joined computer with Active Directory module installed."
+        return
+    }
+
+    $ouName = $OUNameText.Text
+    $autoPopulate = $AutoPopulateCheck.IsChecked
+
+    Write-Log "Initializing AppLocker structure - OU: $ouName, AutoPopulate: $autoPopulate"
+
+    $result = Initialize-AppLockerStructure -OUName $ouName -AutoPopulateAdmins $autoPopulate
+
+    if ($result.success) {
+        $AppLockerSetupOutput.Text = $result.output + "`n`n=== NEXT STEPS ===`n`n1. Verify OU was created: $($result.ouDN)`n2. Review group memberships in ADUC`n3. Create GPO with AppLocker policy`n4. Link GPO to target OUs`n5. Monitor in Audit mode"
+        Write-Log "AppLocker bootstrap complete: $($result.groupsCreated) groups created"
+    } else {
+        $AppLockerSetupOutput.Text = "ERROR: $($result.error)"
+        Write-Log "AppLocker bootstrap failed: $($result.error)" -Level "ERROR"
+    }
+})
+
+$CreateBrowserDenyBtn.Add_Click({
+    Write-Log "Create browser deny rules button clicked"
+
+    $result = New-BrowserDenyRules
+
+    if ($result.success) {
+        $AppLockerSetupOutput.Text = $result.output
+        Write-Log "Browser deny rules created: $($result.browsersDenied) browsers denied"
+        [System.Windows.MessageBox]::Show("Browser deny rules created!`n`nBrowsers denied: $($result.browsersDenied)`n`nPolicy saved to: $($result.policyPath)", "Success", "OK", "Information")
+    } else {
+        $AppLockerSetupOutput.Text = "ERROR: $($result.error)"
+        Write-Log "Browser deny rules failed: $($result.error)" -Level "ERROR"
+    }
+})
+
+# Help events
+$HelpBtnWorkflow.Add_Click({
+    $HelpTitle.Text = "Help - Workflow"
+    $HelpText.Text = Get-HelpContent "Workflow"
+})
+
+$HelpBtnRules.Add_Click({
+    $HelpTitle.Text = "Help - Rule Best Practices"
+    $HelpText.Text = Get-HelpContent "Rules"
+})
+
+$HelpBtnTroubleshooting.Add_Click({
+    $HelpTitle.Text = "Help - Troubleshooting"
+    $HelpText.Text = Get-HelpContent "Troubleshooting"
+})
+
 # Other events
 function Update-StatusBar {
     if ($script:IsWorkgroup) {
@@ -1235,8 +2365,11 @@ $window.add_Loaded({
         $LinkGP0Btn.IsEnabled = $false
         $CreateWinRMGpoBtn.IsEnabled = $false
         $FullWorkflowBtn.IsEnabled = $false
+        $ExportGroupsBtn.IsEnabled = $false
+        $ImportGroupsBtn.IsEnabled = $false
+        $BootstrapAppLockerBtn.IsEnabled = $false
 
-        Write-Log "Workgroup mode: Deployment and WinRM buttons disabled"
+        Write-Log "Workgroup mode: Deployment, WinRM, Group Management, and AppLocker Setup buttons disabled"
     } else {
         $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | Full features available"
         $EnvironmentBanner.Background = "#238636" # Green
@@ -1249,6 +2382,39 @@ $window.add_Loaded({
 
         Write-Log "Domain mode: All features enabled"
     }
+
+    # Load app icon and About logo
+    try {
+        $scriptPath = Split-Path -Parent $PSCommandPath
+        # Try to load icon from script directory
+        $iconPath = Join-Path $scriptPath "GA-AppLocker.ico"
+        if (Test-Path $iconPath) {
+            $window.Icon = [System.Windows.Media.Imaging.BitmapFrame]::Create((New-Object System.Uri $iconPath))
+        }
+    } catch {
+        # Icon load failed - using default
+    }
+
+    # Try to load About logo
+    try {
+        $scriptPath = Split-Path -Parent $PSCommandPath
+        $logoPath = Join-Path $scriptPath "GA-AppLocker.png"
+        if (Test-Path $logoPath) {
+            $aboutBitmap = [System.Windows.Media.Imaging.BitmapImage]::new()
+            $aboutBitmap.BeginInit()
+            $aboutBitmap.CacheOption = [System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+            $aboutBitmap.UriSource = (New-Object System.Uri $logoPath)
+            $aboutBitmap.EndInit()
+            $aboutBitmap.Freeze()
+            $AboutLogo.Source = $aboutBitmap
+        }
+    } catch {
+        # Logo load failed - using default
+    }
+
+    # Set version info
+    $script:AppVersion = "1.1.0"
+    $AboutVersion.Text = "Version $script:AppVersion"
 
     # Load dashboard
     Show-Panel "Dashboard"
