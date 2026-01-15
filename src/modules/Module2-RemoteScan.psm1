@@ -292,13 +292,20 @@ function Get-ComputersByOU {
 .SYNOPSIS
     Test if Computer is Online
 .DESCRIPTION
-    Pings a computer to check if it's reachable
+    Pings a computer to check if it's reachable with configurable timeout
+.PARAMETER ComputerName
+    The name of the computer to test
+.PARAMETER TimeoutMs
+    Timeout in milliseconds (default 1000ms = 1 second)
 #>
 function Test-ComputerOnline {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [string]$ComputerName
+        [string]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [int]$TimeoutMs = 1000
     )
 
     if ([string]::IsNullOrWhiteSpace($ComputerName)) {
@@ -309,7 +316,16 @@ function Test-ComputerOnline {
         }
     }
 
-    $pingResult = Test-Connection -ComputerName $ComputerName -Count 1 -Quiet -ErrorAction SilentlyContinue
+    try {
+        # Use .NET Ping for faster timeout control
+        $ping = New-Object System.Net.NetworkInformation.Ping
+        $result = $ping.Send($ComputerName, $TimeoutMs)
+        $pingResult = ($result.Status -eq [System.Net.NetworkInformation.IPStatus]::Success)
+        $ping.Dispose()
+    }
+    catch {
+        $pingResult = $false
+    }
 
     return @{
         success = $true
