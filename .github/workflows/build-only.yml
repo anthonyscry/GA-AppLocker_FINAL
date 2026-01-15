@@ -1,0 +1,188 @@
+name: Build Only (No Tests)
+
+on:
+  push:
+    branches: [ master, main, develop, 'claude/**' ]
+  pull_request:
+    branches: [ master, main, develop ]
+  workflow_dispatch:
+    inputs:
+      skip_analysis:
+        description: 'Skip PSScriptAnalyzer'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  POWERSHELL_TELEMETRY_OPTOUT: 1
+
+jobs:
+  build:
+    name: Build GA-AppLocker
+    runs-on: windows-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create output directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path ./output -Force | Out-Null
+
+      - name: Install PS2EXE
+        shell: pwsh
+        run: |
+          Write-Host "Installing PS2EXE module..."
+          Install-Module -Name ps2exe -Force -Scope CurrentUser
+          Write-Host "PS2EXE installed successfully"
+
+      - name: Build EXE
+        shell: pwsh
+        run: |
+          Write-Host "====================================" -ForegroundColor Cyan
+          Write-Host "  GA-AppLocker Dashboard Build" -ForegroundColor Cyan
+          Write-Host "====================================`n" -ForegroundColor Cyan
+
+          # Find the GUI script
+          $guiScript = $null
+          $searchPaths = @(
+            "./build/GA-AppLocker-GUI-WPF.ps1",
+            "./build/GA-AppLocker-GUI-Full.ps1",
+            "./GA-AppLocker-1.2.4/src/GUI/GA-AppLocker-Portable.ps1"
+          )
+
+          foreach ($path in $searchPaths) {
+            if (Test-Path $path) {
+              $guiScript = $path
+              Write-Host "Found GUI script: $path" -ForegroundColor Green
+              break
+            }
+          }
+
+          if (-not $guiScript) {
+            Write-Host "##[error]No GUI script found!" -ForegroundColor Red
+            exit 1
+          }
+
+          # Copy to output
+          Copy-Item -Path $guiScript -Destination "./output/GA-AppLocker-GUI.ps1" -Force
+
+          # Try to compile with PS2EXE
+          try {
+            Import-Module ps2exe
+
+            $exePath = "./output/GA-AppLocker-Dashboard.exe"
+
+            Write-Host "Compiling to EXE..." -ForegroundColor Cyan
+
+            ps2exe -InputFile "./output/GA-AppLocker-GUI.ps1" `
+                   -OutputFile $exePath `
+                   -Title "GA-AppLocker Dashboard" `
+                   -NoConsole `
+                   -NoOutput
+
+            if (Test-Path $exePath) {
+              $size = (Get-Item $exePath).Length / 1MB
+              Write-Host "SUCCESS: Built $exePath ($([math]::Round($size, 2)) MB)" -ForegroundColor Green
+            } else {
+              throw "EXE not created"
+            }
+          }
+          catch {
+            Write-Host "PS2EXE compilation failed: $_" -ForegroundColor Yellow
+            Write-Host "Creating portable package instead..." -ForegroundColor Yellow
+          }
+
+      - name: Copy source modules
+        shell: pwsh
+        run: |
+          # Copy src modules
+          if (Test-Path "./src") {
+            Copy-Item -Path "./src" -Destination "./output/modules" -Recurse -Force
+            Write-Host "Copied src modules" -ForegroundColor Green
+          }
+
+          # Copy GA-AppLocker-1.2.4 if exists
+          if (Test-Path "./GA-AppLocker-1.2.4") {
+            Copy-Item -Path "./GA-AppLocker-1.2.4" -Destination "./output/GA-AppLocker-1.2.4" -Recurse -Force
+            Write-Host "Copied GA-AppLocker-1.2.4" -ForegroundColor Green
+          }
+
+      - name: Create batch launcher
+        shell: pwsh
+        run: |
+          $batchContent = @'
+          @echo off
+          title GA-AppLocker Dashboard
+          echo.
+          echo  ======================================
+          echo   GA-AppLocker Dashboard v1.2.4
+          echo  ======================================
+          echo.
+
+          if exist "%~dp0GA-AppLocker-Dashboard.exe" (
+            echo Starting EXE...
+            start "" "%~dp0GA-AppLocker-Dashboard.exe"
+          ) else if exist "%~dp0GA-AppLocker-GUI.ps1" (
+            echo Starting PowerShell GUI...
+            powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0GA-AppLocker-GUI.ps1"
+          ) else (
+            echo ERROR: No executable found!
+            pause
+          )
+          '@
+          $batchContent | Out-File -FilePath "./output/Launch-GA-AppLocker.bat" -Encoding ASCII
+          Write-Host "Created batch launcher" -ForegroundColor Green
+
+      - name: Copy documentation
+        shell: pwsh
+        run: |
+          if (Test-Path "./README.md") {
+            Copy-Item -Path "./README.md" -Destination "./output/README.md"
+          }
+
+      - name: Create ZIP package
+        shell: pwsh
+        run: |
+          $version = "1.2.4"
+          $zipName = "GA-AppLocker-Dashboard-v$version.zip"
+          Compress-Archive -Path ./output/* -DestinationPath "./$zipName" -Force
+          Write-Host "Created: $zipName" -ForegroundColor Green
+
+          # List contents
+          Write-Host "`nPackage contents:" -ForegroundColor Cyan
+          Get-ChildItem ./output -Recurse -File | ForEach-Object {
+            $size = if ($_.Length -gt 1MB) { "$([math]::Round($_.Length/1MB, 2)) MB" } else { "$([math]::Round($_.Length/1KB, 1)) KB" }
+            Write-Host "  $($_.Name) ($size)"
+          }
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GA-AppLocker-Dashboard
+          path: |
+            ./output/GA-AppLocker-Dashboard.exe
+            ./output/GA-AppLocker-GUI.ps1
+            ./output/Launch-GA-AppLocker.bat
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload full package
+        uses: actions/upload-artifact@v4
+        with:
+          name: GA-AppLocker-Dashboard-Full
+          path: GA-AppLocker-Dashboard-v*.zip
+          retention-days: 30
+
+      - name: Build Summary
+        shell: pwsh
+        run: |
+          Write-Host "`n====================================" -ForegroundColor Green
+          Write-Host "  BUILD COMPLETED SUCCESSFULLY" -ForegroundColor Green
+          Write-Host "====================================`n" -ForegroundColor Green
+
+          Write-Host "Artifacts uploaded:" -ForegroundColor Cyan
+          Write-Host "  - GA-AppLocker-Dashboard (EXE + Scripts)"
+          Write-Host "  - GA-AppLocker-Dashboard-Full (Complete ZIP)"
+          Write-Host ""
