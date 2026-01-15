@@ -1,0 +1,36 @@
+# Ignore output files
+output/
+*.xml
+*.csv
+*.json
+
+# Ignore log files
+logs/
+*.log
+
+# Ignore compiled executables
+*.exe
+*.dll
+
+# Ignore test artifacts
+test/
+Test-*
+
+# Ignore temp files
+*.tmp
+*.temp
+~
+
+# OS specific
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# PowerShell specific
+*.ps1xml
+*.psd1
+
+# IDE specific
+.vscode/
+.idea/
+*.code-workspace
