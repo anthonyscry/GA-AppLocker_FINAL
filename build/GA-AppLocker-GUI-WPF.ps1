@@ -2087,20 +2087,18 @@ $xamlString = @"
                         </StackPanel>
                     </Border>
 
-                    <!-- Import Buttons (Scan removed per user request) -->
+                    <!-- Import and Compare Buttons -->
                     <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="10"/>
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <Button x:Name="ImportBaselineBtn" Content="Import Baseline CSV" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
                         <Button x:Name="ImportTargetBtn" Content="Import Target CSV" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
-                    </Grid>
-
-                    <!-- Compare Button -->
-                    <Grid Margin="0,0,0,15">
-                        <Button x:Name="CompareSoftwareBtn" Content="Compare Software Lists" Style="{StaticResource PrimaryButton}" Width="250" HorizontalAlignment="Left"/>
+                        <Button x:Name="CompareSoftwareBtn" Content="Compare Lists" Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
                     </Grid>
 
                     <!-- Comparison Results -->
