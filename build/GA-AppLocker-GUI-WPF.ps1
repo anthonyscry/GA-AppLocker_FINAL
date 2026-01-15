@@ -547,6 +547,52 @@ function New-RulesFromArtifacts {
     }
 }
 
+# Create default deny rules for common bypass locations (best practice)
+function New-DefaultDenyRules {
+    param(
+        [string]$UserOrGroupSid = "S-1-1-0"  # Everyone by default
+    )
+
+    $rules = @()
+
+    # Common bypass locations to deny
+    $bypassLocations = @(
+        @{ Path = "%TEMP%\*"; Name = "Block TEMP folder" }
+        @{ Path = "%TMP%\*"; Name = "Block TMP folder" }
+        @{ Path = "%USERPROFILE%\AppData\Local\Temp\*"; Name = "Block User Temp folder" }
+        @{ Path = "%LOCALAPPDATA%\Temp\*"; Name = "Block LocalAppData Temp" }
+        @{ Path = "%USERPROFILE%\Downloads\*"; Name = "Block Downloads folder" }
+        @{ Path = "C:\Users\*\Downloads\*"; Name = "Block All User Downloads" }
+        @{ Path = "%APPDATA%\*"; Name = "Block AppData Roaming" }
+        @{ Path = "%LOCALAPPDATA%\*"; Name = "Block AppData Local" }
+        @{ Path = "C:\Windows\Temp\*"; Name = "Block Windows Temp" }
+        @{ Path = "C:\ProgramData\*"; Name = "Block ProgramData" }
+    )
+
+    foreach ($location in $bypassLocations) {
+        $guid = "{" + (New-Guid).ToString() + "}"
+        $xml = "<FilePathRule Id=`"$guid`" Name=`"$($location.Name)`" Description=`"Deny execution from $($location.Path)`" UserOrGroupSid=`"$UserOrGroupSid`" Action=`"Deny`"><Conditions><FilePathCondition Path=`"$($location.Path)`"/></Conditions></FilePathRule>"
+
+        $rules += @{
+            success = $true
+            type = "Path"
+            publisher = $location.Name
+            path = $location.Path
+            action = "Deny"
+            sid = $UserOrGroupSid
+            xml = $xml
+        }
+    }
+
+    return @{
+        success = $true
+        rules = $rules
+        count = $rules.Count
+        ruleType = "Path"
+        action = "Deny"
+    }
+}
+
 # Module 4: Domain Detection
 # NOTE: Named Get-DomainInfo to avoid conflict with ActiveDirectory\Get-ADDomain cmdlet
 function Get-DomainInfo {
@@ -2337,21 +2383,22 @@ $xamlString = @"
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="8"/>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
 
-                        <Button x:Name="ImportArtifactsBtn" Content="Import CSV"
+                        <Button x:Name="ImportArtifactsBtn" Content="Import Artifact"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
                         <Button x:Name="ImportFolderBtn" Content="Import Folder"
                                 Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
-                        <Button x:Name="CreateRulesFromEventsBtn" Content="From Events"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
                         <Button x:Name="MergeRulesBtn" Content="Merge Rules"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="6"/>
+                                Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
                         <Button x:Name="GenerateRulesBtn" Content="Generate Rules"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="8"/>
+                                Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
                     </Grid>
+
+                    <!-- Default Deny Rules Button -->
+                    <Button x:Name="DefaultDenyRulesBtn" Content="Add Default Deny Rules (Block Bypass Locations)"
+                            Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,10"
+                            ToolTip="Adds deny rules for TEMP, Downloads, AppData and other bypass locations"/>
 
                     <!-- Rules Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
@@ -2416,7 +2463,7 @@ $xamlString = @"
                             CornerRadius="6" Padding="10" MinHeight="200" MaxHeight="400">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="EventsOutput"
-                                       Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first."
+                                       Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first.&#x0a;Export events to CSV, then use Import CSV in Rule Generator to create rules."
                                        FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
@@ -3013,9 +3060,9 @@ $CustomSidPanel = $window.FindName("CustomSidPanel")
 $CustomSidText = $window.FindName("CustomSidText")
 $ImportArtifactsBtn = $window.FindName("ImportArtifactsBtn")
 $ImportFolderBtn = $window.FindName("ImportFolderBtn")
-$CreateRulesFromEventsBtn = $window.FindName("CreateRulesFromEventsBtn")
 $MergeRulesBtn = $window.FindName("MergeRulesBtn")
 $GenerateRulesBtn = $window.FindName("GenerateRulesBtn")
+$DefaultDenyRulesBtn = $window.FindName("DefaultDenyRulesBtn")
 $RulesOutput = $window.FindName("RulesOutput")
 $ScanLocalEventsBtn = $window.FindName("ScanLocalEventsBtn")
 $ScanRemoteEventsBtn = $window.FindName("ScanRemoteEventsBtn")
@@ -4173,15 +4220,124 @@ $ComprehensiveScanBtn.Add_Click({
 $ImportArtifactsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json|All Files (*.*)|*.*"
-    $openDialog.Title = "Import Scan Artifacts"
+    $openDialog.Title = "Import Artifacts (scans, events, or any file list)"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker"
     if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        Write-Log "Importing artifacts from $($openDialog.FileName)"
         $ext = [System.IO.Path]::GetExtension($openDialog.FileName)
-        if ($ext -eq ".csv") {
-            $script:CollectedArtifacts = Import-Csv -Path $openDialog.FileName
-        } else {
-            $script:CollectedArtifacts = Get-Content -Path $openDialog.FileName | ConvertFrom-Json
+
+        try {
+            $rawData = if ($ext -eq ".csv") {
+                Import-Csv -Path $openDialog.FileName
+            } else {
+                Get-Content -Path $openDialog.FileName | ConvertFrom-Json
+            }
+
+            if ($rawData.Count -eq 0) {
+                [System.Windows.MessageBox]::Show("No data found in file.", "Import Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                return
+            }
+
+            # Intelligently map columns to standard artifact format
+            $artifacts = @()
+            $firstRow = $rawData[0]
+            $properties = $firstRow.PSObject.Properties.Name
+
+            # Detect file path column (various possible names)
+            $pathColumn = $properties | Where-Object { $_ -match '^(Path|FullPath|FilePath|FileName|File|Name)$' } | Select-Object -First 1
+            if (-not $pathColumn) {
+                $pathColumn = $properties | Where-Object { $_ -match 'Path|File|Name' } | Select-Object -First 1
+            }
+
+            # Detect publisher column
+            $publisherColumn = $properties | Where-Object { $_ -match '^(Publisher|Vendor|Company|Signer|Fqbn)$' } | Select-Object -First 1
+            if (-not $publisherColumn) {
+                $publisherColumn = $properties | Where-Object { $_ -match 'Publisher|Vendor|Company|Sign' } | Select-Object -First 1
+            }
+
+            # Detect hash column
+            $hashColumn = $properties | Where-Object { $_ -match '^(Hash|SHA256|SHA1|MD5|FileHash)$' } | Select-Object -First 1
+
+            # Detect event type column (for event exports)
+            $eventTypeColumn = $properties | Where-Object { $_ -match '^(type|EventType|Action|Status)$' } | Select-Object -First 1
+
+            if (-not $pathColumn) {
+                [System.Windows.MessageBox]::Show("Could not find file path column. Expected: Path, FullPath, FilePath, or FileName", "Import Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+                return
+            }
+
+            $RulesOutput.Text = "=== IMPORTING ARTIFACTS ===`n`n"
+            $RulesOutput.Text += "File: $($openDialog.FileName)`n"
+            $RulesOutput.Text += "Total rows: $($rawData.Count)`n`n"
+            $RulesOutput.Text += "Detected columns:`n"
+            $RulesOutput.Text += "  Path: $pathColumn`n"
+            $RulesOutput.Text += "  Publisher: $(if ($publisherColumn) { $publisherColumn } else { '(none)' })`n"
+            $RulesOutput.Text += "  Hash: $(if ($hashColumn) { $hashColumn } else { '(none)' })`n"
+            $RulesOutput.Text += "  Event Type: $(if ($eventTypeColumn) { $eventTypeColumn } else { '(none)' })`n`n"
+            [System.Windows.Forms.Application]::DoEvents()
+
+            $seenPaths = @{}
+            foreach ($row in $rawData) {
+                $path = $row.$pathColumn
+                if (-not $path -or $seenPaths.ContainsKey($path.ToLower())) { continue }
+                $seenPaths[$path.ToLower()] = $true
+
+                $publisher = if ($publisherColumn) { $row.$publisherColumn } else { "" }
+                $hash = if ($hashColumn) { $row.$hashColumn } else { "" }
+                $eventType = if ($eventTypeColumn) { $row.$eventTypeColumn } else { "" }
+
+                # Determine file type from extension
+                $fileType = switch -Regex ($path) {
+                    '\.exe$' { "Exe" }
+                    '\.dll$' { "Dll" }
+                    '\.msi$' { "Msi" }
+                    '\.(ps1|bat|cmd|vbs|js)$' { "Script" }
+                    default { "Exe" }
+                }
+
+                $artifacts += [PSCustomObject]@{
+                    Path = $path
+                    FileName = [System.IO.Path]::GetFileName($path)
+                    FullPath = $path
+                    Publisher = $publisher
+                    Hash = $hash
+                    Type = $fileType
+                    EventType = $eventType
+                }
+            }
+
+            if ($artifacts.Count -eq 0) {
+                $RulesOutput.Text += "ERROR: No valid file paths found in data."
+                return
+            }
+
+            $script:CollectedArtifacts = $artifacts
+
+            # Count by type
+            $exeCount = ($artifacts | Where-Object Type -eq "Exe").Count
+            $dllCount = ($artifacts | Where-Object Type -eq "Dll").Count
+            $msiCount = ($artifacts | Where-Object Type -eq "Msi").Count
+            $scriptCount = ($artifacts | Where-Object Type -eq "Script").Count
+            $withPublisher = ($artifacts | Where-Object { $_.Publisher -and $_.Publisher -ne "Unknown" }).Count
+
+            $RulesOutput.Text += "=== IMPORTED $($artifacts.Count) UNIQUE ARTIFACTS ===`n`n"
+            $RulesOutput.Text += "Breakdown:`n"
+            $RulesOutput.Text += "  EXE: $exeCount`n"
+            $RulesOutput.Text += "  DLL: $dllCount`n"
+            $RulesOutput.Text += "  MSI: $msiCount`n"
+            $RulesOutput.Text += "  Script: $scriptCount`n`n"
+            $RulesOutput.Text += "  With Publisher info: $withPublisher (can use Publisher rules)`n"
+            $RulesOutput.Text += "  Without Publisher: $($artifacts.Count - $withPublisher) (will need Hash rules)`n`n"
+
+            $RulesOutput.Text += "BEST PRACTICE: Use Publisher rules for signed files, Hash for unsigned.`n`n"
+            $RulesOutput.Text += "Select rule type, action, and group, then click 'Generate Rules'."
+
+            Write-Log "Imported $($artifacts.Count) artifacts from $($openDialog.FileName)"
+            [System.Windows.MessageBox]::Show("Imported $($artifacts.Count) unique artifacts.`n`nWith Publisher: $withPublisher`nWithout Publisher: $($artifacts.Count - $withPublisher)`n`nSelect options and click Generate Rules.", "Import Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        } catch {
+            $RulesOutput.Text = "ERROR importing file: $($_.Exception.Message)"
+            Write-Log "Import failed: $($_.Exception.Message)" -Level "ERROR"
         }
-        $RulesOutput.Text = "Imported $($script:CollectedArtifacts.Count) artifacts. Select rule type and click Generate Rules."
     }
 })
 
@@ -4223,6 +4379,40 @@ $ImportFolderBtn.Add_Click({
         } else {
             [System.Windows.MessageBox]::Show("No valid artifact data found in CSV files.", "Import Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         }
+    }
+})
+
+# Default Deny Rules - adds deny rules for common bypass locations
+$DefaultDenyRulesBtn.Add_Click({
+    Write-Log "Adding default deny rules for bypass locations"
+
+    $sid = Get-SelectedSid
+    $groupName = $RuleGroupCombo.SelectedItem.Content
+
+    $RulesOutput.Text = "=== GENERATING DEFAULT DENY RULES ===`n`n"
+    $RulesOutput.Text += "These rules block execution from common bypass locations.`n"
+    $RulesOutput.Text += "Applied to: $groupName`n`n"
+    [System.Windows.Forms.Application]::DoEvents()
+
+    $result = New-DefaultDenyRules -UserOrGroupSid $sid
+
+    if ($result.count -gt 0) {
+        $script:GeneratedRules = $result.rules
+
+        $RulesOutput.Text += "=== GENERATED $($result.count) DENY RULES ===`n`n"
+        $RulesOutput.Text += "BLOCKED LOCATIONS:`n"
+        foreach ($rule in $result.rules) {
+            $RulesOutput.Text += "  [DENY] $($rule.path)`n"
+        }
+
+        $RulesOutput.Text += "`nBest Practice: These rules help prevent execution from`n"
+        $RulesOutput.Text += "user-writable locations commonly used by malware.`n`n"
+        $RulesOutput.Text += "Use 'Export Rules' in Deployment to save these rules."
+
+        Write-Log "Generated $($result.count) default deny rules"
+        [System.Windows.MessageBox]::Show("Generated $($result.count) default deny rules.`n`nThese block execution from:`n- TEMP folders`n- Downloads folder`n- AppData folders`n- ProgramData folder`n`nUse Export Rules to save.", "Default Deny Rules Created", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+    } else {
+        $RulesOutput.Text += "ERROR: Failed to generate deny rules."
     }
 })
 
@@ -4337,7 +4527,7 @@ function Get-SelectedSid {
 
 $GenerateRulesBtn.Add_Click({
     if ($script:CollectedArtifacts.Count -eq 0) {
-        $RulesOutput.Text = "ERROR: No artifacts imported. Use Import CSV, Import Folder, or From Events first."
+        $RulesOutput.Text = "ERROR: No artifacts imported. Use Import Artifact or Import Folder first."
         return
     }
 
@@ -4368,58 +4558,7 @@ $GenerateRulesBtn.Add_Click({
     Write-Log "Generated $($result.count) $ruleType rules with Action=$action, SID=$sid"
 })
 
-# Create Rules from Events button
-$CreateRulesFromEventsBtn.Add_Click({
-    if ($script:AllEvents.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No events loaded. Go to Event Monitor and scan for events first.", "No Events", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        return
-    }
-
-    $RulesOutput.Text = "Creating artifacts from $($script:AllEvents.Count) events...`n"
-
-    # Convert events to artifacts format
-    $eventArtifacts = @()
-    $noPathCount = 0
-    foreach ($event in $script:AllEvents) {
-        if ($event.FilePath -or $event.FileName) {
-            $eventArtifacts += [PSCustomObject]@{
-                FileName = $event.FileName
-                FullPath = $event.FilePath
-                Publisher = $event.Publisher
-                EventType = $event.EventType
-                Computer = $event.ComputerName
-            }
-        } else {
-            $noPathCount++
-        }
-    }
-
-    if ($eventArtifacts.Count -eq 0) {
-        $RulesOutput.Text = "ERROR: Could not extract file information from events.`n`n"
-        $RulesOutput.Text += "This can happen if:`n"
-        $RulesOutput.Text += "- Events don't contain file path data`n"
-        $RulesOutput.Text += "- Event log format is different than expected`n`n"
-        $RulesOutput.Text += "Try exporting events from Event Viewer manually and importing as CSV."
-        return
-    }
-
-    # Deduplicate by file path
-    $uniqueArtifacts = $eventArtifacts | Group-Object FullPath | ForEach-Object { $_.Group[0] }
-
-    # Add to collected artifacts
-    $script:CollectedArtifacts = $uniqueArtifacts
-
-    $RulesOutput.Text = "=== ARTIFACTS FROM EVENTS ===`n`n"
-    $RulesOutput.Text += "Total events: $($script:AllEvents.Count)`n"
-    $RulesOutput.Text += "Events with file paths: $($eventArtifacts.Count)`n"
-    $RulesOutput.Text += "Events without paths: $noPathCount`n"
-    $RulesOutput.Text += "Unique files: $($uniqueArtifacts.Count)`n`n"
-    $RulesOutput.Text += "Ready to generate rules - select type and click 'Generate Rules'"
-
-    [System.Windows.MessageBox]::Show("Loaded $($uniqueArtifacts.Count) unique artifacts from events.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-})
-
-# Events events
+# Events filters
 $FilterAllBtn.Add_Click({
     $script:EventFilter = "All"
     Write-Log "Event filter set to: All"
@@ -4570,7 +4709,7 @@ $ScanLocalEventsBtn.Add_Click({
         $audit = ($events | Where-Object EventType -eq "Audit").Count
         $blocked = ($events | Where-Object EventType -eq "Blocked").Count
         $EventsOutput.Text += "Allowed: $allowed | Audit: $audit | Blocked: $blocked`n`n"
-        $EventsOutput.Text += "Use filters above to view specific event types.`nClick 'From Events' in Rule Generator to create rules."
+        $EventsOutput.Text += "Use filters above to view specific event types.`nExport to CSV, then use Import Artifact in Rule Generator."
 
         Write-Log "Local events scanned: $($events.Count) total"
     } catch {
@@ -4643,7 +4782,7 @@ $ScanRemoteEventsBtn.Add_Click({
 
     $script:AllEvents = $allEvents
     $EventsOutput.Text += "`n`n--- TOTAL: $($allEvents.Count) events from $($computers.Count) computers ---"
-    $EventsOutput.Text += "`n`nClick 'From Events' in Rule Generator to create rules."
+    $EventsOutput.Text += "`n`nExport to CSV, then use Import Artifact in Rule Generator."
 })
 
 # Import Events button
@@ -4658,7 +4797,7 @@ $ImportEventsBtn.Add_Click({
             $imported = Import-Csv -Path $openDialog.FileName
             $script:AllEvents = $imported
             $EventsOutput.Text = "=== EVENTS IMPORTED ===`n`nLoaded $($imported.Count) events from:`n$($openDialog.FileName)`n`n"
-            $EventsOutput.Text += "Use filters above to view specific event types.`nClick 'From Events' in Rule Generator to create rules."
+            $EventsOutput.Text += "Use filters above to view specific event types.`nExport to CSV, then use Import Artifact in Rule Generator."
             Write-Log "Imported $($imported.Count) events from $($openDialog.FileName)"
         } catch {
             $EventsOutput.Text = "ERROR importing events: $($_.Exception.Message)"
