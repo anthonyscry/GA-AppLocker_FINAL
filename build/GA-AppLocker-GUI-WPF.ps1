@@ -1991,7 +1991,7 @@ $xamlString = @"
 
                     <!-- Artifacts List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinMinHeight="200">
+                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinHeight="200">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -2045,7 +2045,7 @@ $xamlString = @"
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
                             <TextBlock Grid.Row="0" Text="Comparison Results" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxMinHeight="200">
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="200">
                                 <DataGrid x:Name="GapAnalysisGrid" Background="#0D1117" Foreground="#E6EDF3"
                                            BorderThickness="0" FontSize="11" FontFamily="Consolas"
                                            GridLinesVisibility="Horizontal" HeadersVisibility="Column"
@@ -2910,10 +2910,8 @@ $HelpBtnWorkflow = $window.FindName("HelpBtnWorkflow")
 $HelpBtnRules = $window.FindName("HelpBtnRules")
 $HelpBtnTroubleshooting = $window.FindName("HelpBtnTroubleshooting")
 
-# Gap Analysis controls
-$ScanBaselineBtn = $window.FindName("ScanBaselineBtn")
+# Gap Analysis controls (Scan buttons removed - use Import only)
 $ImportBaselineBtn = $window.FindName("ImportBaselineBtn")
-$ScanTargetBtn = $window.FindName("ScanTargetBtn")
 $ImportTargetBtn = $window.FindName("ImportTargetBtn")
 $CompareSoftwareBtn = $window.FindName("CompareSoftwareBtn")
 $GapAnalysisGrid = $window.FindName("GapAnalysisGrid")
@@ -2935,6 +2933,8 @@ $script:EventFilter = "All"  # All, Allowed, Blocked, Audit
 $script:AllEvents = @()
 $script:BaselineSoftware = @()
 $script:TargetSoftware = @()
+$script:GeneratedRules = @()
+$script:DiscoveredComputers = @()
 
 # Logging function
 # Initialize GA-AppLocker folder structure
@@ -4749,22 +4749,6 @@ $HelpBtnTroubleshooting.Add_Click({
 })
 
 # Gap Analysis events
-$ScanBaselineBtn.Add_Click({
-    Write-Log "Scan baseline button clicked"
-    $computerName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter computer name for baseline scan:", "Baseline Scan", $env:COMPUTERNAME)
-
-    if ([string]::IsNullOrWhiteSpace($computerName)) { return }
-
-    $script:BaselineSoftware = Get-InstalledSoftware -ComputerName $computerName
-
-    if ($script:BaselineSoftware.Count -gt 0) {
-        [System.Windows.MessageBox]::Show("Baseline scan complete!`n`nFound $($script:BaselineSoftware.Count) software items on $computerName", "Success", "OK", "Information")
-        Write-Log "Baseline scan complete: $($script:BaselineSoftware.Count) items"
-    } else {
-        [System.Windows.MessageBox]::Show("Failed to scan baseline computer. Check logs for details.", "Error", "OK", "Error")
-    }
-})
-
 $ImportBaselineBtn.Add_Click({
     Write-Log "Import baseline button clicked"
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -4779,22 +4763,6 @@ $ImportBaselineBtn.Add_Click({
         } else {
             [System.Windows.MessageBox]::Show("Failed to import baseline. Check logs for details.", "Error", "OK", "Error")
         }
-    }
-})
-
-$ScanTargetBtn.Add_Click({
-    Write-Log "Scan target button clicked"
-    $computerName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter computer name for target scan:", "Target Scan", $env:COMPUTERNAME)
-
-    if ([string]::IsNullOrWhiteSpace($computerName)) { return }
-
-    $script:TargetSoftware = Get-InstalledSoftware -ComputerName $computerName
-
-    if ($script:TargetSoftware.Count -gt 0) {
-        [System.Windows.MessageBox]::Show("Target scan complete!`n`nFound $($script:TargetSoftware.Count) software items on $computerName", "Success", "OK", "Information")
-        Write-Log "Target scan complete: $($script:TargetSoftware.Count) items"
-    } else {
-        [System.Windows.MessageBox]::Show("Failed to scan target computer. Check logs for details.", "Error", "OK", "Error")
     }
 })
 
@@ -4992,7 +4960,6 @@ $window.add_Loaded({
         $CreateGP0Btn.IsEnabled = $true
         $LinkGP0Btn.IsEnabled = $true
         $CreateWinRMGpoBtn.IsEnabled = $true
-        $FullWorkflowBtn.IsEnabled = $true
 
         Write-Log "Domain mode with RSAT: All features enabled"
     }
