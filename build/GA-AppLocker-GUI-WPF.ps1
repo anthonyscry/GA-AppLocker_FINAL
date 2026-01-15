@@ -11,7 +11,7 @@ try {
 } catch {
     $msg = "ERROR: Failed to load WPF assemblies.`n`nThis application requires .NET Framework 4.5 or later.`n`nError: $($_.Exception.Message)"
     try {
-        [System.Windows.Forms.MessageBox]::Show($msg, "GA-AppLocker Startup Error", "OK", "Error")
+        [System.Windows.Forms.MessageBox]::Show($msg, "GA-AppLocker Startup Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     } catch {
         Write-Host $msg -ForegroundColor Red
         Write-Host "Press any key to exit..." -ForegroundColor Yellow
@@ -2773,7 +2773,7 @@ try {
 
     # Show MessageBox
     try {
-        [System.Windows.MessageBox]::Show($errorMsg, "GA-AppLocker Startup Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show($errorMsg, "GA-AppLocker Startup Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     } catch {
         Write-Host "ERROR: $errorMsg" -ForegroundColor Red
         Write-Host "Press any key to exit..." -ForegroundColor Yellow
@@ -3557,7 +3557,7 @@ $RefreshDashboardBtn.Add_Click({
 # Artifacts events
 $ExportArtifactsBtn.Add_Click({
     if ($script:CollectedArtifacts.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No artifacts to export. Run a scan first.", "No Data", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No artifacts to export. Run a scan first.", "No Data", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -3567,7 +3567,7 @@ $ExportArtifactsBtn.Add_Click({
     $saveDialog.FileName = "Artifacts-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $ext = [System.IO.Path]::GetExtension($saveDialog.FileName)
         if ($ext -eq ".csv") {
             $script:CollectedArtifacts | Export-Csv -Path $saveDialog.FileName -NoTypeInformation
@@ -3575,7 +3575,7 @@ $ExportArtifactsBtn.Add_Click({
             $script:CollectedArtifacts | ConvertTo-Json -Depth 10 | Out-File -FilePath $saveDialog.FileName -Encoding UTF8
         }
         Write-Log "Exported $($script:CollectedArtifacts.Count) artifacts to $($saveDialog.FileName)"
-        [System.Windows.MessageBox]::Show("Exported $($script:CollectedArtifacts.Count) artifacts to $($saveDialog.FileName)", "Export Complete", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Exported $($script:CollectedArtifacts.Count) artifacts to $($saveDialog.FileName)", "Export Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
 
@@ -3607,7 +3607,7 @@ $ComprehensiveScanBtn.Add_Click({
     $folderDialog.Description = "Select output folder for scan artifacts"
     $folderDialog.SelectedPath = "C:\GA-AppLocker\Scans"
 
-    if ($folderDialog.ShowDialog() -ne "OK") {
+    if ($folderDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
         return
     }
 
@@ -3642,10 +3642,10 @@ $ComprehensiveScanBtn.Add_Click({
         $ArtifactsList.Items.Add("  Running Processes: $($result.processCount)")
         $ArtifactsList.Items.Add("  Writable Directories: $($result.writableDirCount)")
 
-        [System.Windows.MessageBox]::Show("Comprehensive scan complete!`n`nArtifacts saved to:`n$($result.outputPath)`n`nFiles created:`n$($result.files -join "`n")", "Scan Complete", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Comprehensive scan complete!`n`nArtifacts saved to:`n$($result.outputPath)`n`nFiles created:`n$($result.files -join "`n")", "Scan Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $ArtifactsList.Items.Add("ERROR: $($result.error)")
-        [System.Windows.MessageBox]::Show("Scan failed: $($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Scan failed: $($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 
     Write-Log "Comprehensive scan complete"
@@ -3656,7 +3656,7 @@ $ImportArtifactsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json|All Files (*.*)|*.*"
     $openDialog.Title = "Import Scan Artifacts"
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $ext = [System.IO.Path]::GetExtension($openDialog.FileName)
         if ($ext -eq ".csv") {
             $script:CollectedArtifacts = Import-Csv -Path $openDialog.FileName
@@ -3673,12 +3673,12 @@ $ImportFolderBtn.Add_Click({
     $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
     $folderDialog.Description = "Select folder containing artifact CSV files (will search recursively)"
 
-    if ($folderDialog.ShowDialog() -eq "OK") {
+    if ($folderDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $folderPath = $folderDialog.SelectedPath
         $csvFiles = Get-ChildItem -Path $folderPath -Filter "*.csv" -Recurse -File -ErrorAction SilentlyContinue
 
         if ($csvFiles.Count -eq 0) {
-            [System.Windows.MessageBox]::Show("No CSV files found in folder or subfolders.", "No Files Found", "OK", "Warning")
+            [System.Windows.MessageBox]::Show("No CSV files found in folder or subfolders.", "No Files Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
             return
         }
 
@@ -3700,9 +3700,9 @@ $ImportFolderBtn.Add_Click({
         if ($allArtifacts.Count -gt 0) {
             $script:CollectedArtifacts = $allArtifacts
             $RulesOutput.Text = "Imported $($allArtifacts.Count) artifacts from $($importedFiles.Count) files:`n`n$($importedFiles -join "`n")`n`nSelect rule type and click Generate Rules."
-            [System.Windows.MessageBox]::Show("Imported $($allArtifacts.Count) artifacts from $($importedFiles.Count) CSV files.", "Import Complete", "OK", "Information")
+            [System.Windows.MessageBox]::Show("Imported $($allArtifacts.Count) artifacts from $($importedFiles.Count) CSV files.", "Import Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
-            [System.Windows.MessageBox]::Show("No valid artifact data found in CSV files.", "Import Failed", "OK", "Warning")
+            [System.Windows.MessageBox]::Show("No valid artifact data found in CSV files.", "Import Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         }
     }
 })
@@ -3716,7 +3716,7 @@ $MergeRulesBtn.Add_Click({
     $openDialog.Title = "Select AppLocker Rules XML to Merge"
     $openDialog.Multiselect = $true
 
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $mergedCount = 0
         $fileNames = @()
 
@@ -3747,9 +3747,9 @@ $MergeRulesBtn.Add_Click({
 
         if ($mergedCount -gt 0) {
             $RulesOutput.Text = "Merged $mergedCount rules from:`n$($fileNames -join "`n")`n`nTotal rules: $($script:GeneratedRules.Count)`n`nUse Export Rules in Deployment to save merged ruleset."
-            [System.Windows.MessageBox]::Show("Merged $mergedCount rules.`n`nTotal rules now: $($script:GeneratedRules.Count)", "Merge Complete", "OK", "Information")
+            [System.Windows.MessageBox]::Show("Merged $mergedCount rules.`n`nTotal rules now: $($script:GeneratedRules.Count)", "Merge Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
-            [System.Windows.MessageBox]::Show("No rules found in selected files.", "Merge Failed", "OK", "Warning")
+            [System.Windows.MessageBox]::Show("No rules found in selected files.", "Merge Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         }
     }
 })
@@ -3835,7 +3835,7 @@ $GenerateRulesBtn.Add_Click({
 # Create Rules from Events button
 $CreateRulesFromEventsBtn.Add_Click({
     if ($script:AllEvents.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No events loaded. Go to Event Monitor and scan for events first.", "No Events", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No events loaded. Go to Event Monitor and scan for events first.", "No Events", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -3866,7 +3866,7 @@ $CreateRulesFromEventsBtn.Add_Click({
     $script:CollectedArtifacts = $eventArtifacts
 
     $RulesOutput.Text = "Loaded $($eventArtifacts.Count) artifacts from events.`n`nReady to generate rules - click 'Generate Rules'"
-    [System.Windows.MessageBox]::Show("Loaded $($eventArtifacts.Count) artifacts from Event Viewer.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", "OK", "Information")
+    [System.Windows.MessageBox]::Show("Loaded $($eventArtifacts.Count) artifacts from Event Viewer.`n`nSelect rule type, action, and group, then click Generate Rules.", "Events Loaded", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
 })
 
 # Events events
@@ -3896,7 +3896,7 @@ $FilterAuditBtn.Add_Click({
 
 $ExportEventsBtn.Add_Click({
     if ($script:AllEvents.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No events to export. Click Refresh first.", "No Data", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No events to export. Click Refresh first.", "No Data", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -3906,7 +3906,7 @@ $ExportEventsBtn.Add_Click({
     $saveDialog.FileName = "AppLockerEvents-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker\Scans"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $ext = [System.IO.Path]::GetExtension($saveDialog.FileName)
         if ($ext -eq ".csv") {
             $script:AllEvents | Export-Csv -Path $saveDialog.FileName -NoTypeInformation
@@ -3916,7 +3916,7 @@ $ExportEventsBtn.Add_Click({
             $script:AllEvents | ForEach-Object { "[$($_.time)] [$($_.type)] $($_.message)" } | Out-File -FilePath $saveDialog.FileName -Encoding UTF8
         }
         Write-Log "Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)"
-        [System.Windows.MessageBox]::Show("Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)", "Export Complete", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)", "Export Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
 
@@ -3993,14 +3993,14 @@ $ScanRemoteEventsBtn.Add_Click({
     $computerInput = $EventComputersText.Text.Trim()
 
     if ($computerInput -match "^\(|comma-separated") {
-        [System.Windows.MessageBox]::Show("Please enter computer names or use 'Load from Discovery' first.", "No Computers", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Please enter computer names or use 'Load from Discovery' first.", "No Computers", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
     $computers = $computerInput -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
 
     if ($computers.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No computers specified.", "No Computers", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No computers specified.", "No Computers", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4061,7 +4061,7 @@ $ImportEventsBtn.Add_Click({
     $openDialog.Title = "Import Events"
     $openDialog.InitialDirectory = "C:\GA-AppLocker\Scans"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         try {
             $imported = Import-Csv -Path $openDialog.FileName
             $script:AllEvents = $imported
@@ -4091,7 +4091,7 @@ $LoadFromDiscoveryBtn.Add_Click({
         $EventsOutput.Text = "Loaded $($computers.Count) selected computers from AD Discovery.`n`nClick 'Scan Remote' to get events."
         Write-Log "Loaded $($computers.Count) computers from discovery selection"
     } else {
-        [System.Windows.MessageBox]::Show("No computers available. Go to AD Discovery first and discover computers.", "No Computers", "OK", "Information")
+        [System.Windows.MessageBox]::Show("No computers available. Go to AD Discovery first and discover computers.", "No Computers", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
 
@@ -4142,7 +4142,7 @@ $GenerateEvidenceBtn.Add_Click({
 $CreateGP0Btn.Add_Click({
     Write-Log "Create GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4154,15 +4154,15 @@ $CreateGP0Btn.Add_Click({
     if ($result.success) {
         if ($result.isNew) {
             $DeploymentStatus.Text = "SUCCESS: AppLocker GPO created!`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nNext Steps:`n1. Export rules from Rule Generator`n2. Import rules to GPO via Group Policy Management`n3. Set enforcement mode (start with Audit)`n4. Monitor events before enforcing"
-            [System.Windows.MessageBox]::Show("AppLocker GPO created successfully!`n`nGPO: $($result.gpoName)`nLinked to: $($result.linkedTo)", "Success", "OK", "Information")
+            [System.Windows.MessageBox]::Show("AppLocker GPO created successfully!`n`nGPO: $($result.gpoName)`nLinked to: $($result.linkedTo)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
             $DeploymentStatus.Text = "GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs."
-            [System.Windows.MessageBox]::Show("GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs.", "GPO Exists", "OK", "Information")
+            [System.Windows.MessageBox]::Show("GPO '$($result.gpoName)' already exists.`n`nUse 'Link GPO to Domain' to link it to additional OUs.", "GPO Exists", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         }
         Write-Log "AppLocker GPO created/found: $($result.gpoName)"
     } else {
         $DeploymentStatus.Text = "ERROR: Failed to create GPO`n`n$($result.error)`n`nMake sure you are running as Domain Admin with Group Policy module installed."
-        [System.Windows.MessageBox]::Show("Failed to create AppLocker GPO:`n$($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to create AppLocker GPO:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         Write-Log "Failed to create AppLocker GPO: $($result.error)" -Level "ERROR"
     }
 })
@@ -4170,7 +4170,7 @@ $CreateGP0Btn.Add_Click({
 $LinkGP0Btn.Add_Click({
     Write-Log "Link GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("GPO linking requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("GPO linking requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4185,7 +4185,7 @@ $LinkGP0Btn.Add_Click({
         # Check if AppLocker GPO exists
         $gpo = Get-GPO -Name "AppLocker Policy" -ErrorAction SilentlyContinue
         if (-not $gpo) {
-            [System.Windows.MessageBox]::Show("AppLocker GPO not found. Please create it first using 'Create GPO'.", "GPO Not Found", "OK", "Warning")
+            [System.Windows.MessageBox]::Show("AppLocker GPO not found. Please create it first using 'Create GPO'.", "GPO Not Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
             $DeploymentStatus.Text = "ERROR: AppLocker GPO not found.`n`nPlease create it first using the 'Create GPO' button."
             return
         }
@@ -4194,17 +4194,17 @@ $LinkGP0Btn.Add_Click({
         $existingLink = Get-GPInheritance -Target $domainDN | Select-Object -ExpandProperty GpoLinks | Where-Object { $_.DisplayName -eq "AppLocker Policy" }
         if ($existingLink) {
             $DeploymentStatus.Text = "GPO 'AppLocker Policy' is already linked to the domain root.`n`nLinked to: $domainDN"
-            [System.Windows.MessageBox]::Show("GPO is already linked to the domain root.", "Already Linked", "OK", "Information")
+            [System.Windows.MessageBox]::Show("GPO is already linked to the domain root.", "Already Linked", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
             New-GPLink -Name "AppLocker Policy" -Target $domainDN -LinkEnabled Yes -ErrorAction Stop
             $DeploymentStatus.Text = "SUCCESS: GPO linked to domain!`n`nGPO: AppLocker Policy`nLinked to: $domainDN`n`nThe policy will apply during the next Group Policy refresh."
-            [System.Windows.MessageBox]::Show("GPO linked to domain successfully!`n`nLinked to: $domainDN", "Success", "OK", "Information")
+            [System.Windows.MessageBox]::Show("GPO linked to domain successfully!`n`nLinked to: $domainDN", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         }
         Write-Log "GPO linking complete: AppLocker Policy -> $domainDN"
     }
     catch {
         $DeploymentStatus.Text = "ERROR: Failed to link GPO`n`n$($_.Exception.Message)"
-        [System.Windows.MessageBox]::Show("Failed to link GPO:`n$($_.Exception.Message)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to link GPO:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         Write-Log "Failed to link GPO: $($_.Exception.Message)" -Level "ERROR"
     }
 })
@@ -4213,7 +4213,7 @@ $LinkGP0Btn.Add_Click({
 $CreateWinRMGpoBtn.Add_Click({
     Write-Log "Create WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("WinRM GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("WinRM GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4226,11 +4226,11 @@ $CreateWinRMGpoBtn.Add_Click({
         $action = if ($result.isNew) { "CREATED" } else { "UPDATED" }
         $WinRMOutput.Text = "=== WINRM GPO $action ===`n`nSUCCESS: GPO $($result.message)`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nConfigured Settings:`n`nWinRM Service:`n  • Auto-config: Enabled`n  • IPv4 Filter: * (all)`n  • IPv6 Filter: * (all)`n  • Basic Auth: Enabled`n  • Unencrypted Traffic: Disabled`n`nWinRM Client:`n  • Basic Auth: Enabled`n  • TrustedHosts: * (all)`n  • Unencrypted Traffic: Disabled`n`nFirewall Rules:`n  • WinRM HTTP (5985): Allowed`n  • WinRM HTTPS (5986): Allowed`n`nService: Automatic startup`n`nTo force immediate update: gpupdate /force"
         Write-Log "WinRM GPO $action successfully: $($result.gpoName)"
-        [System.Windows.MessageBox]::Show("WinRM GPO $action successfully!`n`nGPO: $($result.gpoName)`n`nLinked to: $($result.linkedTo)", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("WinRM GPO $action successfully!`n`nGPO: $($result.gpoName)`n`nLinked to: $($result.linkedTo)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $WinRMOutput.Text = "=== WINRM GPO FAILED ===`n`nERROR: $($result.error)`n`nPossible causes:`n  • Not running as Domain Admin`n  • Group Policy module not available`n  • Insufficient permissions`n`nPlease run as Domain Administrator and try again."
         Write-Log "Failed to create/update WinRM GPO: $($result.error)" -Level "ERROR"
-        [System.Windows.MessageBox]::Show("Failed to create/update WinRM GPO:`n$($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to create/update WinRM GPO:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
 
@@ -4238,7 +4238,7 @@ $CreateWinRMGpoBtn.Add_Click({
 $EnableWinRMGpoBtn.Add_Click({
     Write-Log "Enable WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4246,31 +4246,31 @@ $EnableWinRMGpoBtn.Add_Click({
 
     if ($result.success) {
         $WinRMOutput.Text = "=== GPO LINK ENABLED ===`n`nWinRM GPO link has been ENABLED.`n`nThe policy will now apply to computers in the domain.`n`nRun 'gpupdate /force' on target machines to apply immediately."
-        [System.Windows.MessageBox]::Show("WinRM GPO link enabled!", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("WinRM GPO link enabled!", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $WinRMOutput.Text = "ERROR: $($result.error)"
-        [System.Windows.MessageBox]::Show("Failed to enable GPO link:`n$($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to enable GPO link:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
 
 $DisableWinRMGpoBtn.Add_Click({
     Write-Log "Disable WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
-    $confirm = [System.Windows.MessageBox]::Show("Are you sure you want to disable the WinRM GPO link?`n`nThis will prevent the GPO from applying to new computers.", "Confirm Disable", "YesNo", "Warning")
+    $confirm = [System.Windows.MessageBox]::Show("Are you sure you want to disable the WinRM GPO link?`n`nThis will prevent the GPO from applying to new computers.", "Confirm Disable", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Warning)
 
-    if ($confirm -eq "Yes") {
+    if ($confirm -eq [System.Windows.MessageBoxResult]::Yes) {
         $result = Set-WinRMGpoState -Enabled $false
 
         if ($result.success) {
             $WinRMOutput.Text = "=== GPO LINK DISABLED ===`n`nWinRM GPO link has been DISABLED.`n`nThe policy will no longer apply to computers.`n`nNote: Already applied settings may remain until manually removed."
-            [System.Windows.MessageBox]::Show("WinRM GPO link disabled!", "Success", "OK", "Information")
+            [System.Windows.MessageBox]::Show("WinRM GPO link disabled!", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         } else {
             $WinRMOutput.Text = "ERROR: $($result.error)"
-            [System.Windows.MessageBox]::Show("Failed to disable GPO link:`n$($result.error)", "Error", "OK", "Error")
+            [System.Windows.MessageBox]::Show("Failed to disable GPO link:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         }
     }
 })
@@ -4279,18 +4279,18 @@ $DisableWinRMGpoBtn.Add_Click({
 $ForceGPUpdateBtn.Add_Click({
     Write-Log "Force GPUpdate button clicked"
     if ($script:IsWorkgroup -or -not $script:HasRSAT) {
-        [System.Windows.MessageBox]::Show("This feature requires domain membership and RSAT tools.", "Not Available", "OK", "Information")
+        [System.Windows.MessageBox]::Show("This feature requires domain membership and RSAT tools.", "Not Available", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
     $confirm = [System.Windows.MessageBox]::Show(
         "This will run 'gpupdate /force' on all domain computers.`n`nThis requires:`n  • WinRM already enabled on target machines`n  • Administrative access to remote computers`n`nContinue?",
         "Confirm Force GPUpdate",
-        "YesNo",
-        "Question"
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Question
     )
 
-    if ($confirm -ne "Yes") { return }
+    if ($confirm -ne [System.Windows.MessageBoxResult]::Yes) { return }
 
     $WinRMOutput.Text = "=== FORCE GPUPDATE ===`n`nGathering domain computers...`n"
     [System.Windows.Forms.Application]::DoEvents()
@@ -4334,12 +4334,12 @@ $ForceGPUpdateBtn.Add_Click({
 
         $WinRMOutput.Text += "`n`n=== SUMMARY ===`nSuccess: $successCount`nFailed: $failCount`nTotal: $($computers.Count)"
 
-        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount", "Complete", "OK", "Information")
+        [System.Windows.MessageBox]::Show("GPUpdate completed!`n`nSuccess: $successCount`nFailed: $failCount", "Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         Write-Log "Force GPUpdate completed: $successCount success, $failCount failed"
     }
     catch {
         $WinRMOutput.Text = "=== ERROR ===`n`n$($_.Exception.Message)`n`nMake sure Active Directory module is available."
-        [System.Windows.MessageBox]::Show("Failed to run GPUpdate:`n$($_.Exception.Message)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to run GPUpdate:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         Write-Log "Force GPUpdate failed: $($_.Exception.Message)" -Level "ERROR"
     }
 })
@@ -4348,7 +4348,7 @@ $ForceGPUpdateBtn.Add_Click({
 $DiscoverComputersBtn.Add_Click({
     Write-Log "Discover computers button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("AD Discovery requires Active Directory. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("AD Discovery requires Active Directory. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         $DiscoveryOutput.Text = "=== WORKGROUP MODE ===`n`nAD Discovery is only available in domain mode.`n`nUse 'Scan Localhost' in Artifacts tab instead."
         return
     }
@@ -4383,7 +4383,7 @@ $DiscoverComputersBtn.Add_Click({
 $TestConnectivityBtn.Add_Click({
     Write-Log "Test connectivity button clicked"
     if ($DiscoveredComputersList.SelectedItems.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please select at least one computer to test.", "No Selection", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Please select at least one computer to test.", "No Selection", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4480,7 +4480,7 @@ $SelectAllComputersBtn.Add_Click({
 $ScanSelectedBtn.Add_Click({
     Write-Log "Scan selected button clicked"
     if ($DiscoveredComputersList.SelectedItems.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please select at least one computer to scan.", "No Selection", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Please select at least one computer to scan.", "No Selection", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4536,7 +4536,7 @@ $ScanSelectedBtn.Add_Click({
         $DiscoveryOutput.Text += "`n3. Verify firewall allows WinRM (TCP 5985/5986)"
         $DiscoveryOutput.Text += "`n4. Check that WinRM service is running"
         $DiscoveryOutput.Text += "`n`nRun 'winrm quickconfig' on target to verify setup"
-        [System.Windows.MessageBox]::Show("No computers reachable via WinRM.`n`nSee console output for troubleshooting steps.", "WinRM Failed", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("No computers reachable via WinRM.`n`nSee console output for troubleshooting steps.", "WinRM Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
@@ -4593,7 +4593,7 @@ $ScanSelectedBtn.Add_Click({
         $DiscoveryOutput.Text += "`n`nFailed computers: $($winrmFail -join ', ')"
     }
 
-    [System.Windows.MessageBox]::Show("Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`nFrom $($winrmOK.Count) computers`n`nGo to Rule Generator to create rules.", "Scan Complete", "OK", "Information")
+    [System.Windows.MessageBox]::Show("Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`nFrom $($winrmOK.Count) computers`n`nGo to Rule Generator to create rules.", "Scan Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     Write-Log "Remote scan complete: $($allArtifacts.Count) artifacts from $($winrmOK.Count) computers"
 })
 
@@ -4601,7 +4601,7 @@ $ScanSelectedBtn.Add_Click({
 $ExportGroupsBtn.Add_Click({
     Write-Log "Export groups button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         $GroupMgmtOutput.Text = "=== WORKGROUP MODE ===`n`nAD Group Management is only available in domain mode.`n`nPlease run from a domain-joined computer with Active Directory module installed."
         return
     }
@@ -4612,7 +4612,7 @@ $ExportGroupsBtn.Add_Click({
     $saveDialog.FileName = "AD_GroupMembership_Export.csv"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $result = Export-ADGroupMembership -Path $saveDialog.FileName
 
         if ($result.success) {
@@ -4627,7 +4627,7 @@ $ExportGroupsBtn.Add_Click({
 $ImportGroupsBtn.Add_Click({
     Write-Log "Import groups button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("AD Group Management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
@@ -4636,7 +4636,7 @@ $ImportGroupsBtn.Add_Click({
     $openDialog.Title = "Import AD Groups from CSV"
     $openDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $dryRun = $DryRunCheck.IsChecked
         $allowRemovals = $AllowRemovalsCheck.IsChecked
         $includeProtected = $IncludeProtectedCheck.IsChecked
@@ -4651,7 +4651,7 @@ $ImportGroupsBtn.Add_Click({
             [System.Windows.Forms.Application]::DoEvents()
 
             if (-not $dryRun) {
-                [System.Windows.MessageBox]::Show("Group membership changes applied!`n`nProcessed: $($result.stats.GroupsProcessed)`nAdds: $($result.stats.Adds)`nRemovals: $($result.stats.Removals)", "Import Complete", "OK", "Information")
+                [System.Windows.MessageBox]::Show("Group membership changes applied!`n`nProcessed: $($result.stats.GroupsProcessed)`nAdds: $($result.stats.Adds)`nRemovals: $($result.stats.Removals)", "Import Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
             }
         } else {
             $GroupMgmtOutput.Text = "ERROR: $($result.error)"
@@ -4663,7 +4663,7 @@ $ImportGroupsBtn.Add_Click({
 $BootstrapAppLockerBtn.Add_Click({
     Write-Log "Bootstrap AppLocker button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("AppLocker Setup requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("AppLocker Setup requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         $AppLockerSetupOutput.Text = "=== WORKGROUP MODE ===`n`nAppLocker Setup is only available in domain mode.`n`nPlease run from a domain-joined computer with Active Directory module installed."
         return
     }
@@ -4688,18 +4688,18 @@ $BootstrapAppLockerBtn.Add_Click({
 $RemoveOUProtectionBtn.Add_Click({
     Write-Log "Remove OU Protection button clicked"
     if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("This feature requires Domain Controller access.", "Workgroup Mode", "OK", "Information")
+        [System.Windows.MessageBox]::Show("This feature requires Domain Controller access.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         return
     }
 
     $confirm = [System.Windows.MessageBox]::Show(
         "This will remove protection from all AppLocker OUs, allowing them to be deleted.`n`nAre you sure you want to continue?",
         "Confirm Remove Protection",
-        "YesNo",
-        "Warning"
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Warning
     )
 
-    if ($confirm -ne "Yes") {
+    if ($confirm -ne [System.Windows.MessageBoxResult]::Yes) {
         return
     }
 
@@ -4710,10 +4710,10 @@ $RemoveOUProtectionBtn.Add_Click({
 
     if ($result.success) {
         $AppLockerSetupOutput.Text = $result.output
-        [System.Windows.MessageBox]::Show("Protection removed from $($result.processedCount) OUs.`n`nYou can now delete OUs and objects under AppLocker.", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Protection removed from $($result.processedCount) OUs.`n`nYou can now delete OUs and objects under AppLocker.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $AppLockerSetupOutput.Text = "ERROR: $($result.error)"
-        [System.Windows.MessageBox]::Show("Failed to remove protection: $($result.error)", "Error", "OK", "Error")
+        [System.Windows.MessageBox]::Show("Failed to remove protection: $($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
 
@@ -4725,7 +4725,7 @@ $CreateBrowserDenyBtn.Add_Click({
     if ($result.success) {
         $AppLockerSetupOutput.Text = $result.output
         Write-Log "Browser deny rules created: $($result.browsersDenied) browsers denied"
-        [System.Windows.MessageBox]::Show("Browser deny rules created!`n`nBrowsers denied: $($result.browsersDenied)`n`nPolicy saved to: $($result.policyPath)", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Browser deny rules created!`n`nBrowsers denied: $($result.browsersDenied)`n`nPolicy saved to: $($result.policyPath)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
         $AppLockerSetupOutput.Text = "ERROR: $($result.error)"
         Write-Log "Browser deny rules failed: $($result.error)" -Level "ERROR"
@@ -4756,12 +4756,17 @@ $ImportBaselineBtn.Add_Click({
     $openDialog.Title = "Import Baseline Software List"
     $openDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
-        $script:BaselineSoftware = Import-SoftwareList -Path $openDialog.FileName
-        if ($script:BaselineSoftware.Count -gt 0) {
-            [System.Windows.MessageBox]::Show("Baseline imported!`n`nLoaded $($script:BaselineSoftware.Count) software items.", "Success", "OK", "Information")
-        } else {
-            [System.Windows.MessageBox]::Show("Failed to import baseline. Check logs for details.", "Error", "OK", "Error")
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        try {
+            $script:BaselineSoftware = Import-SoftwareList -Path $openDialog.FileName
+            if ($script:BaselineSoftware.Count -gt 0) {
+                [System.Windows.MessageBox]::Show("Baseline imported!`n`nLoaded $($script:BaselineSoftware.Count) software items.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            } else {
+                [System.Windows.MessageBox]::Show("No software items found in file.", "Warning", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+            }
+        } catch {
+            Write-Log "Import baseline failed: $($_.Exception.Message)" -Level "ERROR"
+            [System.Windows.MessageBox]::Show("Failed to import baseline: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         }
     }
 })
@@ -4773,12 +4778,17 @@ $ImportTargetBtn.Add_Click({
     $openDialog.Title = "Import Target Software List"
     $openDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
-        $script:TargetSoftware = Import-SoftwareList -Path $openDialog.FileName
-        if ($script:TargetSoftware.Count -gt 0) {
-            [System.Windows.MessageBox]::Show("Target imported!`n`nLoaded $($script:TargetSoftware.Count) software items.", "Success", "OK", "Information")
-        } else {
-            [System.Windows.MessageBox]::Show("Failed to import target. Check logs for details.", "Error", "OK", "Error")
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        try {
+            $script:TargetSoftware = Import-SoftwareList -Path $openDialog.FileName
+            if ($script:TargetSoftware.Count -gt 0) {
+                [System.Windows.MessageBox]::Show("Target imported!`n`nLoaded $($script:TargetSoftware.Count) software items.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            } else {
+                [System.Windows.MessageBox]::Show("No software items found in file.", "Warning", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+            }
+        } catch {
+            Write-Log "Import target failed: $($_.Exception.Message)" -Level "ERROR"
+            [System.Windows.MessageBox]::Show("Failed to import target: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
         }
     }
 })
@@ -4787,34 +4797,39 @@ $CompareSoftwareBtn.Add_Click({
     Write-Log "Compare software button clicked"
 
     if ($script:BaselineSoftware.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please scan or import a baseline first.", "No Baseline", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("Please scan or import a baseline first.", "No Baseline", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
     if ($script:TargetSoftware.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please scan or import a target first.", "No Target", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("Please scan or import a target first.", "No Target", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
-    $results = Compare-SoftwareLists -Baseline $script:BaselineSoftware -Target $script:TargetSoftware
+    try {
+        $results = Compare-SoftwareLists -Baseline $script:BaselineSoftware -Target $script:TargetSoftware
 
-    # Update DataGrid
-    $GapAnalysisGrid.ItemsSource = $results
+        # Update DataGrid
+        $GapAnalysisGrid.ItemsSource = $results
 
-    # Update stats
-    $GapTotalCount.Text = $results.Count
-    $GapMissingCount.Text = ($results | Where-Object { $_.Status -eq "Missing in Target" }).Count
-    $GapExtraCount.Text = ($results | Where-Object { $_.Status -eq "Extra in Target" }).Count
-    $GapVersionCount.Text = ($results | Where-Object { $_.Status -eq "Version Mismatch" }).Count
+        # Update stats
+        $GapTotalCount.Text = $results.Count
+        $GapMissingCount.Text = ($results | Where-Object { $_.Status -eq "Missing in Target" }).Count
+        $GapExtraCount.Text = ($results | Where-Object { $_.Status -eq "Extra in Target" }).Count
+        $GapVersionCount.Text = ($results | Where-Object { $_.Status -eq "Version Mismatch" }).Count
 
-    Write-Log "Comparison complete: Total=$($results.Count), Missing=$($GapMissingCount.Text), Extra=$($GapExtraCount.Text), Version Diff=$($GapVersionCount.Text)"
+        Write-Log "Comparison complete: Total=$($results.Count), Missing=$($GapMissingCount.Text), Extra=$($GapExtraCount.Text), Version Diff=$($GapVersionCount.Text)"
+    } catch {
+        Write-Log "Compare software failed: $($_.Exception.Message)" -Level "ERROR"
+        [System.Windows.MessageBox]::Show("Comparison failed: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+    }
 })
 
 $ExportGapAnalysisBtn.Add_Click({
     Write-Log "Export gap analysis button clicked"
 
     if ($GapAnalysisGrid.Items.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No comparison results to export.", "No Data", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("No comparison results to export.", "No Data", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
@@ -4824,10 +4839,15 @@ $ExportGapAnalysisBtn.Add_Click({
     $saveDialog.FileName = "Software_Gap_Analysis_$(Get-Date -Format 'yyyy-MM-dd').csv"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
-        $GapAnalysisGrid.Items | Export-Csv -Path $saveDialog.FileName -NoTypeInformation -Encoding UTF8
-        [System.Windows.MessageBox]::Show("Exported to: $($saveDialog.FileName)", "Success", "OK", "Information")
-        Write-Log "Gap analysis exported: $($saveDialog.FileName)"
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        try {
+            $GapAnalysisGrid.Items | Export-Csv -Path $saveDialog.FileName -NoTypeInformation -Encoding UTF8
+            [System.Windows.MessageBox]::Show("Exported to: $($saveDialog.FileName)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            Write-Log "Gap analysis exported: $($saveDialog.FileName)"
+        } catch {
+            Write-Log "Export gap analysis failed: $($_.Exception.Message)" -Level "ERROR"
+            [System.Windows.MessageBox]::Show("Export failed: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        }
     }
 })
 
@@ -4836,7 +4856,7 @@ $ExportRulesBtn.Add_Click({
     Write-Log "Export rules button clicked"
 
     if ($script:GeneratedRules.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No generated rules to export. Please generate rules first using the Rule Generator tab.", "No Rules", "OK", "Warning")
+        [System.Windows.MessageBox]::Show("No generated rules to export. Please generate rules first using the Rule Generator tab.", "No Rules", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
         return
     }
 
@@ -4846,11 +4866,11 @@ $ExportRulesBtn.Add_Click({
     $saveDialog.FileName = "AppLocker-Rules_$(Get-Date -Format 'yyyy-MM-dd').xml"
     $saveDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($saveDialog.ShowDialog() -eq "OK") {
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         # Generate AppLocker XML from rules
         $xmlContent = Convert-RulesToAppLockerXml -Rules $script:GeneratedRules
         $xmlContent | Out-File -FilePath $saveDialog.FileName -Encoding UTF8 -Force
-        [System.Windows.MessageBox]::Show("Rules exported to: $($saveDialog.FileName)`n`nYou can now import this XML into a GPO using Group Policy Management.", "Success", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Rules exported to: $($saveDialog.FileName)`n`nYou can now import this XML into a GPO using Group Policy Management.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
         Write-Log "Rules exported: $($saveDialog.FileName)"
     }
 })
@@ -4863,10 +4883,10 @@ $ImportRulesBtn.Add_Click({
     $openDialog.Title = "Import AppLocker Rules"
     $openDialog.InitialDirectory = "C:\GA-AppLocker"
 
-    if ($openDialog.ShowDialog() -eq "OK") {
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $DeploymentStatus.Text = "Importing rules from: $($openDialog.FileName)`n`nNote: Use Group Policy Management console to import XML into GPO.`n`n1. Open GPO`n2. Go to: Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Application Control Policies -> AppLocker`n3. Right-click -> Import Policy`n`nThis feature prepares the XML for manual import."
         Write-Log "Rules imported for GPO deployment: $($openDialog.FileName)"
-        [System.Windows.MessageBox]::Show("Rules loaded!`n`nTo apply to a GPO:`n1. Open Group Policy Management`n2. Edit target GPO`n3. Navigate to: Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Application Control Policies -> AppLocker`n4. Right-click -> Import Policy`n5. Select the exported XML file", "Import Ready", "OK", "Information")
+        [System.Windows.MessageBox]::Show("Rules loaded!`n`nTo apply to a GPO:`n1. Open Group Policy Management`n2. Edit target GPO`n3. Navigate to: Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Application Control Policies -> AppLocker`n4. Right-click -> Import Policy`n5. Select the exported XML file", "Import Ready", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
 
