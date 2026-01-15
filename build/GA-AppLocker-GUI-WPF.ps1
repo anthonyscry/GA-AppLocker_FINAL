@@ -1948,14 +1948,59 @@ $xamlString = @"
                         </Border>
                     </Grid>
 
-                    <!-- Refresh Button -->
-                    <Button x:Name="RefreshDashboardBtn" Content="Refresh Dashboard"
-                            Style="{StaticResource PrimaryButton}" Width="180" HorizontalAlignment="Left"
-                            Margin="0,20,0,0"/>
+                    <!-- Filters Row -->
+                    <Grid Margin="0,20,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Time Range:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="DashboardTimeFilter" Grid.Column="1" Width="120" Height="28"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,20,0">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#30363D"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                            <ComboBoxItem Content="Last 7 Days" IsSelected="True"/>
+                            <ComboBoxItem Content="Last 30 Days"/>
+                        </ComboBox>
+
+                        <TextBlock Text="System:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="2" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="DashboardSystemFilter" Grid.Column="3" Width="150" Height="28"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,20,0">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#30363D"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                            <ComboBoxItem Content="All Systems" IsSelected="True"/>
+                        </ComboBox>
+
+                        <Button x:Name="RefreshDashboardBtn" Content="Refresh Dashboard"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="4" Height="28"/>
+                    </Grid>
 
                     <!-- Output Area -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,10,0,0" Padding="15" MinHeight="200">
+                            CornerRadius="8" Margin="0,15,0,0" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="DashboardOutput" Text="Loading dashboard..."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
@@ -2914,6 +2959,8 @@ $EventsStatus = $window.FindName("EventsStatus")
 $AllowedEvents = $window.FindName("AllowedEvents")
 $AuditedEvents = $window.FindName("AuditedEvents")
 $BlockedEvents = $window.FindName("BlockedEvents")
+$DashboardTimeFilter = $window.FindName("DashboardTimeFilter")
+$DashboardSystemFilter = $window.FindName("DashboardSystemFilter")
 $RefreshDashboardBtn = $window.FindName("RefreshDashboardBtn")
 $DashboardOutput = $window.FindName("DashboardOutput")
 
@@ -3625,19 +3672,102 @@ $NavAbout.Add_Click({
 
 # Dashboard events
 function Refresh-Data {
+    $DashboardOutput.Text = "Loading dashboard data..."
+    [System.Windows.Forms.Application]::DoEvents()
+
+    # Get time filter
+    $timeFilter = $DashboardTimeFilter.SelectedItem.Content
+    $daysBack = if ($timeFilter -eq "Last 7 Days") { 7 } else { 30 }
+    $cutoffDate = (Get-Date).AddDays(-$daysBack)
+
+    # Get system filter
+    $systemFilter = $DashboardSystemFilter.SelectedItem.Content
+
+    # Get policy health from local system
     $summary = Get-DashboardSummary
     $HealthScore.Text = $summary.policyHealth.score
     $HealthStatus.Text = if ($summary.policyHealth.score -eq 100) { "All categories enabled" } else { "Score: $($summary.policyHealth.score)/100" }
-    $TotalEvents.Text = $summary.events.total
-    $EventsStatus.Text = if ($summary.events.total -gt 0) { "Events found" } else { "No events" }
-    $AllowedEvents.Text = $summary.events.allowed
-    $AuditedEvents.Text = $summary.events.audit
-    $BlockedEvents.Text = $summary.events.blocked
+
+    # Scan event files from C:\GA-AppLocker\Events
+    $eventsPath = "C:\GA-AppLocker\Events"
+    $allFileEvents = @()
+    $systems = @()
+
+    if (Test-Path $eventsPath) {
+        $eventFiles = Get-ChildItem -Path $eventsPath -Filter "*.csv" -ErrorAction SilentlyContinue |
+                      Where-Object { $_.LastWriteTime -ge $cutoffDate }
+
+        foreach ($file in $eventFiles) {
+            try {
+                $fileEvents = Import-Csv -Path $file.FullName -ErrorAction SilentlyContinue
+                foreach ($evt in $fileEvents) {
+                    # Track unique systems
+                    if ($evt.ComputerName -and $evt.ComputerName -notin $systems) {
+                        $systems += $evt.ComputerName
+                    }
+                    # Apply system filter
+                    if ($systemFilter -eq "All Systems" -or $evt.ComputerName -eq $systemFilter) {
+                        $allFileEvents += $evt
+                    }
+                }
+            } catch { }
+        }
+
+        # Update system filter dropdown
+        $currentSelection = $DashboardSystemFilter.SelectedItem.Content
+        $DashboardSystemFilter.Items.Clear()
+        $allItem = New-Object System.Windows.Controls.ComboBoxItem
+        $allItem.Content = "All Systems"
+        $DashboardSystemFilter.Items.Add($allItem) | Out-Null
+        foreach ($sys in ($systems | Sort-Object)) {
+            $item = New-Object System.Windows.Controls.ComboBoxItem
+            $item.Content = $sys
+            $DashboardSystemFilter.Items.Add($item) | Out-Null
+        }
+        # Restore selection
+        foreach ($item in $DashboardSystemFilter.Items) {
+            if ($item.Content -eq $currentSelection) {
+                $DashboardSystemFilter.SelectedItem = $item
+                break
+            }
+        }
+        if ($null -eq $DashboardSystemFilter.SelectedItem) {
+            $DashboardSystemFilter.SelectedIndex = 0
+        }
+    }
+
+    # Count events from files
+    $fileAllowed = ($allFileEvents | Where-Object { $_.Id -eq "8002" -or $_.type -eq "Allowed" }).Count
+    $fileAudited = ($allFileEvents | Where-Object { $_.Id -eq "8003" -or $_.type -eq "Audit" }).Count
+    $fileBlocked = ($allFileEvents | Where-Object { $_.Id -eq "8004" -or $_.type -eq "Blocked" }).Count
+    $fileTotal = $allFileEvents.Count
+
+    # Combine with live local events
+    $liveTotal = [int]$summary.events.total
+    $liveAllowed = [int]$summary.events.allowed
+    $liveAudited = [int]$summary.events.audit
+    $liveBlocked = [int]$summary.events.blocked
+
+    $TotalEvents.Text = ($fileTotal + $liveTotal).ToString()
+    $AllowedEvents.Text = ($fileAllowed + $liveAllowed).ToString()
+    $AuditedEvents.Text = ($fileAudited + $liveAudited).ToString()
+    $BlockedEvents.Text = ($fileBlocked + $liveBlocked).ToString()
+    $EventsStatus.Text = if (($fileTotal + $liveTotal) -gt 0) { "Events found" } else { "No events" }
+
+    # Update output
+    $output = "Dashboard refreshed at $(Get-Date -Format 'HH:mm:ss')`n`n"
+    $output += "=== EVENT SOURCES ===`n"
+    $output += "Live Events (local): $liveTotal`n"
+    $output += "File Events ($eventsPath): $fileTotal`n"
+    $output += "Files scanned: $(if (Test-Path $eventsPath) { (Get-ChildItem $eventsPath -Filter '*.csv' | Where-Object { $_.LastWriteTime -ge $cutoffDate }).Count } else { 0 })`n"
+    $output += "Time filter: $timeFilter`n"
+    $output += "System filter: $systemFilter`n"
+    $output += "Systems found: $($systems.Count)`n"
+    $DashboardOutput.Text = $output
 }
 
 $RefreshDashboardBtn.Add_Click({
     Refresh-Data
-    $DashboardOutput.Text = "Dashboard refreshed at $(Get-Date -Format 'HH:mm:ss')"
 })
 
 # Artifacts events
