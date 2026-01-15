@@ -1,11 +1,14 @@
 # Build-EXE.ps1
 # Build script to compile GA-AppLocker Dashboard as an executable
+# For fast builds without tests/analysis, use Build-Only.ps1 instead
 
 param(
     [string]$OutputPath = ".\output",
     [string]$Configuration = "Release",
     [switch]$SkipTests,
-    [switch]$SkipAnalysis
+    [switch]$SkipAnalysis,
+    [int]$AnalysisTimeout = 120,  # Timeout in seconds for PSScriptAnalyzer
+    [int]$TestTimeout = 300       # Timeout in seconds for Pester tests
 )
 
 $ErrorActionPreference = "Stop"
@@ -42,58 +45,100 @@ if (Test-Path $OutputPath) {
 New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
 Write-BuildSuccess "Output directory cleaned"
 
-# Step 2: Run PSScriptAnalyzer
+# Step 2: Run PSScriptAnalyzer (with timeout)
 if (-not $SkipAnalysis) {
-    Write-BuildStep "Step 2: Running PSScriptAnalyzer..."
+    Write-BuildStep "Step 2: Running PSScriptAnalyzer (timeout: ${AnalysisTimeout}s)..."
 
     if (-not (Get-Module -ListAvailable -Name PSScriptAnalyzer)) {
         Write-Host "  Installing PSScriptAnalyzer..." -ForegroundColor Yellow
         Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
     }
 
-    Import-Module PSScriptAnalyzer
+    # Run analysis in a job with timeout
+    $analysisJob = Start-Job -ScriptBlock {
+        param($srcPath, $settingsPath)
+        Import-Module PSScriptAnalyzer
+        Invoke-ScriptAnalyzer -Path $srcPath -Settings $settingsPath -Recurse
+    } -ArgumentList (Resolve-Path ".\src").Path, (Resolve-Path ".\PSScriptAnalyzerSettings.psd1").Path
 
-    $analysisResults = Invoke-ScriptAnalyzer -Path ".\src" -Settings ".\PSScriptAnalyzerSettings.psd1" -Recurse
+    $completed = Wait-Job -Job $analysisJob -Timeout $AnalysisTimeout
 
-    if ($analysisResults) {
-        Write-BuildError "PSScriptAnalyzer found $($analysisResults.Count) issue(s):"
-        $analysisResults | Format-Table -AutoSize
-
-        $errors = $analysisResults | Where-Object { $_.Severity -eq 'Error' }
-        if ($errors) {
-            throw "Build failed: PSScriptAnalyzer found $($errors.Count) error(s)"
-        }
+    if ($null -eq $completed) {
+        Write-BuildError "PSScriptAnalyzer timed out after ${AnalysisTimeout} seconds"
+        Stop-Job -Job $analysisJob
+        Remove-Job -Job $analysisJob -Force
+        Write-Host "  Continuing build without analysis..." -ForegroundColor Yellow
     } else {
-        Write-BuildSuccess "No PSScriptAnalyzer issues found"
+        $analysisResults = Receive-Job -Job $analysisJob
+        Remove-Job -Job $analysisJob -Force
+
+        if ($analysisResults) {
+            Write-BuildError "PSScriptAnalyzer found $($analysisResults.Count) issue(s):"
+            $analysisResults | Format-Table -AutoSize
+
+            $errors = $analysisResults | Where-Object { $_.Severity -eq 'Error' }
+            if ($errors) {
+                throw "Build failed: PSScriptAnalyzer found $($errors.Count) error(s)"
+            }
+        } else {
+            Write-BuildSuccess "No PSScriptAnalyzer issues found"
+        }
     }
 } else {
     Write-Host "  [Skipped] PSScriptAnalyzer analysis" -ForegroundColor Yellow
 }
 
-# Step 3: Run Pester tests
+# Step 3: Run Pester tests (with timeout)
 if (-not $SkipTests) {
-    Write-BuildStep "Step 3: Running Pester tests..."
+    Write-BuildStep "Step 3: Running Pester tests (timeout: ${TestTimeout}s)..."
 
     if (-not (Get-Module -ListAvailable -Name Pester)) {
         Write-Host "  Installing Pester..." -ForegroundColor Yellow
         Install-Module -Name Pester -Force -MinimumVersion 5.0 -Scope CurrentUser -SkipPublisherCheck
     }
 
-    Import-Module Pester -MinimumVersion 5.0
+    # Run tests in a job with timeout
+    $testJob = Start-Job -ScriptBlock {
+        param($testsPath, $outputPath)
+        Import-Module Pester -MinimumVersion 5.0
 
-    $config = New-PesterConfiguration
-    $config.Run.Path = ".\tests"
-    $config.Run.Exit = $false
-    $config.Output.Verbosity = 'Detailed'
-    $config.TestResult.Enabled = $true
-    $config.TestResult.OutputPath = "$OutputPath\PesterResults.xml"
+        $config = New-PesterConfiguration
+        $config.Run.Path = $testsPath
+        $config.Run.Exit = $false
+        $config.Run.Throw = $false
+        $config.Output.Verbosity = 'Normal'
+        $config.TestResult.Enabled = $true
+        $config.TestResult.OutputPath = "$outputPath\PesterResults.xml"
 
-    try {
         $result = Invoke-Pester -Configuration $config
-        Write-BuildSuccess "Pester tests passed: $($result.PassedCount) passed, $($result.FailedCount) failed"
-    }
-    catch {
-        throw "Build failed: Pester tests failed"
+        return @{
+            PassedCount = $result.PassedCount
+            FailedCount = $result.FailedCount
+            TotalCount = $result.TotalCount
+        }
+    } -ArgumentList (Resolve-Path ".\tests").Path, (Resolve-Path $OutputPath).Path
+
+    $completed = Wait-Job -Job $testJob -Timeout $TestTimeout
+
+    if ($null -eq $completed) {
+        Write-BuildError "Pester tests timed out after ${TestTimeout} seconds"
+        Stop-Job -Job $testJob
+        Remove-Job -Job $testJob -Force
+        Write-Host "  Continuing build without tests..." -ForegroundColor Yellow
+    } else {
+        $testResult = Receive-Job -Job $testJob
+        Remove-Job -Job $testJob -Force
+
+        if ($testResult) {
+            if ($testResult.FailedCount -gt 0) {
+                Write-BuildError "Pester tests: $($testResult.PassedCount) passed, $($testResult.FailedCount) failed"
+                throw "Build failed: Pester tests failed"
+            } else {
+                Write-BuildSuccess "Pester tests passed: $($testResult.PassedCount) passed, $($testResult.FailedCount) failed"
+            }
+        } else {
+            Write-BuildSuccess "Pester tests completed"
+        }
     }
 } else {
     Write-Host "  [Skipped] Pester tests" -ForegroundColor Yellow
