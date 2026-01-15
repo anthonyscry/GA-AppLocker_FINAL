@@ -97,26 +97,22 @@ jobs:
             Copy-Item -Path "./src" -Destination "./output/modules" -Recurse -Force
             Write-Host "Copied src modules" -ForegroundColor Green
           }
-          if (Test-Path "./GA-AppLocker-1.2.4") {
-            Copy-Item -Path "./GA-AppLocker-1.2.4" -Destination "./output/GA-AppLocker-1.2.4" -Recurse -Force
-            Write-Host "Copied GA-AppLocker-1.2.4" -ForegroundColor Green
-          }
 
       - name: Create batch launcher
         shell: pwsh
         run: |
           $batchContent = @'
-          @echo off
-          title GA-AppLocker Dashboard
-          if exist "%~dp0GA-AppLocker-Dashboard.exe" (
-            start "" "%~dp0GA-AppLocker-Dashboard.exe"
-          ) else if exist "%~dp0GA-AppLocker-GUI.ps1" (
-            powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0GA-AppLocker-GUI.ps1"
-          ) else (
-            echo ERROR: No executable found!
-            pause
-          )
-          '@
+@echo off
+title GA-AppLocker Dashboard
+if exist "%~dp0GA-AppLocker-Dashboard.exe" (
+  start "" "%~dp0GA-AppLocker-Dashboard.exe"
+) else if exist "%~dp0GA-AppLocker-GUI.ps1" (
+  powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0GA-AppLocker-GUI.ps1"
+) else (
+  echo ERROR: No executable found!
+  pause
+)
+'@
           $batchContent | Out-File -FilePath "./output/Launch-GA-AppLocker.bat" -Encoding ASCII
           Write-Host "Created batch launcher" -ForegroundColor Green
 
@@ -127,31 +123,13 @@ jobs:
             Copy-Item -Path "./README.md" -Destination "./output/README.md"
           }
 
-      - name: Create ZIP package
-        shell: pwsh
-        run: |
-          $version = "1.2.4"
-          $zipName = "GA-AppLocker-Dashboard-v$version.zip"
-          Compress-Archive -Path ./output/* -DestinationPath "./$zipName" -Force
-          Write-Host "Created: $zipName" -ForegroundColor Green
-
-      - name: Upload build artifacts
+      - name: Upload GA-AppLocker Dashboard
         uses: actions/upload-artifact@v4
         with:
           name: GA-AppLocker-Dashboard
-          path: |
-            ./output/GA-AppLocker-Dashboard.exe
-            ./output/GA-AppLocker-GUI.ps1
-            ./output/Launch-GA-AppLocker.bat
+          path: ./output/
           retention-days: 30
-          if-no-files-found: warn
-
-      - name: Upload full package
-        uses: actions/upload-artifact@v4
-        with:
-          name: GA-AppLocker-Dashboard-Full
-          path: GA-AppLocker-Dashboard-v*.zip
-          retention-days: 30
+          if-no-files-found: error
 
       - name: Build Summary
         shell: pwsh
@@ -159,6 +137,6 @@ jobs:
           Write-Host "`n====================================" -ForegroundColor Green
           Write-Host "  BUILD COMPLETED SUCCESSFULLY" -ForegroundColor Green
           Write-Host "====================================`n" -ForegroundColor Green
-          Write-Host "Artifacts uploaded:" -ForegroundColor Cyan
-          Write-Host "  - GA-AppLocker-Dashboard (EXE + Scripts)"
-          Write-Host "  - GA-AppLocker-Dashboard-Full (Complete ZIP)"
+          Write-Host "Artifact: GA-AppLocker-Dashboard" -ForegroundColor Cyan
+          Write-Host "Contents:" -ForegroundColor Cyan
+          Get-ChildItem ./output -Recurse | Select-Object FullName | ForEach-Object { Write-Host "  - $($_.FullName.Replace((Get-Location).Path + '\output\', ''))" }

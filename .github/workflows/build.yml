@@ -51,7 +51,7 @@ jobs:
   test:
     name: Pester Tests
     runs-on: windows-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
         shell: pwsh
         run: Install-Module -Name Pester -Force -MinimumVersion 5.0 -Scope CurrentUser -SkipPublisherCheck
 
-      - name: Run Pester tests (fast mode)
+      - name: Run Pester tests
         shell: pwsh
         run: |
           Import-Module Pester -MinimumVersion 5.0
@@ -73,9 +73,6 @@ jobs:
           $config.TestResult.Enabled = $true
           $config.TestResult.OutputPath = "./pester-results.xml"
           $config.CodeCoverage.Enabled = $false
-
-          # Note: $script:SkipSlowNetworkTests = $true is set in the test file
-          # This skips slow network and file system tests automatically
 
           $result = Invoke-Pester -Configuration $config
 
@@ -179,26 +176,22 @@ jobs:
             Copy-Item -Path "./src" -Destination "./output/modules" -Recurse -Force
             Write-Host "Copied src modules" -ForegroundColor Green
           }
-          if (Test-Path "./GA-AppLocker-1.2.4") {
-            Copy-Item -Path "./GA-AppLocker-1.2.4" -Destination "./output/GA-AppLocker-1.2.4" -Recurse -Force
-            Write-Host "Copied GA-AppLocker-1.2.4" -ForegroundColor Green
-          }
 
       - name: Create batch launcher
         shell: pwsh
         run: |
           $batchContent = @'
-          @echo off
-          title GA-AppLocker Dashboard
-          if exist "%~dp0GA-AppLocker-Dashboard.exe" (
-            start "" "%~dp0GA-AppLocker-Dashboard.exe"
-          ) else if exist "%~dp0GA-AppLocker-GUI.ps1" (
-            powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0GA-AppLocker-GUI.ps1"
-          ) else (
-            echo ERROR: No executable found!
-            pause
-          )
-          '@
+@echo off
+title GA-AppLocker Dashboard
+if exist "%~dp0GA-AppLocker-Dashboard.exe" (
+  start "" "%~dp0GA-AppLocker-Dashboard.exe"
+) else if exist "%~dp0GA-AppLocker-GUI.ps1" (
+  powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "%~dp0GA-AppLocker-GUI.ps1"
+) else (
+  echo ERROR: No executable found!
+  pause
+)
+'@
           $batchContent | Out-File -FilePath "./output/Launch-GA-AppLocker.bat" -Encoding ASCII
           Write-Host "Created batch launcher" -ForegroundColor Green
 
@@ -209,31 +202,13 @@ jobs:
             Copy-Item -Path "./README.md" -Destination "./output/README.md"
           }
 
-      - name: Create ZIP package
-        shell: pwsh
-        run: |
-          $version = "1.2.4"
-          $zipName = "GA-AppLocker-Dashboard-v$version-tested.zip"
-          Compress-Archive -Path ./output/* -DestinationPath "./$zipName" -Force
-          Write-Host "Created: $zipName" -ForegroundColor Green
-
-      - name: Upload build artifacts
+      - name: Upload GA-AppLocker Dashboard (Tested)
         uses: actions/upload-artifact@v4
         with:
           name: GA-AppLocker-Dashboard-Tested
-          path: |
-            ./output/GA-AppLocker-Dashboard.exe
-            ./output/GA-AppLocker-GUI.ps1
-            ./output/Launch-GA-AppLocker.bat
+          path: ./output/
           retention-days: 30
-          if-no-files-found: warn
-
-      - name: Upload full package
-        uses: actions/upload-artifact@v4
-        with:
-          name: GA-AppLocker-Dashboard-Tested-Full
-          path: GA-AppLocker-Dashboard-v*-tested.zip
-          retention-days: 30
+          if-no-files-found: error
 
       - name: Build Summary
         shell: pwsh
@@ -243,6 +218,4 @@ jobs:
           Write-Host "====================================`n" -ForegroundColor Green
           Write-Host "All PSScriptAnalyzer checks passed" -ForegroundColor Cyan
           Write-Host "All Pester tests passed" -ForegroundColor Cyan
-          Write-Host "Artifacts uploaded:" -ForegroundColor Cyan
-          Write-Host "  - GA-AppLocker-Dashboard-Tested (EXE + Scripts)"
-          Write-Host "  - GA-AppLocker-Dashboard-Tested-Full (Complete ZIP)"
+          Write-Host "Artifact: GA-AppLocker-Dashboard-Tested" -ForegroundColor Cyan
