@@ -2858,6 +2858,7 @@ $xamlString = @"
                         <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
                             <WrapPanel>
                                 <Button x:Name="HelpBtnWorkflow" Content="Workflow" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnPolicyGuide" Content="Policy Guide" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                                 <Button x:Name="HelpBtnRules" Content="Rule Best Practices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
                                 <Button x:Name="HelpBtnTroubleshooting" Content="Troubleshooting" Style="{StaticResource SecondaryButton}"/>
                             </WrapPanel>
@@ -3039,6 +3040,7 @@ $AboutVersion = $window.FindName("AboutVersion")
 $HelpTitle = $window.FindName("HelpTitle")
 $HelpText = $window.FindName("HelpText")
 $HelpBtnWorkflow = $window.FindName("HelpBtnWorkflow")
+$HelpBtnPolicyGuide = $window.FindName("HelpBtnPolicyGuide")
 $HelpBtnRules = $window.FindName("HelpBtnRules")
 $HelpBtnTroubleshooting = $window.FindName("HelpBtnTroubleshooting")
 
@@ -3359,6 +3361,247 @@ ESCALATION PATH:
 3. Consult internal security team
 4. Review Microsoft AppLocker documentation
 5. Contact GA-ASI security team for advanced issues
+"@
+        }
+        "PolicyGuide" {
+            return @"
+=== APPLOCKER POLICY BUILD GUIDE ===
+
+OBJECTIVE:
+Allow who may execute trusted code, deny where code can never run,
+validate in Audit, then enforce - without breaking services or failing audit.
+
+--- CORE MENTAL MODEL ---
+* AppLocker evaluates security principal + rule match
+* Explicit Deny always wins
+* Publisher rules apply everywhere unless denied
+* Each rule collection is independent
+* "Must exist" does NOT mean "allowed everything"
+
+--- EXECUTION DECISION ORDER ---
+1. Explicit Deny
+2. Explicit Allow
+3. Implicit Deny (only if nothing matches)
+
+If you allow broadly, you must deny explicitly.
+
+=== MANDATORY ALLOW PRINCIPALS ===
+(Referenced in every rule collection: EXE, Script, MSI, DLL)
+
+[ ] NT AUTHORITY\SYSTEM
+[ ] NT AUTHORITY\LOCAL SERVICE
+[ ] NT AUTHORITY\NETWORK SERVICE
+[ ] BUILTIN\Administrators
+
+IMPORTANT: These principals are NOT allowed everything.
+They are allowed only what your rules explicitly permit.
+They are still subject to Explicit Deny rules.
+
+=== CUSTOM APPLOCKER GROUPS ===
+
+[ ] DOMAIN\AppLocker-Admins
+[ ] DOMAIN\AppLocker-StandardUsers
+[ ] DOMAIN\AppLocker-Service-Accounts
+[ ] DOMAIN\AppLocker-Installers (optional but recommended)
+
+Rules of use:
+* Service accounts -> only in AppLocker-Service-Accounts
+* No service accounts in Administrators
+* Deny interactive logon for service accounts via GPO
+
+=== GROUP MEMBERSHIP + MINIMUM PERMISSIONS ===
+
+1. AppLocker-Admins
+   Who: Domain/Server/Platform admins, Security administrators
+   Minimum permissions:
+   * EXE -> Microsoft + approved vendor publishers
+   * Script -> Microsoft-signed scripts
+   * MSI -> Microsoft + vendor installers
+   * DLL -> Microsoft-signed DLLs
+   Still blocked by Deny paths!
+   Purpose: admin survivability without blanket trust
+
+2. AppLocker-StandardUsers
+   Who: Regular end users
+   Minimum permissions:
+   * EXE -> Explicitly approved vendor apps only
+   * Script -> None
+   * MSI -> None
+   * DLL -> Only via allowed EXEs
+   Denied: installers, scripts, user-writable paths
+   Purpose: least-privilege execution
+
+3. AppLocker-Service-Accounts
+   Who: Domain service accounts (svc_sql, svc_backup, SCCM, monitoring)
+   Minimum permissions:
+   * EXE -> Vendor-signed binaries
+   * Script -> Vendor-signed scripts (if required)
+   * MSI -> Only if service self-updates
+   * DLL -> Vendor-signed DLLs
+   Mandatory controls:
+   * No admin rights
+   * No interactive logon
+   * No path-based allows
+   Purpose: prevent outages without privilege creep
+
+4. AppLocker-Installers (Optional)
+   Who: Desktop Support (Tier 2+), Imaging/deployment, SCCM/Intune
+   Minimum permissions:
+   * MSI -> Vendor + Microsoft installers
+   * EXE -> Vendor installer bootstrap EXEs only
+   * Script -> None unless explicitly required
+   * DLL -> None directly
+   Purpose: controlled software introduction
+
+=== MICROSOFT / WINDOWS SIGNED CODE ===
+
+NEVER do this:
+  Microsoft Publisher -> Everyone
+
+CORRECT pattern:
+  Microsoft Publisher ->
+  [ ] SYSTEM
+  [ ] LOCAL SERVICE
+  [ ] NETWORK SERVICE
+  [ ] BUILTIN\Administrators
+
+This allows OS & services but does NOT give users blanket execution.
+
+=== SERVICE ACCOUNTS ===
+
+Built-in services:
+* Run as SYSTEM / NT SERVICE*
+* Covered by Microsoft publisher rules
+* No path allows required
+
+Domain service accounts:
+[ ] Members of DOMAIN\AppLocker-Service-Accounts
+[ ] Allowed via publisher rules only
+[ ] No admin rights
+[ ] No local logon
+
+=== EXPLICIT DENY RULES (REQUIRED) ===
+
+Create Deny-Path rules for Everyone:
+[ ] %USERPROFILE%\Downloads\*
+[ ] %APPDATA%\*
+[ ] %LOCALAPPDATA%\Temp\*
+[ ] %TEMP%\*
+
+Why:
+* Prevent signed binary abuse
+* Close living-off-the-land execution paths
+* Override all Allows (including SYSTEM)
+
+=== MINIMUM RULE ASSIGNMENTS BY COLLECTION ===
+
+EXECUTABLES (EXE):
+Allow:
+[ ] SYSTEM -> Microsoft Publisher
+[ ] Admins -> Microsoft + Vendor Publisher
+[ ] Service Accounts -> Vendor Publisher
+[ ] Users -> Explicitly approved apps only
+[ ] Installers -> Vendor installer EXEs only
+Deny:
+[ ] User-writable paths (above)
+
+SCRIPTS (PS1, BAT, CMD, VBS) - Highest Risk:
+Allow:
+[ ] SYSTEM -> Microsoft Publisher
+[ ] Admins -> Microsoft Publisher
+[ ] Service Accounts -> Vendor Publisher
+Do NOT allow:
+[ ] Standard users
+[ ] Everyone
+
+MSI / INSTALLERS:
+Allow:
+[ ] SYSTEM -> Microsoft Publisher
+[ ] Installers Group -> Vendor Publisher
+[ ] Admins -> Vendor Publisher
+Deny:
+[ ] Everyone else
+
+DLL (Enable LAST):
+Allow:
+[ ] SYSTEM -> Microsoft Publisher
+[ ] Admins -> Microsoft Publisher
+[ ] Service Accounts -> Vendor Publisher
+ALWAYS Audit first!
+
+=== AUDIT MODE VALIDATION (REQUIRED) ===
+
+[ ] EXE audit clean
+[ ] Script audit clean
+[ ] MSI audit clean
+[ ] DLL audited 7-14 days
+[ ] Event ID 8004 reviewed
+[ ] Services start normally
+[ ] Scheduled tasks run
+[ ] Patch & agent updates succeed
+
+If it runs in Audit, it will run in Enforce.
+
+=== RULE CREATION ORDER (Follow Exactly) ===
+
+Phase 0 - Prep:
+[ ] Identify service accounts
+[ ] Create AppLocker AD groups
+
+Phase 1 - EXE:
+[ ] Microsoft publisher rules
+[ ] Vendor publisher rules
+[ ] Explicit Deny paths
+[ ] Enable Audit
+
+Phase 2 - Scripts:
+[ ] Microsoft scripts -> SYSTEM/Admins
+[ ] Vendor scripts -> Service Accounts
+[ ] Audit and review
+
+Phase 3 - MSI:
+[ ] Microsoft MSIs -> SYSTEM
+[ ] Vendor MSIs -> Installers/Admins
+[ ] Audit patch cycles
+
+Phase 4 - DLL (LAST):
+[ ] Enable Audit
+[ ] Review 7-14 days
+[ ] Add vendor DLL publishers as needed
+
+Phase 5 - Enforce:
+[ ] EXE -> Enforce
+[ ] Scripts -> Enforce
+[ ] MSI -> Enforce
+[ ] DLL -> Enforce (last)
+
+=== COMMON BLIND SPOTS ===
+
+[ ] Scheduled Tasks (often SYSTEM)
+[ ] Self-updating agents (AV, monitoring, backup)
+[ ] ProgramData execution (audit before denying)
+[ ] DLL rules enabled too early
+
+=== ENFORCEMENT GATE (ALL must be true) ===
+
+[ ] SYSTEM not blocked
+[ ] No service failures
+[ ] No Everyone allows
+[ ] Explicit Deny rules exist
+[ ] Audit evidence retained
+
+=== AUDITOR-APPROVED SUMMARY ===
+
+"Application execution is controlled using publisher-based AppLocker
+rules scoped to defined administrative, installer, service, and user
+security groups. User-writable directories are explicitly denied to
+prevent abuse of signed binaries. All policies were validated in
+audit mode prior to enforcement."
+
+=== FINAL ONE-LINE MODEL ===
+
+Allow who may run trusted code, deny where code can never run,
+and never enforce what you didn't audit.
 "@
         }
     }
@@ -4954,6 +5197,11 @@ $CreateBrowserDenyBtn.Add_Click({
 $HelpBtnWorkflow.Add_Click({
     $HelpTitle.Text = "Help - Workflow"
     $HelpText.Text = Get-HelpContent "Workflow"
+})
+
+$HelpBtnPolicyGuide.Add_Click({
+    $HelpTitle.Text = "Help - Policy Build Guide"
+    $HelpText.Text = Get-HelpContent "PolicyGuide"
 })
 
 $HelpBtnRules.Add_Click({
