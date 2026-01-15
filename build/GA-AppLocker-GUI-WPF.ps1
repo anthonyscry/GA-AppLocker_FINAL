@@ -2274,7 +2274,7 @@ $xamlString = @"
                             CornerRadius="6" Padding="10" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock x:Name="EventsOutput"
-                                       Text="=== APPLOCKER EVENT MONITOR ===`n`nScan Local: Get events from this computer`nScan Remote: Get events from computers via WinRM`nImport/Export: CSV file operations`n`nUse AD Discovery to find computers first."
+                                       Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first."
                                        FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
@@ -2418,7 +2418,7 @@ $xamlString = @"
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock x:Name="WinRMOutput" Text="Create/Update WinRM GPO: Creates and links WinRM policy to domain.`nForce GPUpdate: Runs gpupdate /force on all domain computers via WinRM."
+                            <TextBlock x:Name="WinRMOutput" Text="Create/Update WinRM GPO to enable remote management. Force GPUpdate to push to all computers."
                                        FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
                                        TextWrapping="Wrap"/>
                         </ScrollViewer>
