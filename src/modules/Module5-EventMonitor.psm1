@@ -1,34 +1,203 @@
 # Module5-EventMonitor.psm1
 # Event Monitor module for GA-AppLocker
 # Monitors and backs up AppLocker events
+# Enhanced with patterns from Microsoft AaronLocker
+
+# Import Common library
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction SilentlyContinue
+
+# Event ID mappings (from AaronLocker)
+$script:EventIdMapping = @{
+    ExeDllAllowed  = 8002
+    ExeDllWarning  = 8003
+    ExeDllError    = 8004
+    MsiScriptAllowed = 8005
+    MsiScriptWarning = 8006
+    MsiScriptError   = 8007
+    PkgdAppAllowed = 8020
+    PkgdAppWarning = 8021
+    PkgdAppError   = 8022
+}
+
+# PowerShell policy test file hash patterns (from AaronLocker)
+$script:PsPolicyTestFileHash1 = "0x6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B"
+$script:PsPolicyTestFileHash2 = "0x96AD1146EB96877EAB5942AE0736B82D8B5E2039A80D3D6932665C1A4C87DCF7"
 
 <#
 .SYNOPSIS
     Get AppLocker Events
 .DESCRIPTION
-    Retrieves recent AppLocker events from the event log
+    Retrieves recent AppLocker events from the event log with enhanced data extraction
+.PARAMETER ComputerName
+    Optional remote computer name
+.PARAMETER MaxEvents
+    Maximum number of events to retrieve
+.PARAMETER FilterType
+    Filter by event type (Allowed/Audit/Blocked/All)
+.PARAMETER IncludeMsiScript
+    Also retrieve MSI and Script events
+.PARAMETER NoPSFilter
+    Don't filter out PowerShell policy test files
 #>
 function Get-AppLockerEvents {
     [CmdletBinding()]
     param(
+        [string]$ComputerName,
         [int]$MaxEvents = 100,
         [ValidateSet('All', 'Allowed', 'Audit', 'Blocked')]
-        [string]$FilterType = 'All'
+        [string]$FilterType = 'All',
+        [switch]$IncludeMsiScript,
+        [switch]$NoPSFilter
     )
 
-    $logName = 'Microsoft-Windows-AppLocker/EXE and DLL'
+    $logNames = @('Microsoft-Windows-AppLocker/EXE and DLL')
+    if ($IncludeMsiScript) {
+        $logNames += 'Microsoft-Windows-AppLocker/MSI and Script'
+    }
 
-    $logExists = Get-WinEvent -ListLog $logName -ErrorAction SilentlyContinue
-    if (-not $logExists) {
-        return @{
-            success = $false
-            error = 'AppLocker log not found'
-            data = @()
+    # Build XPath filter
+    $eventIdFilter = switch ($FilterType) {
+        'Allowed' { "$($script:EventIdMapping.ExeDllAllowed) or $($script:EventIdMapping.MsiScriptAllowed)" }
+        'Audit'   { "$($script:EventIdMapping.ExeDllWarning) or $($script:EventIdMapping.MsiScriptWarning)" }
+        'Blocked' { "$($script:EventIdMapping.ExeDllError) or $($script:EventIdMapping.MsiScriptError)" }
+        default   { "$($script:EventIdMapping.ExeDllWarning) or $($script:EventIdMapping.ExeDllError) or $($script:EventIdMapping.ExeDllAllowed)" }
+    }
+
+    if ($IncludeMsiScript) {
+        $eventIdFilter = switch ($FilterType) {
+            'Allowed' { "$eventIdFilter or $($script:EventIdMapping.MsiScriptAllowed)" }
+            'Audit'   { "$eventIdFilter or $($script:EventIdMapping.MsiScriptWarning)" }
+            'Blocked' { "$eventIdFilter or $($script:EventIdMapping.MsiScriptError)" }
+            default   { "$eventIdFilter or $($script:EventIdMapping.MsiScriptAllowed) or $($script:EventIdMapping.MsiScriptWarning) or $($script:EventIdMapping.MsiScriptError)" }
         }
     }
 
+    $filter = "*[System[(EventID=($eventIdFilter))]]"
+
+    $results = @()
+    $filteredOut = 0
+
     try {
-        $events = Get-WinEvent -LogName $logName -MaxEvents $MaxEvents -ErrorAction Stop
+        foreach ($logName in $logNames) {
+            $params = @{
+                FilterXPath = $filter
+                ErrorAction = 'SilentlyContinue'
+            }
+
+            if ($ComputerName) {
+                $params['ComputerName'] = $ComputerName
+                $params['LogName'] = $logName
+            }
+            else {
+                $params['LogName'] = $logName
+            }
+
+            $events = Get-WinEvent @params -MaxEvents $MaxEvents
+
+            foreach ($event in $events) {
+                # Property selector for efficient extraction (from AaronLocker)
+                $selectorStrings = @(
+                    'Event/UserData/RuleAndFileData/PolicyName',
+                    'Event/UserData/RuleAndFileData/TargetUser',
+                    'Event/UserData/RuleAndFileData/TargetProcessId',
+                    'Event/UserData/RuleAndFileData/Fqbn',
+                    'Event/UserData/RuleAndFileData/FilePath',
+                    'Event/UserData/RuleAndFileData/FileHash'
+                )
+
+                $propertySelector = [System.Diagnostics.Eventing.Reader.EventLogPropertySelector]::new($selectorStrings)
+                $properties = $event.GetPropertyValues($propertySelector)
+
+                $fileType = if ($properties[0]) { $properties[0] } else { "EXE" }
+                $userSid = if ($properties[1]) { $properties[1].ToString() } else { "" }
+                $userName = ConvertFrom-SidCached -Sid $userSid
+                $pid = if ($properties[2]) { $properties[2].ToString() } else { "" }
+                $filePath = if ($properties[4]) { $properties[4] } else { "" }
+                $hashRaw = $properties[5]
+
+                # Convert hash to proper format
+                $hash = ""
+                if ($hashRaw) {
+                    if ($hashRaw -is [string]) {
+                        $hash = if ($hashRaw.StartsWith("0x")) { $hashRaw } else { "0x" + $hashRaw }
+                    }
+                    elseif ($hashRaw.Length -gt 0) {
+                        $hash = "0x" + [System.BitConverter]::ToString($hashRaw).Replace('-', '')
+                    }
+                }
+
+                # Extract publisher info from FQBN (from AaronLocker pattern)
+                $publisherName = ""
+                $productName = ""
+                $binaryName = ""
+                $fileVersion = ""
+
+                if ($properties[3] -and $properties[3] -ne "-") {
+                    $pubInfo = $properties[3].Split("\")
+                    $publisherName = if ($pubInfo.Count -gt 0) { $pubInfo[0] } else { "" }
+                    $productName = if ($pubInfo.Count -gt 1) { $pubInfo[1] } else { "" }
+                    $binaryName = if ($pubInfo.Count -gt 2) { $pubInfo[2] } else { "" }
+                    $fileVersion = if ($pubInfo.Count -gt 3) { $pubInfo[3] } else { "" }
+                }
+
+                # Filter out PowerShell policy test files (from AaronLocker)
+                $filterOut = $false
+                if (-not $NoPSFilter -and $fileType -eq "SCRIPT") {
+                    if ($hash -eq $script:PsPolicyTestFileHash1 -or
+                        $hash -eq $script:PsPolicyTestFileHash2 -or
+                        $filePath -match "\\APPDATA\\LOCAL\\TEMP\\(__PSScriptPolicyTest_)?[A-Z0-9]{8}\.[A-Z0-9]{3}\.PS") {
+                        $filterOut = $true
+                    }
+                }
+
+                if ($filterOut) {
+                    $filteredOut++
+                    continue
+                }
+
+                # Determine action type
+                $action = switch ($event.Id) {
+                    { $_ -in $script:EventIdMapping.ExeDllAllowed, $script:EventIdMapping.MsiScriptAllowed } { 'Allowed' }
+                    { $_ -in $script:EventIdMapping.ExeDllWarning, $script:EventIdMapping.MsiScriptWarning } { 'Audit' }
+                    { $_ -in $script:EventIdMapping.ExeDllError, $script:EventIdMapping.MsiScriptError } { 'Blocked' }
+                    default { 'Unknown' }
+                }
+
+                # Convert to generic path (from AaronLocker pattern)
+                $genericPath = ConvertTo-AppLockerGenericPath -FilePath $filePath
+                $fileName = [System.IO.Path]::GetFileName($filePath)
+                $fileExt = [System.IO.Path]::GetExtension($filePath)
+
+                $results += @{
+                    eventId = $event.Id
+                    action = $action
+                    timestamp = $event.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')
+                    timestampSortable = $event.TimeCreated.ToString('yyyy-MM-ddTHH:mm:ss.fffffff')
+                    filePath = $filePath
+                    genericPath = $genericPath
+                    fileName = $fileName
+                    fileExt = $fileExt
+                    fileType = $fileType
+                    userSid = $userSid
+                    userName = $userName
+                    computerName = $event.MachineName
+                    pid = $pid
+                    publisherName = $publisherName
+                    productName = $productName
+                    binaryName = $binaryName
+                    fileVersion = $fileVersion
+                    hash = $hash
+                    isSigned = ($publisherName -ne "" -and $publisherName -ne "-")
+                }
+            }
+        }
+
+        return @{
+            success = $true
+            data = $results
+            count = $results.Count
+            filteredOut = $filteredOut
+        }
     }
     catch {
         if ($_.Exception.Message -match 'No events were found') {
@@ -43,43 +212,6 @@ function Get-AppLockerEvents {
             error = $_.Exception.Message
             data = @()
         }
-    }
-
-    $results = @()
-    foreach ($event in $events) {
-        $eventId = $event.Id
-
-        $action = switch ($eventId) {
-            8002 { 'Allowed' }
-            8003 { 'Audit' }
-            8004 { 'Blocked' }
-            default { 'Unknown' }
-        }
-
-        if ($FilterType -ne 'All' -and $action -ne $FilterType) {
-            continue
-        }
-
-        $timestamp = $event.TimeCreated
-        $message = $event.Message
-        $filePath = ''
-        if ($message -match '([A-Za-z]:[^\r\n"]+\.exe)') {
-            $filePath = $matches[1]
-        }
-
-        $results += @{
-            eventId = $eventId
-            action = $action
-            timestamp = $timestamp.ToString('yyyy-MM-dd HH:mm:ss')
-            filePath = $filePath
-            computerName = $event.MachineName
-        }
-    }
-
-    return @{
-        success = $true
-        data = $results
-        count = $results.Count
     }
 }
 
