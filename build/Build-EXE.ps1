@@ -100,7 +100,7 @@ if (-not $SkipTests) {
 }
 
 # Step 4: Build the executable
-Write-BuildStep "Step 4: Building executable..."
+Write-BuildStep "Step 4: Building standalone GUI executable..."
 
 # Check for PS2EXE module
 if (-not (Get-Module -ListAvailable -Name ps2exe)) {
@@ -108,53 +108,18 @@ if (-not (Get-Module -ListAvailable -Name ps2exe)) {
     Install-Module -Name ps2exe -Force -Scope CurrentUser
 }
 
-# Create a wrapper script for the EXE
-$wrapperScript = @"
-# GA-AppLocker Dashboard - Auto-generated wrapper
-# This script serves as the entry point for the compiled executable
+# Use the standalone GUI script as input (self-contained, no external dependencies)
+$guiScriptPath = ".\build\GA-AppLocker-GUI-Full.ps1"
 
-`$scriptPath = Split-Path -Parent `$MyInvocation.MyCommand.Path
-`$modulePath = Join-Path `$scriptPath "modules"
-`$libPath = Join-Path `$scriptPath "lib"
+if (-not (Test-Path $guiScriptPath)) {
+    throw "GUI script not found at: $guiScriptPath"
+}
 
-# Import modules
-Import-Module (Join-Path `$libPath "Common.psm1") -Force
-Import-Module (Join-Path `$modulePath "Module1-Dashboard.psm1") -Force
-Import-Module (Join-Path `$modulePath "Module2-RemoteScan.psm1") -Force
-Import-Module (Join-Path `$modulePath "Module3-RuleGenerator.psm1") -Force
-Import-Module (Join-Path `$modulePath "Module4-PolicyLab.psm1") -Force
-Import-Module (Join-Path `$modulePath "Module5-EventMonitor.psm1") -Force
-Import-Module (Join-Path `$modulePath "Module6-ADManager.psm1") -Force
-Import-Module (Join-Path `$modulePath "Module7-Compliance.psm1") -Force
+# Copy GUI script to output
+$wrapperPath = "$OutputPath\GA-AppLocker-GUI.ps1"
+Copy-Item -Path $guiScriptPath -Destination $wrapperPath -Force
 
-# Show welcome message
-Write-Host "`n====================================" -ForegroundColor Cyan
-Write-Host "  GA-AppLocker Dashboard v1.0" -ForegroundColor Cyan
-Write-Host "====================================`n" -ForegroundColor Cyan
-Write-Host "Modules loaded successfully!" -ForegroundColor Green
-Write-Host "`nAvailable commands:" -ForegroundColor Yellow
-Write-Host "  - Get-DashboardSummary" -ForegroundColor White
-Write-Host "  - Get-AllComputers" -ForegroundColor White
-Write-Host "  - Scan-LocalComputer" -ForegroundColor White
-Write-Host "  - Generate-Rules" -ForegroundColor White
-Write-Host "  - Export-Policy" -ForegroundColor White
-Write-Host "  - Create-GPO" -ForegroundColor White
-Write-Host "  - Link-GPO" -ForegroundColor White
-Write-Host "  - Get-Events" -ForegroundColor White
-Write-Host "  - Get-Compliance" -ForegroundColor White
-Write-Host "`nType 'help <command>' for more information.`n" -ForegroundColor Gray
-
-# Keep shell open
-`$null = Read-Host "Press Enter to exit"
-"@
-
-$wrapperPath = "$OutputPath\GA-AppLocker-Wrapper.ps1"
-$wrapperScript | Out-File -FilePath $wrapperPath -Encoding UTF8
-
-# Prepare source files for packaging
-$packageDir = "$OutputPath\package"
-New-Item -ItemType Directory -Path $packageDir -Force | Out-Null
-Copy-Item -Path ".\src\*" -Destination $packageDir -Recurse -Force
+# Note: No need to package source files - standalone script has embedded functions
 
 # Compile with PS2EXE
 try {
@@ -164,17 +129,16 @@ try {
 
     Write-Host "  Compiling to: $exePath" -ForegroundColor Gray
 
-    # PS2EXE parameters
+    # Use console version of ps2exe (no GUI)
     $ps2exeParams = @{
         InputFile  = $wrapperPath
         OutputFile = $exePath
-        IconFile   = ".\build\icon.ico"
         Title      = "GA-AppLocker Dashboard"
-        ConfigFile = ".\build\ps2exe.config.json"
+        NoConsole  = $true
     }
 
-    # Try to compile with PS2EXE
-    & win-ps2exe @ps2exeParams -ErrorAction Stop
+    # Try to compile with PS2EXE (console version)
+    ps2exe @ps2exeParams -ErrorAction Stop
 
     if (Test-Path $exePath) {
         $fileSize = (Get-Item $exePath).Length / 1MB
@@ -250,9 +214,12 @@ New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 if (Test-Path "$OutputPath\GA-AppLocker-Dashboard.exe") {
     Copy-Item -Path "$OutputPath\GA-AppLocker-Dashboard.exe" -Destination $releaseDir
 }
-Copy-Item -Path ".\src\*" -Destination "$releaseDir\modules" -Recurse -Force
-Copy-Item -Path ".\README.md" -Destination $releaseDir
-Copy-Item -Path ".\PSScriptAnalyzerSettings.psd1" -Destination $releaseDir
+
+# Create modules subdirectory and copy source files
+$modulesDir = New-Item -ItemType Directory -Path "$releaseDir\modules" -Force
+Copy-Item -Path ".\src\*" -Destination $modulesDir.FullName -Recurse -Force
+Copy-Item -Path ".\README.md" -Destination $releaseDir -ErrorAction SilentlyContinue
+Copy-Item -Path ".\PSScriptAnalyzerSettings.psd1" -Destination $releaseDir -ErrorAction SilentlyContinue
 
 # Create release notes
 $releaseNotes = @"
