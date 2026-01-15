@@ -1,0 +1,148 @@
+name: Build Full (with Tests)
+
+# Full build workflow with PSScriptAnalyzer and Pester tests
+# For fast builds without tests, use the main build.yml workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_slow_tests:
+        description: 'Run slow network tests'
+        required: false
+        default: 'false'
+        type: boolean
+  schedule:
+    # Run full tests weekly on Sunday at midnight
+    - cron: '0 0 * * 0'
+
+env:
+  POWERSHELL_TELEMETRY_OPTOUT: 1
+
+jobs:
+  analyze:
+    name: PSScriptAnalyzer
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Import-Module PSScriptAnalyzer
+          $results = Invoke-ScriptAnalyzer -Path ./src -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse
+          if ($results) {
+            Write-Host "PSScriptAnalyzer found $($results.Count) issue(s):"
+            $results | Format-Table -AutoSize
+            $errors = $results | Where-Object { $_.Severity -eq 'Error' }
+            if ($errors) {
+              Write-Host "##[error]Build failed: PSScriptAnalyzer found $($errors.Count) error(s)"
+              exit 1
+            }
+          } else {
+            Write-Host "No PSScriptAnalyzer issues found"
+          }
+
+  test:
+    name: Pester Tests
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Pester
+        shell: pwsh
+        run: Install-Module -Name Pester -Force -MinimumVersion 5.0 -Scope CurrentUser -SkipPublisherCheck
+
+      - name: Run Pester tests (fast mode)
+        shell: pwsh
+        run: |
+          Import-Module Pester -MinimumVersion 5.0
+
+          $config = New-PesterConfiguration
+          $config.Run.Path = "./tests"
+          $config.Run.Exit = $false
+          $config.Run.Throw = $false
+          $config.Output.Verbosity = 'Normal'
+          $config.TestResult.Enabled = $true
+          $config.TestResult.OutputPath = "./pester-results.xml"
+          $config.CodeCoverage.Enabled = $false
+
+          # Note: $script:SkipSlowNetworkTests = $true is set in the test file
+          # This skips slow network and file system tests automatically
+
+          $result = Invoke-Pester -Configuration $config
+
+          Write-Host "`nTest Results:"
+          Write-Host "  Passed: $($result.PassedCount)"
+          Write-Host "  Failed: $($result.FailedCount)"
+          Write-Host "  Skipped: $($result.SkippedCount)"
+
+          if ($result.FailedCount -gt 0) {
+            Write-Host "##[error]$($result.FailedCount) tests failed"
+            exit 1
+          }
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pester-results
+          path: pester-results.xml
+          retention-days: 30
+
+  build:
+    name: Build Package
+    needs: [analyze, test]
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PS2EXE
+        shell: pwsh
+        run: Install-Module -Name ps2exe -Force -Scope CurrentUser
+
+      - name: Build EXE
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path ./output -Force | Out-Null
+
+          $guiScript = "./build/GA-AppLocker-GUI-WPF.ps1"
+          if (-not (Test-Path $guiScript)) {
+            $guiScript = "./GA-AppLocker-1.2.4/src/GUI/GA-AppLocker-Portable.ps1"
+          }
+
+          Copy-Item -Path $guiScript -Destination "./output/GA-AppLocker-GUI.ps1" -Force
+
+          try {
+            Import-Module ps2exe
+            ps2exe -InputFile "./output/GA-AppLocker-GUI.ps1" `
+                   -OutputFile "./output/GA-AppLocker-Dashboard.exe" `
+                   -Title "GA-AppLocker Dashboard" `
+                   -NoConsole -NoOutput
+            Write-Host "EXE built successfully" -ForegroundColor Green
+          } catch {
+            Write-Host "PS2EXE failed, using portable script" -ForegroundColor Yellow
+          }
+
+      - name: Create package
+        shell: pwsh
+        run: |
+          Copy-Item -Path ./src -Destination ./output/modules -Recurse -Force
+          Copy-Item -Path ./README.md -Destination ./output/README.md -ErrorAction SilentlyContinue
+          Compress-Archive -Path ./output/* -DestinationPath ./GA-AppLocker-Dashboard-v1.2.4.zip -Force
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: GA-AppLocker-Dashboard-Tested
+          path: GA-AppLocker-Dashboard-v*.zip
+          retention-days: 30
