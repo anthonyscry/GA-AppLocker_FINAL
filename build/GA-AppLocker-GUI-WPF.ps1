@@ -1991,7 +1991,7 @@ $xamlString = @"
 
                     <!-- Artifacts List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinMinHeight="200">
+                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinHeight="200">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
