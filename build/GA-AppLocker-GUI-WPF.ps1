@@ -852,8 +852,14 @@ $xamlString = @"
         <!-- Environment Status Banner -->
         <Border x:Name="EnvironmentBanner" Background="#21262D" BorderBrush="#30363D"
                 BorderThickness="0,0,0,1" Height="40" VerticalAlignment="Top" Margin="0,60,0,0">
-            <TextBlock x:Name="EnvironmentText" Text="" FontSize="12"
-                       Foreground="#8B949E" VerticalAlignment="Center" Margin="20,0"/>
+            <Grid Margin="20,0">
+                <TextBlock x:Name="EnvironmentText" Text="" FontSize="12"
+                           Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="NavHelp" Content="Help" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,6,0"/>
+                    <Button x:Name="NavAbout" Content="About" Style="{StaticResource SecondaryButton}" Padding="12,4"/>
+                </StackPanel>
+            </Grid>
         </Border>
 
         <!-- Main Content Area -->
@@ -865,21 +871,13 @@ $xamlString = @"
 
             <!-- Sidebar Navigation -->
             <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,0,1" Grid.Column="0">
-                <DockPanel Margin="0,10,0,10">
-                    <StackPanel DockPanel.Dock="Bottom" Margin="4,0,4,12">
-                        <Button x:Name="NavHelp" Content="Help" Style="{StaticResource SecondaryButton}"
-                                HorizontalAlignment="Stretch" Margin="6,5"/>
-                        <Button x:Name="NavAbout" Content="About" Style="{StaticResource SecondaryButton}"
-                                HorizontalAlignment="Stretch" Margin="6,5"/>
-                    </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,10">
+                    <StackPanel>
+                        <!-- Dashboard -->
+                        <Button x:Name="NavDashboard" Content="Dashboard" Style="{StaticResource SecondaryButton}"
+                                HorizontalAlignment="Stretch" Margin="10,5"/>
 
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,12,0,0">
-                        <StackPanel>
-                            <!-- Dashboard -->
-                            <Button x:Name="NavDashboard" Content="Dashboard" Style="{StaticResource SecondaryButton}"
-                                    HorizontalAlignment="Stretch" Margin="10,5"/>
-
-                            <!-- SETUP Section (Collapsible) -->
+                        <!-- SETUP Section (Collapsible) -->
                             <Expander x:Name="SetupSection" IsExpanded="False" BorderBrush="#30363D" BorderThickness="0,0,0,1" Margin="0,8,0,0">
                                 <Expander.Header>
                                     <Grid>
@@ -964,7 +962,6 @@ $xamlString = @"
                             </Expander>
                         </StackPanel>
                     </ScrollViewer>
-                </DockPanel>
             </Border>
 
             <!-- Content Panel -->
