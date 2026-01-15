@@ -1,0 +1,213 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+  workflow_dispatch:
+
+env:
+  POWERSHELL_TELEMETRY_OPTOUT: 1
+
+jobs:
+  analyze:
+    name: PSScriptAnalyzer
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: Install-Module -Name PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Run PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Import-Module PSScriptAnalyzer
+          $results = Invoke-ScriptAnalyzer -Path ./src -Settings ./PSScriptAnalyzerSettings.psd1 -Recurse
+          if ($results) {
+            Write-Host "PSScriptAnalyzer found $($results.Count) issue(s):"
+            $results | Format-Table -AutoSize
+            $errors = $results | Where-Object { $_.Severity -eq 'Error' }
+            if ($errors) {
+              Write-Host "##[error]Build failed: PSScriptAnalyzer found $($errors.Count) error(s)"
+              exit 1
+            }
+          } else {
+            Write-Host "No PSScriptAnalyzer issues found"
+          }
+
+      - name: Upload analysis results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: psanalyzer-results
+          path: |
+            **/psanalyzer-results.json
+
+  test:
+    name: Pester Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Pester
+        shell: pwsh
+        run: Install-Module -Name Pester -Force -MinimumVersion 5.0 -Scope CurrentUser -SkipPublisherCheck
+
+      - name: Run Pester tests
+        shell: pwsh
+        run: |
+          Import-Module Pester -MinimumVersion 5.0
+          $config = New-PesterConfiguration
+          $config.Run.Path = "./tests"
+          $config.Run.Exit = $true
+          $config.Output.Verbosity = 'Detailed'
+          $config.TestResult.Enabled = $true
+          $config.TestResult.OutputPath = "./pester-results.xml"
+          $config.CodeCoverage.Enabled = $true
+          $config.CodeCoverage.Path = "./src/**/*.psm1"
+          $config.CodeCoverage.OutputPath = "./coverage.xml"
+          $config.CodeCoverage.OutputFormat = 'JaCoCo'
+          Invoke-Pester -Configuration $config
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pester-results
+          path: |
+            pester-results.xml
+            coverage.xml
+
+      - name: Publish Test Results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: pester-results.xml
+          check_name: Pester Test Results
+
+      - name: Code Coverage Summary
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: coverage.xml
+          format: cobertura
+          badge: true
+          indicators: true
+
+  build:
+    name: Build EXE
+    needs: [analyze, test]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PS2EXE
+        shell: pwsh
+        run: Install-Module -Name ps2exe -Force -Scope CurrentUser
+
+      - name: Create output directory
+        shell: pwsh
+        run: New-Item -ItemType Directory -Path ./output -Force | Out-Null
+
+      - name: Build wrapper script
+        shell: pwsh
+        run: |
+          $wrapper = @'
+          # GA-AppLocker Dashboard Wrapper
+          $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Path
+          $modulePath = Join-Path $scriptPath "modules"
+
+          Import-Module (Join-Path $modulePath "Module1-Dashboard.psm1") -Force
+          Import-Module (Join-Path $modulePath "Module2-RemoteScan.psm1") -Force
+          Import-Module (Join-Path $modulePath "Module3-RuleGenerator.psm1") -Force
+          Import-Module (Join-Path $modulePath "Module4-PolicyLab.psm1") -Force
+          Import-Module (Join-Path $modulePath "Module5-EventMonitor.psm1") -Force
+          Import-Module (Join-Path $modulePath "Module6-ADManager.psm1") -Force
+          Import-Module (Join-Path $modulePath "Module7-Compliance.psm1") -Force
+
+          Write-Host "`n====================================" -ForegroundColor Cyan
+          Write-Host "  GA-AppLocker Dashboard v1.0" -ForegroundColor Cyan
+          Write-Host "====================================`n" -ForegroundColor Cyan
+          Write-Host "Modules loaded successfully!`n" -ForegroundColor Green
+          '@
+          $wrapper | Out-File -FilePath ./output/wrapper.ps1 -Encoding UTF8
+
+      - name: Build portable package
+        shell: pwsh
+        run: |
+          # Create portable launcher
+          $launcher = @'
+          # GA-AppLocker Dashboard Launcher
+          $moduleRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+          $env:PSModulePath = "$moduleRoot;" + $env:PSModulePath
+
+          Write-Host "`n====================================" -ForegroundColor Cyan
+          Write-Host "  GA-AppLocker Dashboard v1.0" -ForegroundColor Cyan
+          Write-Host "====================================`n" -ForegroundColor Cyan
+          Write-Host "Available commands:" -ForegroundColor Yellow
+          Write-Host "  - Get-DashboardSummary" -ForegroundColor White
+          Write-Host "  - Get-AllComputers" -ForegroundColor White
+          Write-Host "  - Scan-LocalComputer" -ForegroundColor White
+          Write-Host "  - Generate-Rules" -ForegroundColor White
+          Write-Host "  - Export-Policy" -ForegroundColor White
+          Write-Host "  - Create-GPO" -ForegroundColor White
+          Write-Host "  - Link-GPO" -ForegroundColor White
+          Write-Host "  - Get-Events" -ForegroundColor White
+          Write-Host "  - Get-Compliance" -ForegroundColor White
+          Write-Host "`nType 'Get-Command -Module GA-AppLocker' for all commands.`n" -ForegroundColor Gray
+          '@
+          $launcher | Out-File -FilePath ./output/GA-AppLocker-Dashboard.ps1 -Encoding UTF8
+
+          # Copy modules
+          Copy-Item -Path ./src -Destination ./output/modules -Recurse -Force
+
+          # Create README
+          Copy-Item -Path ./README.md -Destination ./output/README.md
+
+          # Create ZIP package
+          Compress-Archive -Path ./output/* -DestinationPath ./GA-AppLocker-Dashboard.zip -Force
+
+      - name: Upload portable package
+        uses: actions/upload-artifact@v4
+        with:
+          name: GA-AppLocker-Dashboard-Portable
+          path: GA-AppLocker-Dashboard.zip
+
+      - name: Create release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: GA-AppLocker-Dashboard.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  summary:
+    name: Build Summary
+    needs: [analyze, test, build]
+    runs-on: windows-latest
+    if: always()
+    steps:
+      - name: Check job results
+        run: |
+          Write-Host "====================================="
+          Write-Host "  BUILD SUMMARY"
+          Write-Host "====================================="
+          Write-Host "Analyze: ${{ needs.analyze.result }}"
+          Write-Host "Test: ${{ needs.test.result }}"
+          Write-Host "Build: ${{ needs.build.result }}"
+
+          if ("${{ needs.analyze.result }}" -ne "success" -or "${{ needs.test.result }}" -ne "success" -or "${{ needs.build.result }}" -ne "success") {
+            Write-Host "##[error]Build failed!"
+            exit 1
+          }
+
+          Write-Host "====================================="
+          Write-Host "  BUILD COMPLETED SUCCESSFULLY"
+          Write-Host "====================================="
