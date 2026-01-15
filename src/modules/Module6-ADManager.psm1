@@ -217,6 +217,15 @@ function Add-UserToAppLockerGroup {
         [string]$GroupName
     )
 
+    # Validate parameters
+    if ([string]::IsNullOrWhiteSpace($SamAccountName)) {
+        return @{ success = $false; error = 'SamAccountName is required' }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($GroupName)) {
+        return @{ success = $false; error = 'GroupName is required' }
+    }
+
     try {
         Import-Module ActiveDirectory -ErrorAction Stop
     }
@@ -276,6 +285,15 @@ function Remove-UserFromAppLockerGroup {
         [Parameter(Mandatory = $true)]
         [string]$GroupName
     )
+
+    # Validate parameters
+    if ([string]::IsNullOrWhiteSpace($SamAccountName)) {
+        return @{ success = $false; error = 'SamAccountName is required' }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($GroupName)) {
+        return @{ success = $false; error = 'GroupName is required' }
+    }
 
     try {
         Import-Module ActiveDirectory -ErrorAction Stop

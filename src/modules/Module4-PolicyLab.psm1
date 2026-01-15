@@ -80,6 +80,21 @@ function Add-GPOLink {
         [string]$TargetOU
     )
 
+    # Additional validation for empty strings
+    if ([string]::IsNullOrWhiteSpace($GpoName)) {
+        return @{
+            success = $false
+            error = 'GPO name is required'
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($TargetOU)) {
+        return @{
+            success = $false
+            error = 'Target OU is required'
+        }
+    }
+
     try {
         Import-Module GroupPolicy -ErrorAction Stop
         Import-Module ActiveDirectory -ErrorAction Stop
