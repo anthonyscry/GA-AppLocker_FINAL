@@ -1,6 +1,13 @@
 # Module3-RuleGenerator.psm1
 # Rule Generator module for GA-AppLocker
 # Creates AppLocker rules from artifacts
+# Enhanced with patterns from Microsoft AaronLocker
+
+# Import Common library
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction SilentlyContinue
+
+# Ensure the AppLocker assembly is loaded
+[void][System.Reflection.Assembly]::LoadWithPartialName("Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel")
 
 <#
 .SYNOPSIS
@@ -283,7 +290,7 @@ function New-RulesFromArtifacts {
 .SYNOPSIS
     Export Rules to XML File
 .DESCRIPTION
-    Saves generated rules to an AppLocker policy XML file
+    Saves generated rules to an AppLocker policy XML file with proper Unicode encoding
 #>
 function Export-RulesToXml {
     [CmdletBinding()]
@@ -293,7 +300,9 @@ function Export-RulesToXml {
         [Parameter(Mandatory = $true)]
         [string]$OutputPath,
         [ValidateSet('AuditOnly', 'Enabled', 'NotConfigured')]
-        [string]$EnforcementMode = 'AuditOnly'
+        [string]$EnforcementMode = 'AuditOnly',
+        [ValidateSet('Exe', 'Dll', 'Script', 'Msi', 'Appx')]
+        [string]$RuleCollectionType = 'Exe'
     )
 
     if (-not $Rules -or $Rules.Count -eq 0) {
@@ -304,34 +313,171 @@ function Export-RulesToXml {
     }
 
     try {
-        $rulesXml = ($Rules | ForEach-Object { $_.xml }) -join "`n    "
+        # Use AppLockerPolicy object for proper XML structure
+        $policy = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.AppLockerPolicy
 
-        $policyXml = @"
-<?xml version="1.0" encoding="utf-8"?>
-<AppLockerPolicy Version="1">
-  <RuleCollection Type="Exe" EnforcementMode="$EnforcementMode">
-    $rulesXml
-  </RuleCollection>
-  <RuleCollection Type="Msi" EnforcementMode="NotConfigured">
-  </RuleCollection>
-  <RuleCollection Type="Script" EnforcementMode="NotConfigured">
-  </RuleCollection>
-  <RuleCollection Type="Dll" EnforcementMode="NotConfigured">
-  </RuleCollection>
-</AppLockerPolicy>
-"@
+        # Get the rule collection
+        $ruleCollection = $policy.GetRuleCollection($RuleCollectionType)
+        $ruleCollection.EnforcementMode = $EnforcementMode
 
+        # Add rules using the AppLockerPolicy object
+        foreach ($ruleInfo in $Rules) {
+            if ($ruleInfo.xml) {
+                # Parse the XML rule and convert to proper format
+                [xml]$ruleXml = $ruleInfo.xml
+                $ruleNode = $ruleXml.DocumentElement
+
+                switch ($ruleInfo.type) {
+                    'Publisher' {
+                        $fpr = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePublisherRule
+                        $fpr.Id = $ruleInfo.id
+                        $fpr.Name = $ruleInfo.name
+                        $fpr.Description = $ruleInfo.Description
+                        $fpr.UserOrGroupSid = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
+                        $fpr.Action = if ($ruleInfo.action -eq 'Allow') {
+                            [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePublisherRule+Action]::Allow
+                        } else {
+                            [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePublisherRule+Action]::Deny
+                        }
+
+                        # Add conditions from the parsed XML
+                        if ($ruleNode.Conditions.FilePublisherCondition) {
+                            $condition = $ruleNode.Conditions.FilePublisherCondition
+                            $fpc = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePublisherCondition
+                            $fpc.PublisherName = $condition.PublisherName
+                            $fpc.ProductName = $condition.ProductName
+                            $fpc.BinaryName = $condition.BinaryName
+                            if ($condition.BinaryVersionRange) {
+                                $fpc.VersionLow = $condition.BinaryVersionRange.LowSection
+                                $fpc.VersionHigh = $condition.BinaryVersionRange.HighSection
+                            }
+                            $fpr.Conditions.Add($fpc)
+                        }
+
+                        $ruleCollection.Add($fpr)
+                    }
+                    'Path' {
+                        $fpr = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePathRule
+                        $fpr.Id = $ruleInfo.id
+                        $fpr.Name = $ruleInfo.name
+                        $fpr.Description = $ruleInfo.Description
+                        $fpr.UserOrGroupSid = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
+                        $fpr.Action = if ($ruleInfo.action -eq 'Allow') {
+                            [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePathRule+Action]::Allow
+                        } else {
+                            [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePathRule+Action]::Deny
+                        }
+
+                        if ($ruleNode.Conditions.FilePathCondition) {
+                            $fpc = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePathCondition
+                            $fpc.Path = $ruleNode.Conditions.FilePathCondition.Path
+                            $fpr.Conditions.Add($fpc)
+                        }
+
+                        $ruleCollection.Add($fpr)
+                    }
+                    'Hash' {
+                        $fhr = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FileHashRule
+                        $fhr.Id = $ruleInfo.id
+                        $fhr.Name = $ruleInfo.name
+                        $fhr.Description = $ruleInfo.Description
+                        $fhr.UserOrGroupSid = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
+                        $fhr.Action = if ($ruleInfo.action -eq 'Allow') {
+                            [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FileHashRule+Action]::Allow
+                        } else {
+                            [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FileHashRule+Action]::Deny
+                        }
+
+                        if ($ruleNode.Conditions.FileHashCondition.FileHash) {
+                            $fh = $ruleNode.Conditions.FileHashCondition.FileHash
+                            $fhc = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FileHashCondition
+                            $fhc.Type = [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FileHashType]::SHA256
+                            $fhc.Data = $fh.Data
+                            $fhc.SourceFileName = $fh.SourceFileName
+                            $fhc.SourceFileLength = $fh.SourceFileLength
+                            $fhr.Conditions.Add($fhc)
+                        }
+
+                        $ruleCollection.Add($fhr)
+                    }
+                }
+            }
+        }
+
+        # Save using the Common library's Unicode save function
         $parentDir = Split-Path -Path $OutputPath -Parent
         if (-not (Test-Path $parentDir)) {
             New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
         }
 
-        $policyXml | Out-File -FilePath $OutputPath -Encoding UTF8 -Force
+        Save-AppLockerPolicyAsUnicodeXml -ALPolicy $policy -xmlFilename $OutputPath
 
         return @{
             success = $true
             path = $OutputPath
             ruleCount = $Rules.Count
+            enforcementMode = $EnforcementMode
+            ruleCollectionType = $RuleCollectionType
+        }
+    }
+    catch {
+        return @{
+            success = $false
+            error = $_.Exception.Message
+        }
+    }
+}
+
+<#
+.SYNOPSIS
+    Merge AppLocker Policy Files
+.DESCRIPTION
+    Merges multiple AppLocker XML policy files into a single policy
+.PARAMETER PolicyPaths
+    Array of paths to policy XML files to merge
+.PARAMETER OutputPath
+    Path for the merged policy output
+.PARAMETER EnforcementMode
+    Enforcement mode for the merged policy
+#>
+function Merge-AppLockerPolicies {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$PolicyPaths,
+        [Parameter(Mandatory = $true)]
+        [string]$OutputPath,
+        [ValidateSet('AuditOnly', 'Enabled', 'NotConfigured')]
+        [string]$EnforcementMode = 'AuditOnly'
+    )
+
+    try {
+        # Create master policy from first file
+        $masterPolicy = [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.AppLockerPolicy]::Load($PolicyPaths[0])
+
+        # Merge additional policies
+        for ($i = 1; $i -lt $PolicyPaths.Count; $i++) {
+            $policyToMerge = [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.AppLockerPolicy]::Load($PolicyPaths[$i])
+            $masterPolicy.Merge($policyToMerge)
+        }
+
+        # Set enforcement mode
+        foreach ($ruleCollection in $masterPolicy.RuleCollections) {
+            $ruleCollection.EnforcementMode = $EnforcementMode
+        }
+
+        # Save merged policy
+        $parentDir = Split-Path -Path $OutputPath -Parent
+        if (-not (Test-Path $parentDir)) {
+            New-Item -ItemType Directory -Path $parentDir -Force | Out-Null
+        }
+
+        Save-AppLockerPolicyAsUnicodeXml -ALPolicy $masterPolicy -xmlFilename $OutputPath
+
+        return @{
+            success = $true
+            path = $OutputPath
+            sources = $PolicyPaths
             enforcementMode = $EnforcementMode
         }
     }
@@ -416,4 +562,5 @@ function Import-RulesFromXml {
 
 # Export functions
 Export-ModuleMember -Function Get-TrustedPublishers, New-PublisherRule, New-PathRule, New-HashRule,
-                              New-RulesFromArtifacts, Export-RulesToXml, Import-RulesFromXml
+                              New-RulesFromArtifacts, Export-RulesToXml, Import-RulesFromXml,
+                              Merge-AppLockerPolicies

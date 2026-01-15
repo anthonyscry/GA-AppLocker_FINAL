@@ -1,6 +1,10 @@
 # Module4-PolicyLab.psm1
 # Policy Lab module for GA-AppLocker
 # Manages GPO creation, linking, and policy deployment
+# Enhanced with patterns from Microsoft AaronLocker
+
+# Import Common library
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction SilentlyContinue
 
 <#
 .SYNOPSIS
@@ -202,7 +206,7 @@ function Get-OUsWithComputerCounts {
 .SYNOPSIS
     Set AppLocker Policy in GPO
 .DESCRIPTION
-    Applies an AppLocker XML policy to a GPO
+    Applies an AppLocker XML policy to a GPO using improved LDAP path construction (from AaronLocker)
 #>
 function Set-GPOAppLockerPolicy {
     [CmdletBinding()]
@@ -210,16 +214,25 @@ function Set-GPOAppLockerPolicy {
         [Parameter(Mandatory = $true)]
         [string]$GpoName,
         [Parameter(Mandatory = $true)]
-        [string]$PolicyXmlPath
+        [string]$PolicyXmlPath,
+        [switch]$Enforce
     )
 
     try {
         Import-Module GroupPolicy -ErrorAction Stop
+        Import-Module ActiveDirectory -ErrorAction Stop
     }
     catch {
         return @{
             success = $false
-            error = 'GroupPolicy module not available'
+            error = 'Required modules not available'
+        }
+    }
+
+    if (-not (Test-Path $PolicyXmlPath)) {
+        return @{
+            success = $false
+            error = "XML file not found: $PolicyXmlPath"
         }
     }
 
@@ -232,23 +245,30 @@ function Set-GPOAppLockerPolicy {
             }
         }
 
-        if (-not (Test-Path $PolicyXmlPath)) {
-            return @{
-                success = $false
-                error = "XML file not found: $PolicyXmlPath"
+        # Load and potentially modify enforcement mode (from AaronLocker pattern)
+        $xmlContent = Get-Content -Path $PolicyXmlPath -Raw
+        $policy = [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.AppLockerPolicy]::FromXml($xmlContent)
+
+        if ($Enforce) {
+            foreach ($ruleCollection in $policy.RuleCollections) {
+                $ruleCollection.EnforcementMode = "Enabled"
             }
         }
 
-        $xmlContent = Get-Content -Path $PolicyXmlPath -Raw
-        $domain = (Get-ADDomain).DNSRoot
-        $ldapPath = "LDAP://CN={$($gpo.Id)},CN=Policies,CN=System,DC=$($domain -replace '\.',',DC=')"
+        # Better LDAP path construction (from AaronLocker)
+        $domain = [System.Directoryservices.Activedirectory.Domain]::GetComputerDomain()
+        $ldapPath = "LDAP://{0}" -f $gpo.Path.Replace("LDAP://", "")
 
-        Set-AppLockerPolicy -XMLPolicy $xmlContent -LDAP $ldapPath -ErrorAction Stop
+        Write-Verbose "Applying policy to GPO '$GpoName' in domain '$($domain.Name)'"
+        Set-AppLockerPolicy -AppLockerPolicy $policy -LDAP $ldapPath -ErrorAction Stop
 
         return @{
             success = $true
             gpoName = $GpoName
+            gpoId = $gpo.Id.ToString()
             policyPath = $PolicyXmlPath
+            domain = $domain.Name
+            enforced = $Enforce
         }
     }
     catch {
@@ -256,6 +276,89 @@ function Set-GPOAppLockerPolicy {
             success = $false
             error = $_.Exception.Message
         }
+    }
+}
+
+<#
+.SYNOPSIS
+    Apply Latest Policy to GPO
+.DESCRIPTION
+    Applies the most recently generated policy to a GPO (from AaronLocker pattern)
+.PARAMETER GpoName
+    Name of the group policy object
+.PARAMETER GpoGuid
+    GUID of the group policy object
+.PARAMETER Enforce
+    If set, applies enforcing rules. Otherwise, applies auditing rules.
+.PARAMETER PolicyDirectory
+    Directory containing policy XML files
+#>
+function Set-LatestAppLockerPolicy {
+    [CmdletBinding(SupportsShouldProcess, ConfirmImpact = "High")]
+    param(
+        [Parameter(Mandatory = $true, ParameterSetName = 'GpoName')]
+        [string]$GpoName,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'GpoGUID')]
+        [guid]$GpoGuid,
+
+        [switch]$Enforce = $false,
+
+        [string]$PolicyDirectory = 'C:\AppLocker\output'
+    )
+
+    try {
+        Import-Module GroupPolicy -ErrorAction Stop
+        Import-Module ActiveDirectory -ErrorAction Stop
+    }
+    catch {
+        return @{
+            success = $false
+            error = 'Required modules not available'
+        }
+    }
+
+    # Find latest policy file
+    $pattern = if ($Enforce) { "*-Enforce.xml" } else { "*-Audit.xml" }
+    $latestPolicy = Get-ChildItem -Path $PolicyDirectory -Filter $pattern |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+
+    if (-not $latestPolicy) {
+        return @{
+            success = $false
+            error = "No policy file found matching pattern: $pattern"
+        }
+    }
+
+    if ($GpoGuid) {
+        $gpo = Get-GPO -Guid $GpoGuid -ErrorAction Stop
+    }
+    else {
+        $gpo = Get-GPO -Name $GpoName -ErrorAction Stop
+    }
+
+    $domain = [System.Directoryservices.Activedirectory.Domain]::GetComputerDomain()
+
+    if ($PSCmdlet.ShouldProcess($gpo.DisplayName, "Set AppLocker policy using $($latestPolicy.Name)")) {
+        $policy = [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.AppLockerPolicy]::Load($latestPolicy.FullName)
+        $ldapPath = "LDAP://{0}" -f $gpo.Path.Replace("LDAP://", "")
+
+        Set-AppLockerPolicy -AppLockerPolicy $policy -LDAP $ldapPath -ErrorAction Stop
+
+        return @{
+            success = $true
+            gpoName = $gpo.DisplayName
+            gpoId = $gpo.Id.ToString()
+            policyFile = $latestPolicy.FullName
+            domain = $domain.Name
+            enforced = $Enforce
+        }
+    }
+
+    return @{
+        success = $false
+        error = "Operation cancelled by user"
     }
 }
 
@@ -297,4 +400,5 @@ function Save-PolicyToFile {
 
 # Export functions
 Export-ModuleMember -Function New-AppLockerGPO, Add-GPOLink, Get-OUsWithComputerCounts,
-                              Set-GPOAppLockerPolicy, Save-PolicyToFile
+                              Set-GPOAppLockerPolicy, Save-PolicyToFile,
+                              Set-LatestAppLockerPolicy
