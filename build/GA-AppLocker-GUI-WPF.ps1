@@ -464,26 +464,76 @@ function Get-DomainInfo {
     $computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
     # Check if actually part of a domain (PartOfDomain is a boolean)
     $isWorkgroup = -not $computerSystem -or -not $computerSystem.PartOfDomain
+
     if ($isWorkgroup) {
-        return @{ success = $true; isWorkgroup = $true; dnsRoot = "WORKGROUP"; netBIOSName = $env:COMPUTERNAME; message = "WORKGROUP - AD/GPO disabled" }
+        return @{
+            success = $true
+            isWorkgroup = $true
+            hasRSAT = $false
+            dnsRoot = "WORKGROUP"
+            netBIOSName = $env:COMPUTERNAME
+            message = "WORKGROUP - AD/GPO disabled"
+        }
     }
-    # We're domain-joined, try to get domain info
+
+    # We're domain-joined, check for RSAT (AD and GroupPolicy modules)
+    $hasADModule = $false
+    $hasGPModule = $false
+
     try {
-        Import-Module ActiveDirectory -ErrorAction SilentlyContinue
-        # Use module-qualified cmdlet name to avoid recursive call
-        $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
-        return @{ success = $true; isWorkgroup = $false; dnsRoot = $domain.DNSRoot; netBIOSName = $domain.NetBIOSName; message = "Domain: $($domain.DNSRoot)" }
+        Import-Module ActiveDirectory -ErrorAction Stop
+        $hasADModule = $true
+    } catch { }
+
+    try {
+        Import-Module GroupPolicy -ErrorAction Stop
+        $hasGPModule = $true
+    } catch { }
+
+    $hasRSAT = $hasADModule -and $hasGPModule
+
+    # Try to get domain info
+    try {
+        if ($hasADModule) {
+            $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
+            $domainName = $domain.DNSRoot
+            $netbios = $domain.NetBIOSName
+        } else {
+            $domainName = $env:USERDNSDOMAIN
+            if ([string]::IsNullOrEmpty($domainName)) {
+                $domainName = $computerSystem.Domain
+            }
+            $netbios = $env:USERDOMAIN
+        }
+
+        if ($hasRSAT) {
+            return @{
+                success = $true
+                isWorkgroup = $false
+                hasRSAT = $true
+                dnsRoot = $domainName
+                netBIOSName = $netbios
+                message = "Domain: $domainName (Full features)"
+            }
+        } else {
+            return @{
+                success = $true
+                isWorkgroup = $false
+                hasRSAT = $false
+                dnsRoot = $domainName
+                netBIOSName = $netbios
+                message = "Domain: $domainName (RSAT not installed - GPO features disabled)"
+            }
+        }
     } catch {
-        # AD module not available or failed, use environment variables
-        $dnsDomain = $env:USERDNSDOMAIN
-        if (-not [string]::IsNullOrEmpty($dnsDomain)) {
-            return @{ success = $true; isWorkgroup = $false; dnsRoot = $dnsDomain; netBIOSName = $env:USERDOMAIN; message = "Domain: $dnsDomain" }
+        return @{
+            success = $true
+            isWorkgroup = $true
+            hasRSAT = $false
+            dnsRoot = "WORKGROUP"
+            netBIOSName = $env:COMPUTERNAME
+            message = "WORKGROUP - AD/GPO disabled"
         }
-        # Try computer system domain property
-        if ($computerSystem.Domain) {
-            return @{ success = $true; isWorkgroup = $false; dnsRoot = $computerSystem.Domain; netBIOSName = $env:USERDOMAIN; message = "Domain: $($computerSystem.Domain)" }
-        }
-        return @{ success = $true; isWorkgroup = $true; dnsRoot = "WORKGROUP"; netBIOSName = $env:COMPUTERNAME; message = "WORKGROUP - AD/GPO disabled" }
     }
 }
 
@@ -4109,6 +4159,8 @@ $ImportRulesBtn.Add_Click({
 function Update-StatusBar {
     if ($script:IsWorkgroup) {
         $StatusText.Text = "WORKGROUP MODE - Local scanning available"
+    } elseif (-not $script:HasRSAT) {
+        $StatusText.Text = "$($script:DomainInfo.dnsRoot) - RSAT required for GPO features"
     } else {
         $StatusText.Text = "$($script:DomainInfo.dnsRoot) - Full features available"
     }
@@ -4147,15 +4199,17 @@ $window.add_Loaded({
     # Now do domain detection (fast with fixed logic)
     $script:DomainInfo = Get-DomainInfo
     $script:IsWorkgroup = $script:DomainInfo.isWorkgroup
+    $script:HasRSAT = $script:DomainInfo.hasRSAT
 
     Write-Log "Application started - Mode: $($script:DomainInfo.message)"
 
-    # Update environment banner
+    # Update environment banner based on environment type
     if ($script:IsWorkgroup) {
-        $EnvironmentText.Text = "WORKGROUP MODE - Localhost scanning available | AD/GPO features disabled"
+        # Workgroup - no domain features
+        $EnvironmentText.Text = "WORKGROUP MODE - Localhost scanning only | AD/GPO features disabled"
         $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#21262D")
 
-        # Disable AD/GPO related buttons in workgroup mode
+        # Disable AD/GPO related buttons
         $CreateGP0Btn.IsEnabled = $false
         $LinkGP0Btn.IsEnabled = $false
         $CreateWinRMGpoBtn.IsEnabled = $false
@@ -4163,19 +4217,37 @@ $window.add_Loaded({
         $ExportGroupsBtn.IsEnabled = $false
         $ImportGroupsBtn.IsEnabled = $false
         $BootstrapAppLockerBtn.IsEnabled = $false
+        $RemoveOUProtectionBtn.IsEnabled = $false
 
-        Write-Log "Workgroup mode: Deployment, WinRM, Group Management, and AppLocker Setup buttons disabled"
+        Write-Log "Workgroup mode: AD/GPO buttons disabled"
+    } elseif (-not $script:HasRSAT) {
+        # Domain-joined but no RSAT - limited features
+        $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | RSAT not installed - Install RSAT for GPO features"
+        $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#D29922")
+
+        # Disable GPO-related buttons (need RSAT)
+        $CreateGP0Btn.IsEnabled = $false
+        $LinkGP0Btn.IsEnabled = $false
+        $CreateWinRMGpoBtn.IsEnabled = $false
+        $FullWorkflowBtn.IsEnabled = $false
+        $ExportGroupsBtn.IsEnabled = $false
+        $ImportGroupsBtn.IsEnabled = $false
+        $BootstrapAppLockerBtn.IsEnabled = $false
+        $RemoveOUProtectionBtn.IsEnabled = $false
+
+        Write-Log "Domain mode without RSAT: GPO features disabled - install RSAT tools"
     } else {
+        # Domain with RSAT - full features
         $EnvironmentText.Text = "DOMAIN: $($script:DomainInfo.dnsRoot) | Full features available"
         $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#238636")
 
-        # Enable all buttons in domain mode
+        # Enable all buttons
         $CreateGP0Btn.IsEnabled = $true
         $LinkGP0Btn.IsEnabled = $true
         $CreateWinRMGpoBtn.IsEnabled = $true
         $FullWorkflowBtn.IsEnabled = $true
 
-        Write-Log "Domain mode: All features enabled"
+        Write-Log "Domain mode with RSAT: All features enabled"
     }
 
     # Load icons (non-blocking)
