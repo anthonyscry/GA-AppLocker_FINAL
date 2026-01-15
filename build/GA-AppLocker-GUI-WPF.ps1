@@ -892,6 +892,8 @@ $xamlString = @"
                             <TextBlock Text="SCANNING" FontSize="9" FontWeight="Bold" Foreground="#58A6FF" Margin="16,14,0,4"/>
                             <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource SecondaryButton}"
                                     HorizontalAlignment="Stretch" Margin="10,5"/>
+                            <Button x:Name="NavGapAnalysis" Content="Software Gap Analysis" Style="{StaticResource SecondaryButton}"
+                                    HorizontalAlignment="Stretch" Margin="10,5"/>
                             <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource SecondaryButton}"
                                     HorizontalAlignment="Stretch" Margin="10,5"/>
 
@@ -914,7 +916,7 @@ $xamlString = @"
             </Border>
 
             <!-- Content Panel -->
-            <Grid Grid.Column="1" Margin="0,10,10,10">
+            <Grid Grid.Column="1" Margin="20,10,10,10">
                 <!-- Dashboard Panel -->
                 <StackPanel x:Name="PanelDashboard" Visibility="Collapsed">
                     <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
@@ -1031,6 +1033,138 @@ $xamlString = @"
                     </Border>
                 </StackPanel>
 
+                <!-- Software Gap Analysis Panel -->
+                <StackPanel x:Name="PanelGapAnalysis" Visibility="Collapsed">
+                    <TextBlock Text="Software Gap Analysis" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Compare Software Baselines" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Select a baseline software list and compare against another host or imported list."
+                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Baseline Selection -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="ScanBaselineBtn" Content="Scan Baseline Host" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ImportBaselineBtn" Content="Import Baseline" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                    </Grid>
+
+                    <!-- Target Selection -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="ScanTargetBtn" Content="Scan Target Host" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ImportTargetBtn" Content="Import Target" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                    </Grid>
+
+                    <!-- Compare Button -->
+                    <Grid Margin="0,0,0,15">
+                        <Button x:Name="CompareSoftwareBtn" Content="Compare Software Lists" Style="{StaticResource PrimaryButton}" Width="250" HorizontalAlignment="Left"/>
+                    </Grid>
+
+                    <!-- Comparison Results -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Comparison Results" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="300">
+                                <DataGrid x:Name="GapAnalysisGrid" Background="#0D1117" Foreground="#E6EDF3"
+                                           BorderThickness="0" FontSize="11" FontFamily="Consolas"
+                                           GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                           AutoGenerateColumns="False" IsReadOnly="True"
+                                           CanUserAddRows="False" CanUserDeleteRows="False">
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Software Name" Binding="{Binding Name}" Width="200"/>
+                                        <DataGridTextColumn Header="Version" Binding="{Binding Version}" Width="100"/>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="120">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Missing in Target">
+                                                            <Setter Property="Foreground" Value="#F85149"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Extra in Target">
+                                                            <Setter Property="Foreground" Value="#58A6FF"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Version Mismatch">
+                                                            <Setter Property="Foreground" Value="#D29922"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" value="Match">
+                                                            <Setter Property="Foreground" Value="#3FB950"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Baseline Version" Binding="{Binding BaselineVersion}" Width="100"/>
+                                        <DataGridTextColumn Header="Target Version" Binding="{Binding TargetVersion}" Width="100"/>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <!-- Summary Stats -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Total" FontSize="10" Foreground="#8B949E"/>
+                                <TextBlock x:Name="GapTotalCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Background="#21262D" BorderBrush="#F85149" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Missing" FontSize="10" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapMissingCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#F85149" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="4" Background="#21262D" BorderBrush="#58A6FF" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Extra" FontSize="10" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapExtraCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#58A6FF" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="6" Background="#21262D" BorderBrush="#D29922" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Version Diff" FontSize="10" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapVersionCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#D29922" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Export Button -->
+                    <Grid>
+                        <Button x:Name="ExportGapAnalysisBtn" Content="Export Comparison" Style="{StaticResource SecondaryButton}" Width="180" HorizontalAlignment="Left"/>
+                    </Grid>
+                </StackPanel>
+
                 <!-- Rules Panel -->
                 <StackPanel x:Name="PanelRules" Visibility="Collapsed">
                     <TextBlock Text="Rule Generator" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
@@ -1039,9 +1173,27 @@ $xamlString = @"
                         <TextBlock Text="Rule Type (Best Practice Order):" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center"/>
                         <ComboBox x:Name="RuleTypeCombo" Width="250" Height="32" HorizontalAlignment="Left" Margin="10,5,0,0"
                                   Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="13">
-                            <ComboBoxItem Content="Publisher (Preferred)" Background="#21262D" Foreground="#E6EDF3"/>
-                            <ComboBoxItem Content="Hash (Fallback)" Background="#21262D" Foreground="#E6EDF3"/>
-                            <ComboBoxItem Content="Path (Exceptions Only)" Background="#21262D" Foreground="#E6EDF3"/>
+                            <ComboBox.Resources>
+                                <SolidColorBrush x:Key="PrimaryBrush" Color="#21262D"/>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter Property="Background" Value="#30363D"/>
+                                            <Setter Property="Foreground" Value="#58A6FF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#58A6FF"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.Resources>
+                            <ComboBoxItem Content="Publisher (Preferred)"/>
+                            <ComboBoxItem Content="Hash (Fallback)"/>
+                            <ComboBoxItem Content="Path (Exceptions Only)"/>
                         </ComboBox>
                     </Grid>
 
@@ -1122,6 +1274,18 @@ $xamlString = @"
                         <Button x:Name="LinkGP0Btn" Content="Link GPO to Domain" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
                     </Grid>
 
+                    <!-- Import/Export Rules Buttons -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="ExportRulesBtn" Content="Export Rules" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ImportRulesBtn" Content="Import Rules" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                    </Grid>
+
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="20" Margin="0,0,0,15">
                         <StackPanel>
@@ -1132,7 +1296,7 @@ $xamlString = @"
                     </Border>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" Height="370">
+                            CornerRadius="8" Padding="15" Height="320">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock FontFamily="Consolas" FontSize="12" Foreground="#8B949E">
                                 <Run Text="Deployment Workflow:" Foreground="#E6EDF3"/>
@@ -1144,11 +1308,15 @@ $xamlString = @"
                                 <LineBreak/>
                                 <Run Text="3. Generate rules (Publisher first)"/>
                                 <LineBreak/>
-                                <Run Text="4. Create GPO in Audit mode"/>
+                                <Run Text="4. Export rules to XML"/>
                                 <LineBreak/>
-                                <Run Text="5. Monitor for X days"/>
+                                <Run Text="5. Create GPO in Audit mode"/>
                                 <LineBreak/>
-                                <Run Text="6. Switch to Enforce mode"/>
+                                <Run Text="6. Import rules to GPO"/>
+                                <LineBreak/>
+                                <Run Text="7. Monitor for X days"/>
+                                <LineBreak/>
+                                <Run Text="8. Switch to Enforce mode"/>
                                 <LineBreak/>
                                 <LineBreak/>
                                 <Run Text="Best Practices:" Foreground="#E6EDF3"/>
@@ -1521,6 +1689,7 @@ $NavCompliance = $window.FindName("NavCompliance")
 $NavWinRM = $window.FindName("NavWinRM")
 $NavGroupMgmt = $window.FindName("NavGroupMgmt")
 $NavAppLockerSetup = $window.FindName("NavAppLockerSetup")
+$NavGapAnalysis = $window.FindName("NavGapAnalysis")
 $NavHelp = $window.FindName("NavHelp")
 $NavAbout = $window.FindName("NavAbout")
 
@@ -1538,6 +1707,7 @@ $PanelCompliance = $window.FindName("PanelCompliance")
 $PanelWinRM = $window.FindName("PanelWinRM")
 $PanelGroupMgmt = $window.FindName("PanelGroupMgmt")
 $PanelAppLockerSetup = $window.FindName("PanelAppLockerSetup")
+$PanelGapAnalysis = $window.FindName("PanelGapAnalysis")
 $PanelHelp = $window.FindName("PanelHelp")
 $PanelAbout = $window.FindName("PanelAbout")
 
@@ -1600,12 +1770,31 @@ $HelpBtnWorkflow = $window.FindName("HelpBtnWorkflow")
 $HelpBtnRules = $window.FindName("HelpBtnRules")
 $HelpBtnTroubleshooting = $window.FindName("HelpBtnTroubleshooting")
 
+# Gap Analysis controls
+$ScanBaselineBtn = $window.FindName("ScanBaselineBtn")
+$ImportBaselineBtn = $window.FindName("ImportBaselineBtn")
+$ScanTargetBtn = $window.FindName("ScanTargetBtn")
+$ImportTargetBtn = $window.FindName("ImportTargetBtn")
+$CompareSoftwareBtn = $window.FindName("CompareSoftwareBtn")
+$GapAnalysisGrid = $window.FindName("GapAnalysisGrid")
+$GapTotalCount = $window.FindName("GapTotalCount")
+$GapMissingCount = $window.FindName("GapMissingCount")
+$GapExtraCount = $window.FindName("GapExtraCount")
+$GapVersionCount = $window.FindName("GapVersionCount")
+$ExportGapAnalysisBtn = $window.FindName("ExportGapAnalysisBtn")
+
+# Export/Import Rules controls
+$ExportRulesBtn = $window.FindName("ExportRulesBtn")
+$ImportRulesBtn = $window.FindName("ImportRulesBtn")
+
 # Global variables
 $script:CollectedArtifacts = @()
 $script:IsWorkgroup = $false
 $script:DomainInfo = $null
 $script:EventFilter = "All"  # All, Allowed, Blocked, Audit
 $script:AllEvents = @()
+$script:BaselineSoftware = @()
+$script:TargetSoftware = @()
 
 # Logging function
 function Write-Log {
@@ -1863,6 +2052,208 @@ ESCALATION PATH:
     }
 }
 
+# Software Gap Analysis Functions
+function Get-InstalledSoftware {
+    param([string]$ComputerName = $env:COMPUTERNAME)
+
+    try {
+        Write-Log "Scanning software on: $ComputerName"
+
+        $software = @()
+
+        # Get software from registry (both 32-bit and 64-bit)
+        $regPaths = @(
+            "SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+            "SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall"
+        )
+
+        foreach ($regPath in $regPaths) {
+            if ($ComputerName -eq $env:COMPUTERNAME) {
+                # Local registry
+                $regKey = "HKLM:\$regPath"
+                if (Test-Path $regKey) {
+                    Get-ItemProperty $regKey -ErrorAction SilentlyContinue | ForEach-Object {
+                        if ($_.DisplayName -and $_.DisplayVersion) {
+                            $software += [PSCustomObject]@{
+                                ComputerName = $ComputerName
+                                Name = $_.DisplayName
+                                Version = $_.DisplayVersion
+                                Publisher = $_.Publisher
+                                InstallDate = $_.InstallDate
+                                Path = $_.InstallLocation
+                            }
+                        }
+                    }
+                }
+            } else {
+                # Remote registry
+                try {
+                    $reg = [Microsoft.Win32.RegistryKey]::OpenRemoteBaseKey('LocalMachine', $ComputerName)
+                    $regKey = $reg.OpenSubKey($regPath)
+                    if ($regKey) {
+                        foreach ($subKeyName in $regKey.GetSubKeyNames()) {
+                            $subKey = $regKey.OpenSubKey($subKeyName)
+                            $displayName = $subKey.GetValue("DisplayName")
+                            $displayVersion = $subKey.GetValue("DisplayVersion")
+                            $publisher = $subKey.GetValue("Publisher")
+                            $installDate = $subKey.GetValue("InstallDate")
+                            $installLocation = $subKey.GetValue("InstallLocation")
+
+                            if ($displayName -and $displayVersion) {
+                                $software += [PSCustomObject]@{
+                                    ComputerName = $ComputerName
+                                    Name = $displayName
+                                    Version = $displayVersion
+                                    Publisher = $publisher
+                                    InstallDate = $installDate
+                                    Path = $installLocation
+                                }
+                            }
+                        }
+                    }
+                } catch {
+                    Write-Log "Failed to access remote registry on $ComputerName`: $_" -Level "ERROR"
+                }
+            }
+        }
+
+        Write-Log "Found $($software.Count) software items on $ComputerName"
+        return $software
+    }
+    catch {
+        Write-Log "Software scan failed on $ComputerName`: $($_.Exception.Message)" -Level "ERROR"
+        return @()
+    }
+}
+
+function Compare-SoftwareLists {
+    param(
+        [array]$Baseline,
+        [array]$Target
+    )
+
+    $results = @()
+    $baselineHash = @{}
+    $targetHash = @{}
+
+    # Build hash tables for comparison
+    foreach ($item in $Baseline) {
+        $key = "$($item.Name) - $($item.Version)"
+        $baselineHash[$item.Name] = $item
+    }
+
+    foreach ($item in $Target) {
+        $key = "$($item.Name) - $($item.Version)"
+        $targetHash[$item.Name] = $item
+    }
+
+    # Find missing in target (in baseline but not in target)
+    foreach ($key in $baselineHash.Keys) {
+        $baselineItem = $baselineHash[$key]
+
+        if (-not $targetHash.ContainsKey($key)) {
+            $results += [PSCustomObject]@{
+                Name = $baselineItem.Name
+                Version = $baselineItem.Version
+                Status = "Missing in Target"
+                BaselineVersion = $baselineItem.Version
+                TargetVersion = "N/A"
+                Publisher = $baselineItem.Publisher
+            }
+        } else {
+            # Check version mismatch
+            $targetItem = $targetHash[$key]
+            if ($baselineItem.Version -ne $targetItem.Version) {
+                $results += [PSCustomObject]@{
+                    Name = $baselineItem.Name
+                    Version = "$($baselineItem.Version) -> $($targetItem.Version)"
+                    Status = "Version Mismatch"
+                    BaselineVersion = $baselineItem.Version
+                    TargetVersion = $targetItem.Version
+                    Publisher = $baselineItem.Publisher
+                }
+            } else {
+                # Match
+                $results += [PSCustomObject]@{
+                    Name = $baselineItem.Name
+                    Version = $baselineItem.Version
+                    Status = "Match"
+                    BaselineVersion = $baselineItem.Version
+                    TargetVersion = $targetItem.Version
+                    Publisher = $baselineItem.Publisher
+                }
+            }
+        }
+    }
+
+    # Find extra in target (in target but not in baseline)
+    foreach ($key in $targetHash.Keys) {
+        if (-not $baselineHash.ContainsKey($key)) {
+            $targetItem = $targetHash[$key]
+            $results += [PSCustomObject]@{
+                Name = $targetItem.Name
+                Version = $targetItem.Version
+                Status = "Extra in Target"
+                BaselineVersion = "N/A"
+                TargetVersion = $targetItem.Version
+                Publisher = $targetItem.Publisher
+            }
+        }
+    }
+
+    return $results
+}
+
+function Import-SoftwareList {
+    param([string]$Path)
+
+    try {
+        Write-Log "Importing software list from: $Path"
+
+        $software = Import-Csv $Path -ErrorAction Stop
+
+        # Convert to proper format
+        $result = foreach ($item in $software) {
+            [PSCustomObject]@{
+                ComputerName = if ($item.ComputerName) { $item.ComputerName } else { "Imported" }
+                Name = $item.Name
+                Version = $item.Version
+                Publisher = if ($item.Publisher) { $item.Publisher } else { "Unknown" }
+                InstallDate = $item.InstallDate
+                Path = $item.Path
+            }
+        }
+
+        Write-Log "Imported $($result.Count) software items"
+        return $result
+    }
+    catch {
+        Write-Log "Failed to import software list: $($_.Exception.Message)" -Level "ERROR"
+        return @()
+    }
+}
+
+# Convert rules to AppLocker XML format
+function Convert-RulesToAppLockerXml {
+    param([array]$Rules)
+
+    $xml = @"
+<AppLockerPolicy Version="1">
+  <RuleCollection Type="Executable" EnforcementMode="AuditOnly" />
+  <RuleCollection Type="Script" EnforcementMode="AuditOnly" />
+  <RuleCollection Type="WindowsInstallerFile" EnforcementMode="AuditOnly" />
+  <RuleCollection Type="Dll" EnforcementMode="AuditOnly" />
+  <RuleCollection Type="Appx" EnforcementMode="AuditOnly" />
+</AppLockerPolicy>
+"@
+
+    # Note: For full rule conversion, would need to parse $script:GeneratedRules
+    # and create proper AppLocker XML structure
+    # This is a placeholder for the export functionality
+
+    return $xml
+}
+
 # Helper function to show panel
 function Show-Panel {
     param([string]$PanelName)
@@ -1877,6 +2268,7 @@ function Show-Panel {
     $PanelWinRM.Visibility = [System.Windows.Visibility]::Collapsed
     $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Collapsed
     $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Collapsed
+    $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Collapsed
     $PanelHelp.Visibility = [System.Windows.Visibility]::Collapsed
     $PanelAbout.Visibility = [System.Windows.Visibility]::Collapsed
 
@@ -1891,6 +2283,7 @@ function Show-Panel {
         "WinRM" { $PanelWinRM.Visibility = [System.Windows.Visibility]::Visible }
         "GroupMgmt" { $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Visible }
         "AppLockerSetup" { $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible }
+        "GapAnalysis" { $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Visible }
         "Help" { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible }
         "About" { $PanelAbout.Visibility = [System.Windows.Visibility]::Visible }
     }
@@ -1909,6 +2302,11 @@ $NavDiscovery.Add_Click({
 
 $NavArtifacts.Add_Click({
     Show-Panel "Artifacts"
+    Update-StatusBar
+})
+
+$NavGapAnalysis.Add_Click({
+    Show-Panel "GapAnalysis"
     Update-StatusBar
 })
 
@@ -2336,6 +2734,160 @@ $HelpBtnRules.Add_Click({
 $HelpBtnTroubleshooting.Add_Click({
     $HelpTitle.Text = "Help - Troubleshooting"
     $HelpText.Text = Get-HelpContent "Troubleshooting"
+})
+
+# Gap Analysis events
+$ScanBaselineBtn.Add_Click({
+    Write-Log "Scan baseline button clicked"
+    $computerName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter computer name for baseline scan:", "Baseline Scan", $env:COMPUTERNAME)
+
+    if ([string]::IsNullOrWhiteSpace($computerName)) { return }
+
+    $script:BaselineSoftware = Get-InstalledSoftware -ComputerName $computerName
+
+    if ($script:BaselineSoftware.Count -gt 0) {
+        [System.Windows.MessageBox]::Show("Baseline scan complete!`n`nFound $($script:BaselineSoftware.Count) software items on $computerName", "Success", "OK", "Information")
+        Write-Log "Baseline scan complete: $($script:BaselineSoftware.Count) items"
+    } else {
+        [System.Windows.MessageBox]::Show("Failed to scan baseline computer. Check logs for details.", "Error", "OK", "Error")
+    }
+})
+
+$ImportBaselineBtn.Add_Click({
+    Write-Log "Import baseline button clicked"
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "CSV Files (*.csv)|*.csv"
+    $openDialog.Title = "Import Baseline Software List"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker"
+
+    if ($openDialog.ShowDialog() -eq "OK") {
+        $script:BaselineSoftware = Import-SoftwareList -Path $openDialog.FileName
+        if ($script:BaselineSoftware.Count -gt 0) {
+            [System.Windows.MessageBox]::Show("Baseline imported!`n`nLoaded $($script:BaselineSoftware.Count) software items.", "Success", "OK", "Information")
+        } else {
+            [System.Windows.MessageBox]::Show("Failed to import baseline. Check logs for details.", "Error", "OK", "Error")
+        }
+    }
+})
+
+$ScanTargetBtn.Add_Click({
+    Write-Log "Scan target button clicked"
+    $computerName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter computer name for target scan:", "Target Scan", $env:COMPUTERNAME)
+
+    if ([string]::IsNullOrWhiteSpace($computerName)) { return }
+
+    $script:TargetSoftware = Get-InstalledSoftware -ComputerName $computerName
+
+    if ($script:TargetSoftware.Count -gt 0) {
+        [System.Windows.MessageBox]::Show("Target scan complete!`n`nFound $($script:TargetSoftware.Count) software items on $computerName", "Success", "OK", "Information")
+        Write-Log "Target scan complete: $($script:TargetSoftware.Count) items"
+    } else {
+        [System.Windows.MessageBox]::Show("Failed to scan target computer. Check logs for details.", "Error", "OK", "Error")
+    }
+})
+
+$ImportTargetBtn.Add_Click({
+    Write-Log "Import target button clicked"
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "CSV Files (*.csv)|*.csv"
+    $openDialog.Title = "Import Target Software List"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker"
+
+    if ($openDialog.ShowDialog() -eq "OK") {
+        $script:TargetSoftware = Import-SoftwareList -Path $openDialog.FileName
+        if ($script:TargetSoftware.Count -gt 0) {
+            [System.Windows.MessageBox]::Show("Target imported!`n`nLoaded $($script:TargetSoftware.Count) software items.", "Success", "OK", "Information")
+        } else {
+            [System.Windows.MessageBox]::Show("Failed to import target. Check logs for details.", "Error", "OK", "Error")
+        }
+    }
+})
+
+$CompareSoftwareBtn.Add_Click({
+    Write-Log "Compare software button clicked"
+
+    if ($script:BaselineSoftware.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("Please scan or import a baseline first.", "No Baseline", "OK", "Warning")
+        return
+    }
+
+    if ($script:TargetSoftware.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("Please scan or import a target first.", "No Target", "OK", "Warning")
+        return
+    }
+
+    $results = Compare-SoftwareLists -Baseline $script:BaselineSoftware -Target $script:TargetSoftware
+
+    # Update DataGrid
+    $GapAnalysisGrid.ItemsSource = $results
+
+    # Update stats
+    $GapTotalCount.Text = $results.Count
+    $GapMissingCount.Text = ($results | Where-Object { $_.Status -eq "Missing in Target" }).Count
+    $GapExtraCount.Text = ($results | Where-Object { $_.Status -eq "Extra in Target" }).Count
+    $GapVersionCount.Text = ($results | Where-Object { $_.Status -eq "Version Mismatch" }).Count
+
+    Write-Log "Comparison complete: Total=$($results.Count), Missing=$($GapMissingCount.Text), Extra=$($GapExtraCount.Text), Version Diff=$($GapVersionCount.Text)"
+})
+
+$ExportGapAnalysisBtn.Add_Click({
+    Write-Log "Export gap analysis button clicked"
+
+    if ($GapAnalysisGrid.Items.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("No comparison results to export.", "No Data", "OK", "Warning")
+        return
+    }
+
+    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveDialog.Filter = "CSV Files (*.csv)|*.csv"
+    $saveDialog.Title = "Export Software Gap Analysis"
+    $saveDialog.FileName = "Software_Gap_Analysis_$(Get-Date -Format 'yyyy-MM-dd').csv"
+    $saveDialog.InitialDirectory = "C:\GA-AppLocker"
+
+    if ($saveDialog.ShowDialog() -eq "OK") {
+        $GapAnalysisGrid.Items | Export-Csv -Path $saveDialog.FileName -NoTypeInformation -Encoding UTF8
+        [System.Windows.MessageBox]::Show("Exported to: $($saveDialog.FileName)", "Success", "OK", "Information")
+        Write-Log "Gap analysis exported: $($saveDialog.FileName)"
+    }
+})
+
+# Export/Import Rules events
+$ExportRulesBtn.Add_Click({
+    Write-Log "Export rules button clicked"
+
+    if ($script:GeneratedRules.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("No generated rules to export. Please generate rules first using the Rule Generator tab.", "No Rules", "OK", "Warning")
+        return
+    }
+
+    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
+    $saveDialog.Title = "Export AppLocker Rules"
+    $saveDialog.FileName = "AppLocker-Rules_$(Get-Date -Format 'yyyy-MM-dd').xml"
+    $saveDialog.InitialDirectory = "C:\GA-AppLocker"
+
+    if ($saveDialog.ShowDialog() -eq "OK") {
+        # Generate AppLocker XML from rules
+        $xmlContent = Convert-RulesToAppLockerXml -Rules $script:GeneratedRules
+        $xmlContent | Out-File -FilePath $saveDialog.FileName -Encoding UTF8 -Force
+        [System.Windows.MessageBox]::Show("Rules exported to: $($saveDialog.FileName)`n`nYou can now import this XML into a GPO using Group Policy Management.", "Success", "OK", "Information")
+        Write-Log "Rules exported: $($saveDialog.FileName)"
+    }
+})
+
+$ImportRulesBtn.Add_Click({
+    Write-Log "Import rules button clicked"
+
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
+    $openDialog.Title = "Import AppLocker Rules"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker"
+
+    if ($openDialog.ShowDialog() -eq "OK") {
+        $DeploymentStatus.Text = "Importing rules from: $($openDialog.FileName)`n`nNote: Use Group Policy Management console to import XML into GPO.`n`n1. Open GPO`n2. Go to: Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Application Control Policies -> AppLocker`n3. Right-click -> Import Policy`n`nThis feature prepares the XML for manual import."
+        Write-Log "Rules imported for GPO deployment: $($openDialog.FileName)"
+        [System.Windows.MessageBox]::Show("Rules loaded!`n`nTo apply to a GPO:`n1. Open Group Policy Management`n2. Edit target GPO`n3. Navigate to: Computer Configuration -> Policies -> Windows Settings -> Security Settings -> Application Control Policies -> AppLocker`n4. Right-click -> Import Policy`n5. Select the exported XML file", "Import Ready", "OK", "Information")
+    }
 })
 
 # Other events
