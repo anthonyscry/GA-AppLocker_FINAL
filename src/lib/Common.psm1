@@ -839,7 +839,8 @@ function IsWin32Executable {
     .SYNOPSIS
         Determine whether a file is a Win32 EXE, DLL, or neither
     .DESCRIPTION
-        Reads PE headers to identify portable executables regardless of extension
+        Reads PE headers to identify portable executables regardless of extension.
+        Compatible with PowerShell 5.1 and PowerShell 7+.
     .PARAMETER filename
         Path to the file to analyze
     .RETURNS
@@ -847,65 +848,87 @@ function IsWin32Executable {
     #>
     param([string]$filename)
 
+    if (-not (Test-Path -LiteralPath $filename -PathType Leaf)) {
+        return $null
+    }
+
     # PE header constants
-    Set-Variable sizeofImageDosHeader -Option Constant -Value 64
-    Set-Variable sizeofImageNtHeaders64 -Option Constant -Value 264
-    Set-Variable offset_e_lfanew -Option Constant -Value 60
-    Set-Variable offset_FileHeader -Option Constant -Value 4
-    Set-Variable offset_FileHeader_Characteristics -Option Constant -Value 18
-    Set-Variable offset_OptionalHeader -Option Constant -Value 24
-    Set-Variable offset_OptionalHeader_Subsystem -Option Constant -Value 68
-    Set-Variable IMAGE_SUBSYSTEM_WINDOWS_GUI -Option Constant -Value 2
-    Set-Variable IMAGE_SUBSYSTEM_WINDOWS_CUI -Option Constant -Value 3
-    Set-Variable IMAGE_FILE_DLL -Option Constant -Value 0x2000
+    $sizeofImageDosHeader = 64
+    $sizeofImageNtHeaders64 = 264
+    $offset_e_lfanew = 60
+    $offset_FileHeader = 4
+    $offset_FileHeader_Characteristics = 18
+    $offset_OptionalHeader = 24
+    $offset_OptionalHeader_Subsystem = 68
+    $IMAGE_SUBSYSTEM_WINDOWS_GUI = 2
+    $IMAGE_SUBSYSTEM_WINDOWS_CUI = 3
+    $IMAGE_FILE_DLL = 0x2000
 
-    # Read first 64 bytes (IMAGE_DOS_HEADER)
-    $bytesImageDosHeader = @(Get-Content -Encoding Byte -TotalCount $sizeofImageDosHeader $filename -ErrorAction SilentlyContinue)
-    if ($null -eq $bytesImageDosHeader -or $bytesImageDosHeader.Length -lt $sizeofImageDosHeader) {
+    try {
+        # Use .NET FileStream for reliable binary reading (works in PS 5.1 and 7+)
+        $stream = [System.IO.File]::OpenRead($filename)
+        try {
+            # Read first 64 bytes (IMAGE_DOS_HEADER)
+            $bytesImageDosHeader = [byte[]]::new($sizeofImageDosHeader)
+            $bytesRead = $stream.Read($bytesImageDosHeader, 0, $sizeofImageDosHeader)
+            if ($bytesRead -lt $sizeofImageDosHeader) {
+                return $null
+            }
+
+            # Verify "MZ" signature
+            if ($bytesImageDosHeader[0] -ne 0x4D -or $bytesImageDosHeader[1] -ne 0x5A) {
+                return $null
+            }
+
+            # Get offset to IMAGE_NT_HEADERS (little-endian DWORD at offset 60)
+            $offsetImageNtHeaders = [BitConverter]::ToInt32($bytesImageDosHeader, $offset_e_lfanew)
+
+            # Seek to NT headers and read
+            $totalToRead = $offsetImageNtHeaders + $sizeofImageNtHeaders64
+            if ($totalToRead -gt $stream.Length) {
+                return $null
+            }
+
+            $stream.Position = 0
+            $bytesImageNtHeaders = [byte[]]::new($totalToRead)
+            $bytesRead = $stream.Read($bytesImageNtHeaders, 0, $totalToRead)
+            if ($bytesRead -lt $totalToRead) {
+                return $null
+            }
+
+            # Verify "PE" signature
+            if ($bytesImageNtHeaders[$offsetImageNtHeaders] -ne 0x50 -or $bytesImageNtHeaders[$offsetImageNtHeaders + 1] -ne 0x45) {
+                return $null
+            }
+
+            # Get Characteristics (little-endian WORD)
+            $offsChar = $offsetImageNtHeaders + $offset_FileHeader + $offset_FileHeader_Characteristics
+            $characteristics = [BitConverter]::ToUInt16($bytesImageNtHeaders, $offsChar)
+
+            # Get Subsystem (little-endian WORD)
+            $offsSubsystem = $offsetImageNtHeaders + $offset_OptionalHeader + $offset_OptionalHeader_Subsystem
+            $subsystem = [BitConverter]::ToUInt16($bytesImageNtHeaders, $offsSubsystem)
+
+            # Verify subsystem (GUI or Console)
+            if ($subsystem -ne $IMAGE_SUBSYSTEM_WINDOWS_GUI -and $subsystem -ne $IMAGE_SUBSYSTEM_WINDOWS_CUI) {
+                return $null
+            }
+
+            # Return DLL or EXE
+            if ($characteristics -band $IMAGE_FILE_DLL) {
+                return "DLL"
+            }
+            else {
+                return "EXE"
+            }
+        }
+        finally {
+            $stream.Close()
+            $stream.Dispose()
+        }
+    }
+    catch {
         return $null
-    }
-
-    # Verify "MZ" signature
-    $dosSig = "" + [char]($bytesImageDosHeader[0]) + [char]($bytesImageDosHeader[1])
-    if ($dosSig -ne "MZ") {
-        return $null
-    }
-
-    # Get offset to IMAGE_NT_HEADERS
-    $offsetImageNtHeaders = [Int32]('0x{0}' -f (( $bytesImageDosHeader[($offset_e_lfanew + 3)..$offset_e_lfanew] | ForEach-Object { $_.ToString('X2') }) -join ''))
-
-    # Read NT headers
-    $totalToRead = $offsetImageNtHeaders + $sizeofImageNtHeaders64
-    $bytesImageNtHeaders = Get-Content -Encoding Byte -TotalCount $totalToRead $filename -ErrorAction SilentlyContinue
-    if ($bytesImageNtHeaders.Length -lt $totalToRead) {
-        return $null
-    }
-
-    # Verify "PE" signature
-    $peSig = "" + [char]($bytesImageNtHeaders[$offsetImageNtHeaders]) + [char]($bytesImageNtHeaders[$offsetImageNtHeaders + 1])
-    if ($peSig -ne "PE") {
-        return $null
-    }
-
-    # Get Characteristics
-    $offsChar = $offsetImageNtHeaders + $offset_FileHeader + $offset_FileHeader_Characteristics
-    $characteristics = [UInt16]('0x{0}' -f (( $bytesImageNtHeaders[($offsChar + 1)..$offsChar] | ForEach-Object { $_.ToString('X2') }) -join ''))
-
-    # Get Subsystem
-    $offsSubsystem = $offsetImageNtHeaders + $offset_OptionalHeader + $offset_OptionalHeader_Subsystem
-    $subsystem = [UInt16]('0x{0}' -f (( $bytesImageNtHeaders[($offsSubsystem + 1)..$offsSubsystem] | ForEach-Object { $_.ToString('X2') }) -join ''))
-
-    # Verify subsystem
-    if ($subsystem -ne $IMAGE_SUBSYSTEM_WINDOWS_GUI -and $subsystem -ne $IMAGE_SUBSYSTEM_WINDOWS_CUI) {
-        return $null
-    }
-
-    # Return DLL or EXE
-    if ($characteristics -band $IMAGE_FILE_DLL) {
-        return "DLL"
-    }
-    else {
-        return "EXE"
     }
 }
 
