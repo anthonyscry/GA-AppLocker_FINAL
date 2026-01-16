@@ -4085,6 +4085,17 @@ $xamlString = @"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
                                 </StackPanel>
                             </Expander>
+
+                            <!-- AARONLOCKER Section (Collapsible) -->
+                            <Expander x:Name="AaronLockerSection" IsExpanded="True" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+                                <Expander.Header>
+                                    <TextBlock Text="AARONLOCKER" FontSize="10" FontWeight="Bold" Foreground="#F0883E" VerticalAlignment="Center" Width="150"/>
+                                </Expander.Header>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavAaronLocker" Content="AaronLocker Tools" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </ScrollViewer>
             </Border>
@@ -4406,6 +4417,8 @@ $xamlString = @"
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <StackPanel Grid.Column="0">
@@ -4414,7 +4427,8 @@ $xamlString = @"
                                 </StackPanel>
 
                                 <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Local System" Style="{StaticResource PrimaryButton}" Grid.Column="1" MinHeight="32" MinWidth="140"/>
-                                <Button x:Name="CancelScanBtn" Content="Cancel" Style="{StaticResource SecondaryButton}" Grid.Column="3" MinHeight="32" MinWidth="80" Visibility="Collapsed"/>
+                                <Button x:Name="AaronLockerScanBtn" Content="AaronLocker Scan" Style="{StaticResource SecondaryButton}" Grid.Column="3" MinHeight="32" MinWidth="130" ToolTip="Backup scan using AaronLocker's Get-AppLockerFileInformation method"/>
+                                <Button x:Name="CancelScanBtn" Content="Cancel" Style="{StaticResource SecondaryButton}" Grid.Column="5" MinHeight="32" MinWidth="80" Visibility="Collapsed"/>
                             </Grid>
 
                             <!-- Progress Section -->
@@ -6004,6 +6018,192 @@ $xamlString = @"
                     </Grid>
                 </StackPanel>
 
+                <!-- AaronLocker Panel -->
+                <StackPanel x:Name="PanelAaronLocker" Visibility="Collapsed">
+                    <TextBlock Text="AaronLocker Tools" FontSize="24" FontWeight="Bold" Foreground="#F0883E" Margin="0,0,0,8"/>
+                    <TextBlock Text="Original AaronLocker scripts by Aaron Margosis - GUI wrapper for easy access" FontSize="12" Foreground="#8B949E" Margin="0,0,0,20"/>
+
+                    <!-- Scanning Section -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Scanning &amp; Analysis" FontSize="14" FontWeight="Bold" Foreground="#58A6FF" Margin="0,0,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Button x:Name="AL_ScanDirectories" Content="Scan Directories" Style="{StaticResource PrimaryButton}"
+                                        Grid.Column="0" Grid.Row="0" Margin="0,0,8,8" MinHeight="36"
+                                        ToolTip="Scan for writable directories that need AppLocker rules"/>
+                                <Button x:Name="AL_GetEvents" Content="Get AppLocker Events" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="1" Grid.Row="0" Margin="0,0,8,8" MinHeight="36"
+                                        ToolTip="Retrieve and analyze AppLocker events from event logs"/>
+                                <Button x:Name="AL_ComparePolicies" Content="Compare Policies" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="2" Grid.Row="0" Margin="0,0,0,8" MinHeight="36"
+                                        ToolTip="Compare two AppLocker policies for differences"/>
+                                <Button x:Name="AL_EnumWritableDirs" Content="Enum Writable Dirs" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="0" Grid.Row="1" Margin="0,0,8,0" MinHeight="36"
+                                        ToolTip="Enumerate writable directories in protected paths"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Policy Creation Section -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Policy Creation" FontSize="14" FontWeight="Bold" Foreground="#3FB950" Margin="0,0,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button x:Name="AL_CreatePolicies" Content="Create AppLocker Policies" Style="{StaticResource PrimaryButton}"
+                                        Grid.Column="0" Margin="0,0,8,0" MinHeight="36"
+                                        ToolTip="Generate AppLocker policies from scan results and customization inputs"/>
+                                <Button x:Name="AL_CreateWDACPolicies" Content="Create WDAC Policies" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="1" Margin="0,0,8,0" MinHeight="36"
+                                        ToolTip="Generate Windows Defender Application Control policies"/>
+                                <Button x:Name="AL_BuildWritableRules" Content="Build Writable Dir Rules" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="2" Margin="0,0,0,0" MinHeight="36"
+                                        ToolTip="Build rules for files found in writable directories"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Export Section -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Export &amp; Reporting" FontSize="14" FontWeight="Bold" Foreground="#8957E5" Margin="0,0,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button x:Name="AL_ExportToCsv" Content="Export Policy to CSV" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="0" Margin="0,0,8,0" MinHeight="36"
+                                        ToolTip="Export AppLocker policy to CSV format"/>
+                                <Button x:Name="AL_ExportToExcel" Content="Export Policy to Excel" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="1" Margin="0,0,8,0" MinHeight="36"
+                                        ToolTip="Export AppLocker policy to Excel workbook"/>
+                                <Button x:Name="AL_GenerateEventWorkbook" Content="Generate Event Workbook" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="2" Margin="0,0,0,0" MinHeight="36"
+                                        ToolTip="Generate Excel workbook from AppLocker events"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Local Configuration Section -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Local Configuration" FontSize="14" FontWeight="Bold" Foreground="#F0883E" Margin="0,0,0,12"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Button x:Name="AL_ConfigureForAppLocker" Content="Configure for AppLocker" Style="{StaticResource PrimaryButton}"
+                                        Grid.Column="0" Grid.Row="0" Margin="0,0,8,8" MinHeight="36"
+                                        ToolTip="Configure local system settings for AppLocker"/>
+                                <Button x:Name="AL_ApplyToLocalGPO" Content="Apply to Local GPO" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="1" Grid.Row="0" Margin="0,0,8,8" MinHeight="36"
+                                        ToolTip="Apply policy to local Group Policy Object"/>
+                                <Button x:Name="AL_SetGPOPolicy" Content="Set GPO AppLocker Policy" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="2" Grid.Row="0" Margin="0,0,0,8" MinHeight="36"
+                                        ToolTip="Set AppLocker policy on a domain GPO"/>
+                                <Button x:Name="AL_ClearLocalPolicy" Content="Clear Local Policy" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="0" Grid.Row="1" Margin="0,0,8,0" MinHeight="36" Foreground="#F85149"
+                                        ToolTip="Clear the local AppLocker policy"/>
+                                <Button x:Name="AL_ClearLogs" Content="Clear AppLocker Logs" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="1" Grid.Row="1" Margin="0,0,8,0" MinHeight="36" Foreground="#F85149"
+                                        ToolTip="Clear AppLocker event logs"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Customization Inputs Section -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Customization Inputs" FontSize="14" FontWeight="Bold" Foreground="#8B949E" Margin="0,0,0,12"/>
+                            <TextBlock Text="Edit these files to customize policy generation:" FontSize="11" Foreground="#6E7681" Margin="0,0,0,8"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+
+                                <Button x:Name="AL_EditTrustedSigners" Content="Trusted Signers" Style="{StaticResource NavButton}"
+                                        Grid.Column="0" Grid.Row="0" Margin="0,0,4,4" MinHeight="28"
+                                        ToolTip="Edit TrustedSigners.ps1 - Publishers to allow"/>
+                                <Button x:Name="AL_EditSafePaths" Content="Safe Paths" Style="{StaticResource NavButton}"
+                                        Grid.Column="1" Grid.Row="0" Margin="0,0,4,4" MinHeight="28"
+                                        ToolTip="Edit GetSafePathsToAllow.ps1 - Paths to whitelist"/>
+                                <Button x:Name="AL_EditUnsafePaths" Content="Unsafe Paths" Style="{StaticResource NavButton}"
+                                        Grid.Column="2" Grid.Row="0" Margin="0,0,4,4" MinHeight="28"
+                                        ToolTip="Edit UnsafePathsToBuildRulesFor.ps1"/>
+                                <Button x:Name="AL_EditDenyList" Content="Deny List" Style="{StaticResource NavButton}"
+                                        Grid.Column="3" Grid.Row="0" Margin="0,0,0,4" MinHeight="28"
+                                        ToolTip="Edit GetExeFilesToDenyList.ps1 - Executables to block"/>
+                                <Button x:Name="AL_EditHashRules" Content="Hash Rules" Style="{StaticResource NavButton}"
+                                        Grid.Column="0" Grid.Row="1" Margin="0,0,4,0" MinHeight="28"
+                                        ToolTip="Edit HashRuleData.ps1 - Specific file hashes"/>
+                                <Button x:Name="AL_EditKnownAdmins" Content="Known Admins" Style="{StaticResource NavButton}"
+                                        Grid.Column="1" Grid.Row="1" Margin="0,0,4,0" MinHeight="28"
+                                        ToolTip="Edit KnownAdmins.ps1 - Admin accounts to exempt"/>
+                                <Button x:Name="AL_OpenOutputs" Content="Open Outputs Folder" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="2" Grid.Row="1" Margin="0,0,4,0" MinHeight="28"
+                                        ToolTip="Open the Outputs folder containing generated policies"/>
+                                <Button x:Name="AL_OpenScanResults" Content="Open Scan Results" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="3" Grid.Row="1" Margin="0,0,0,0" MinHeight="28"
+                                        ToolTip="Open the ScanResults folder"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Output Console -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="15">
+                        <StackPanel>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Output Console" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Grid.Column="0"/>
+                                <Button x:Name="AL_ClearConsole" Content="Clear" Style="{StaticResource NavButton}" Grid.Column="1" MinHeight="24" MinWidth="60"/>
+                            </Grid>
+                            <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Padding="8">
+                                <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="250">
+                                    <TextBox x:Name="AL_OutputConsole" Text="AaronLocker output will appear here..."
+                                             Background="Transparent" Foreground="#8B949E" BorderThickness="0"
+                                             IsReadOnly="True" TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
+                                             AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
                 <!-- Help Panel -->
                 <ScrollViewer x:Name="PanelHelp" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
@@ -6153,6 +6353,36 @@ $PanelGapAnalysis = $window.FindName("PanelGapAnalysis")
 if ($null -eq $PanelGapAnalysis) { Write-Log "WARNING: Control 'PanelGapAnalysis' not found in XAML" -Level "WARNING" }
 $PanelHelp = $window.FindName("PanelHelp")
 if ($null -eq $PanelHelp) { Write-Log "WARNING: Control 'PanelHelp' not found in XAML" -Level "WARNING" }
+$PanelAaronLocker = $window.FindName("PanelAaronLocker")
+if ($null -eq $PanelAaronLocker) { Write-Log "WARNING: Control 'PanelAaronLocker' not found in XAML" -Level "WARNING" }
+$NavAaronLocker = $window.FindName("NavAaronLocker")
+if ($null -eq $NavAaronLocker) { Write-Log "WARNING: Control 'NavAaronLocker' not found in XAML" -Level "WARNING" }
+# AaronLocker page controls
+$AL_OutputConsole = $window.FindName("AL_OutputConsole")
+$AL_ClearConsole = $window.FindName("AL_ClearConsole")
+$AL_ScanDirectories = $window.FindName("AL_ScanDirectories")
+$AL_GetEvents = $window.FindName("AL_GetEvents")
+$AL_ComparePolicies = $window.FindName("AL_ComparePolicies")
+$AL_EnumWritableDirs = $window.FindName("AL_EnumWritableDirs")
+$AL_CreatePolicies = $window.FindName("AL_CreatePolicies")
+$AL_CreateWDACPolicies = $window.FindName("AL_CreateWDACPolicies")
+$AL_BuildWritableRules = $window.FindName("AL_BuildWritableRules")
+$AL_ExportToCsv = $window.FindName("AL_ExportToCsv")
+$AL_ExportToExcel = $window.FindName("AL_ExportToExcel")
+$AL_GenerateEventWorkbook = $window.FindName("AL_GenerateEventWorkbook")
+$AL_ConfigureForAppLocker = $window.FindName("AL_ConfigureForAppLocker")
+$AL_ApplyToLocalGPO = $window.FindName("AL_ApplyToLocalGPO")
+$AL_SetGPOPolicy = $window.FindName("AL_SetGPOPolicy")
+$AL_ClearLocalPolicy = $window.FindName("AL_ClearLocalPolicy")
+$AL_ClearLogs = $window.FindName("AL_ClearLogs")
+$AL_EditTrustedSigners = $window.FindName("AL_EditTrustedSigners")
+$AL_EditSafePaths = $window.FindName("AL_EditSafePaths")
+$AL_EditUnsafePaths = $window.FindName("AL_EditUnsafePaths")
+$AL_EditDenyList = $window.FindName("AL_EditDenyList")
+$AL_EditHashRules = $window.FindName("AL_EditHashRules")
+$AL_EditKnownAdmins = $window.FindName("AL_EditKnownAdmins")
+$AL_OpenOutputs = $window.FindName("AL_OpenOutputs")
+$AL_OpenScanResults = $window.FindName("AL_OpenScanResults")
 $PanelAbout = $window.FindName("PanelAbout")
 if ($null -eq $PanelAbout) { Write-Log "WARNING: Control 'PanelAbout' not found in XAML" -Level "WARNING" }
 
@@ -6276,6 +6506,8 @@ if ($null -eq $ArtifactsList) { Write-Log "WARNING: Control 'ArtifactsList' not 
 # Artifact Local Scan controls
 $ScanLocalArtifactsBtn = $window.FindName("ScanLocalArtifactsBtn")
 if ($null -eq $ScanLocalArtifactsBtn) { Write-Log "WARNING: Control 'ScanLocalArtifactsBtn' not found in XAML" -Level "WARNING" }
+$AaronLockerScanBtn = $window.FindName("AaronLockerScanBtn")
+if ($null -eq $AaronLockerScanBtn) { Write-Log "WARNING: Control 'AaronLockerScanBtn' not found in XAML" -Level "WARNING" }
 $CancelScanBtn = $window.FindName("CancelScanBtn")
 if ($null -eq $CancelScanBtn) { Write-Log "WARNING: Control 'CancelScanBtn' not found in XAML" -Level "WARNING" }
 $ScanProgressPanel = $window.FindName("ScanProgressPanel")
@@ -9762,6 +9994,9 @@ function Show-Panel {
     if ($null -ne $PanelHelp) {
     $PanelHelp.Visibility = [System.Windows.Visibility]::Collapsed
     }
+    if ($null -ne $PanelAaronLocker) {
+    $PanelAaronLocker.Visibility = [System.Windows.Visibility]::Collapsed
+    }
     if ($null -ne $PanelAbout) {
     $PanelAbout.Visibility = [System.Windows.Visibility]::Collapsed
     }
@@ -9791,6 +10026,7 @@ function Show-Panel {
             Load-TemplatesList
         }
         "Help" { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible }
+        "AaronLocker" { $PanelAaronLocker.Visibility = [System.Windows.Visibility]::Visible }
         "About" { $PanelAbout.Visibility = [System.Windows.Visibility]::Visible }
     }
 }
@@ -9876,6 +10112,13 @@ $NavGroupMgmt.Add_Click({
 if ($null -ne $NavAppLockerSetup) {
 $NavAppLockerSetup.Add_Click({
     Show-Panel "AppLockerSetup"
+    Update-StatusBar
+})
+}
+
+if ($null -ne $NavAaronLocker) {
+$NavAaronLocker.Add_Click({
+    Show-Panel "AaronLocker"
     Update-StatusBar
 })
 }
@@ -10927,6 +11170,263 @@ $CancelScanBtn.Add_Click({
     $ScanLocalArtifactsBtn.IsEnabled = $true
     $ScanProgressPanel.Visibility = [System.Windows.Visibility]::Collapsed
     $CancelScanBtn.Visibility = [System.Windows.Visibility]::Collapsed
+})
+}
+
+# AaronLocker Scan button - Direct Get-AppLockerFileInformation method
+if ($null -ne $AaronLockerScanBtn) {
+$AaronLockerScanBtn.Add_Click({
+    Write-Log "Starting AaronLocker-style scan using Get-AppLockerFileInformation"
+
+    # Check if "Scan All Directories" checkbox is checked
+    $scanAll = $false
+    $scanAllCheckbox = $window.FindName("ScanAllDirectoriesCheckbox")
+    if ($null -ne $scanAllCheckbox -and $scanAllCheckbox.IsChecked) {
+        $scanAll = $true
+    }
+
+    # Get directories to scan
+    $directories = @()
+    if ($scanAll) {
+        $directories = @(
+            "$env:SystemRoot",
+            "$env:ProgramFiles",
+            "${env:ProgramFiles(x86)}",
+            "$env:ProgramData",
+            "$env:LOCALAPPDATA",
+            "$env:APPDATA"
+        )
+    } else {
+        foreach ($item in $DirectoryList.Items) {
+            if ($item -is [System.Windows.Controls.CheckBox] -and $item.IsChecked) {
+                $directories += $item.Content
+            }
+        }
+    }
+
+    if ($directories.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("Please select at least one directory to scan.", "No Directories Selected", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+        return
+    }
+
+    # Clear previous results
+    $ArtifactsList.Items.Clear()
+    $ArtifactsList.Items.Add("=== AARONLOCKER-STYLE SCAN ===")
+    $ArtifactsList.Items.Add("Using Get-AppLockerFileInformation cmdlet directly")
+    $ArtifactsList.Items.Add("")
+    $RulesOutput.Text = "Starting AaronLocker-style scan...`n`nDirectories:`n$($directories -join "`n")`n`nThis runs in the background."
+
+    # Disable buttons, show progress
+    $AaronLockerScanBtn.IsEnabled = $false
+    $ScanLocalArtifactsBtn.IsEnabled = $false
+    $script:ScanCancelled = $false
+    $ScanProgressPanel.Visibility = [System.Windows.Visibility]::Visible
+    $CancelScanBtn.Visibility = [System.Windows.Visibility]::Visible
+    $ScanProgressText.Text = "AaronLocker Scan in progress..."
+    $ScanProgressCount.Text = "Scanning directories..."
+
+    # Create synchronized hashtable for cross-thread communication
+    $syncHash = [hashtable]::Synchronized(@{})
+    $syncHash.ArtifactsList = $ArtifactsList
+    $syncHash.RulesOutput = $RulesOutput
+    $syncHash.AaronLockerScanBtn = $AaronLockerScanBtn
+    $syncHash.ScanLocalArtifactsBtn = $ScanLocalArtifactsBtn
+    $syncHash.Window = $window
+    $syncHash.CollectedArtifacts = [System.Collections.ArrayList]::new()
+    $syncHash.Directories = $directories
+    $syncHash.ScanProgressPanel = $ScanProgressPanel
+    $syncHash.ScanProgressText = $ScanProgressText
+    $syncHash.ScanProgressCount = $ScanProgressCount
+    $syncHash.CancelScanBtn = $CancelScanBtn
+    $syncHash.Cancelled = $false
+
+    $script:CurrentSyncHash = $syncHash
+
+    # Create runspace for background scan
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.ApartmentState = "STA"
+    $runspace.ThreadOptions = "ReuseThread"
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable("syncHash", $syncHash)
+
+    $powershell = [powershell]::Create().AddScript({
+        param($syncHash)
+
+        # Define AppLocker file extensions (EXE, DLL, Script, MSI categories)
+        $executableExtensions = @('.exe', '.dll', '.com', '.ocx', '.msi', '.msp', '.mst', '.bat', '.cmd', '.ps1', '.vbs', '.js')
+
+        $allArtifacts = @()
+        $totalDirs = $syncHash.Directories.Count
+        $currentDir = 0
+        $artifactCount = 0
+
+        foreach ($directory in $syncHash.Directories) {
+            $currentDir++
+
+            # Check for cancellation
+            if ($syncHash.Cancelled) { break }
+
+            # Update progress
+            $syncHash.Window.Dispatcher.Invoke([action]{
+                $syncHash.ScanProgressText.Text = "Scanning: $directory"
+                $syncHash.ScanProgressCount.Text = "Directory $currentDir of $totalDirs | Artifacts: $artifactCount"
+            })
+
+            if (-not (Test-Path $directory)) {
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("SKIP: Directory not found - $directory")
+                })
+                continue
+            }
+
+            $syncHash.Window.Dispatcher.Invoke([action]{
+                $syncHash.ArtifactsList.Items.Add("Scanning: $directory")
+            })
+
+            try {
+                # Get all files matching AppLocker extensions
+                $files = Get-ChildItem -Path $directory -Recurse -File -ErrorAction SilentlyContinue |
+                         Where-Object { $executableExtensions -contains $_.Extension.ToLower() }
+
+                $fileCount = 0
+                foreach ($file in $files) {
+                    # Check cancellation periodically
+                    if ($syncHash.Cancelled) { break }
+
+                    $fileCount++
+                    if ($fileCount % 50 -eq 0) {
+                        $syncHash.Window.Dispatcher.Invoke([action]{
+                            $syncHash.ScanProgressCount.Text = "Directory $currentDir of $totalDirs | Files: $fileCount | Artifacts: $artifactCount"
+                        })
+                    }
+
+                    try {
+                        # Use Get-AppLockerFileInformation like AaronLocker does
+                        $appLockerInfo = Get-AppLockerFileInformation -Path $file.FullName -ErrorAction SilentlyContinue
+
+                        if ($appLockerInfo) {
+                            $publisher = $null
+                            $productName = 'Unknown'
+                            $binaryName = $file.Name
+                            $version = 'Unknown'
+                            $hash = 'Unknown'
+
+                            # Extract publisher info from FQBN
+                            if ($appLockerInfo.Publisher) {
+                                $pub = $appLockerInfo.Publisher
+                                if ($pub.PublisherName) {
+                                    $publisher = $pub.PublisherName
+                                }
+                                if ($pub.ProductName) {
+                                    $productName = $pub.ProductName
+                                }
+                                if ($pub.BinaryName) {
+                                    $binaryName = $pub.BinaryName
+                                }
+                                if ($pub.BinaryVersion) {
+                                    $version = $pub.BinaryVersion.ToString()
+                                }
+                            }
+
+                            # Get hash
+                            if ($appLockerInfo.Hash) {
+                                $hashObj = $appLockerInfo.Hash | Where-Object { $_.HashType -eq 'SHA256' } | Select-Object -First 1
+                                if ($hashObj) {
+                                    $hash = $hashObj.HashDataString
+                                } elseif ($appLockerInfo.Hash.Count -gt 0) {
+                                    $hash = $appLockerInfo.Hash[0].HashDataString
+                                }
+                            }
+
+                            # Determine file type
+                            $ext = $file.Extension.ToLower()
+                            $fileType = switch ($ext) {
+                                '.exe' { 'EXE' }
+                                '.dll' { 'DLL' }
+                                '.com' { 'EXE' }
+                                '.ocx' { 'DLL' }
+                                '.msi' { 'MSI' }
+                                '.msp' { 'MSI' }
+                                '.mst' { 'MSI' }
+                                '.bat' { 'Script' }
+                                '.cmd' { 'Script' }
+                                '.ps1' { 'Script' }
+                                '.vbs' { 'Script' }
+                                '.js'  { 'Script' }
+                                default { 'Unknown' }
+                            }
+
+                            $artifact = [PSCustomObject]@{
+                                FileName = $file.Name
+                                Path = $file.FullName
+                                Publisher = if ($publisher) { $publisher } else { 'Unknown' }
+                                ProductName = $productName
+                                BinaryName = $binaryName
+                                Version = $version
+                                Hash = $hash
+                                Size = $file.Length
+                                FileType = $fileType
+                                ModifiedDate = $file.LastWriteTime
+                            }
+
+                            $allArtifacts += $artifact
+                            [void]$syncHash.CollectedArtifacts.Add($artifact)
+                            $artifactCount++
+                        }
+                    } catch {
+                        # Skip files that can't be processed
+                    }
+                }
+            } catch {
+                $errorMsg = $_.Exception.Message
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("  ERROR scanning $directory`: $errorMsg")
+                })
+            }
+        }
+
+        # Final UI update
+        $syncHash.Window.Dispatcher.Invoke([action]{
+            if ($syncHash.Cancelled) {
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.ArtifactsList.Items.Add("=== SCAN CANCELLED ===")
+                $syncHash.RulesOutput.Text = "Scan cancelled by user."
+            } else {
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.ArtifactsList.Items.Add("=== SCAN COMPLETE ===")
+                $syncHash.ArtifactsList.Items.Add("Total artifacts found: $($allArtifacts.Count)")
+                $syncHash.RulesOutput.Text = "AaronLocker scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`n`nGo to Rule Generator to create rules."
+            }
+
+            $syncHash.AaronLockerScanBtn.IsEnabled = $true
+            $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
+            $syncHash.ScanProgressPanel.Visibility = [System.Windows.Visibility]::Collapsed
+            $syncHash.CancelScanBtn.Visibility = [System.Windows.Visibility]::Collapsed
+        })
+
+        # Export artifacts to CSV if any found
+        if ($allArtifacts.Count -gt 0 -and -not $syncHash.Cancelled) {
+            $scanFolder = "C:\GA-AppLocker\Scans"
+            if (-not (Test-Path $scanFolder)) {
+                New-Item -ItemType Directory -Path $scanFolder -Force | Out-Null
+            }
+            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+            $csvPath = Join-Path $scanFolder "AaronLocker_Scan_$timestamp.csv"
+            $allArtifacts | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+
+            $syncHash.Window.Dispatcher.Invoke([action]{
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.ArtifactsList.Items.Add("Exported to: $csvPath")
+                $syncHash.RulesOutput.Text = "AaronLocker scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`n`nExported to:`n$csvPath`n`nGo to Rule Generator to create rules."
+            })
+        }
+    }).AddArgument($syncHash)
+
+    $powershell.Runspace = $runspace
+    $script:LocalScanHandle = @{ PowerShell = $powershell; Runspace = $runspace }
+    $asyncResult = $powershell.BeginInvoke()
+
+    Write-Log "AaronLocker scan runspace started"
 })
 }
 
@@ -16811,6 +17311,614 @@ $window.add_Loaded({
     # Set final message
     $DashboardOutput.Text = "=== GA-APPLOCKER DASHBOARD ===`n`nAaronLocker-aligned AppLocker Policy Management`n`nEnvironment: $($script:DomainInfo.message)`n`nReady to begin. Select a tab to start.`n`nSession timeout: $($script:SessionTimeoutMinutes) minutes of inactivity."
 })
+
+# ============================================================
+# AARONLOCKER TOOLS - Button Event Handlers
+# ============================================================
+# Define AaronLocker root path
+$script:AaronLockerRoot = "C:\GA-AppLocker\AaronLocker-main\AaronLocker"
+
+# Helper function to run AaronLocker scripts
+function Invoke-AaronLockerScript {
+    param(
+        [string]$ScriptPath,
+        [string]$ScriptName,
+        [hashtable]$Parameters = @{}
+    )
+
+    if (-not (Test-Path $ScriptPath)) {
+        $AL_OutputConsole.Text = "ERROR: Script not found at $ScriptPath`n`nPlease ensure AaronLocker is installed at:`n$script:AaronLockerRoot"
+        return
+    }
+
+    $AL_OutputConsole.Text = "Running: $ScriptName`n`nScript: $ScriptPath`n`nPlease wait..."
+    $AL_OutputConsole.ScrollToEnd()
+
+    try {
+        # Set rootDir variable required by AaronLocker
+        $rootDir = $script:AaronLockerRoot
+
+        # Build parameter string
+        $paramString = ""
+        foreach ($key in $Parameters.Keys) {
+            $paramString += " -$key `"$($Parameters[$key])`""
+        }
+
+        # Run the script in a new PowerShell process
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+            `$rootDir = '$rootDir'
+            . '$ScriptPath' $paramString
+        }" 2>&1
+
+        $AL_OutputConsole.Text = "=== $ScriptName ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
+    } catch {
+        $AL_OutputConsole.Text = "=== $ScriptName ===`n`nERROR: $($_.Exception.Message)`n`n$($_.ScriptStackTrace)"
+    }
+    $AL_OutputConsole.ScrollToEnd()
+}
+
+# Clear Console button
+if ($null -ne $AL_ClearConsole) {
+$AL_ClearConsole.Add_Click({
+    $AL_OutputConsole.Text = "AaronLocker output will appear here..."
+})
+}
+
+# === SCANNING & ANALYSIS ===
+
+# Scan Directories - Scans writable directories for potential policy bypasses
+if ($null -ne $AL_ScanDirectories) {
+$AL_ScanDirectories.Add_Click({
+    $scriptPath = Join-Path $script:AaronLockerRoot "Scan-Directories.ps1"
+    $AL_OutputConsole.Text = "=== Scan Directories ===`n`nThis script scans the system for writable directories that could bypass AppLocker.`nResults are saved to ScanResults folder.`n`nRunning..."
+
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
+    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
+    $runspace.SessionStateProxy.SetVariable("window", $window)
+
+    $ps = [powershell]::Create().AddScript({
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$rootDir'
+                . '$scriptPath'
+            }" 2>&1
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "=== Scan Directories ===`n`n$($output -join "`n")`n`n=== SCAN COMPLETE ===`n`nCheck ScanResults folder for output files."
+            })
+        } catch {
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
+            })
+        }
+    })
+    $ps.Runspace = $runspace
+    $ps.BeginInvoke() | Out-Null
+})
+}
+
+# Get AppLocker Events - Retrieves and formats AppLocker events from Event Log
+if ($null -ne $AL_GetEvents) {
+$AL_GetEvents.Add_Click({
+    $scriptPath = Join-Path $script:AaronLockerRoot "Get-AppLockerEvents.ps1"
+    $AL_OutputConsole.Text = "=== Get AppLocker Events ===`n`nRetrieves AppLocker events from the Windows Event Log.`nShows allowed, audited, and blocked execution events.`n`nRunning..."
+
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
+    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
+    $runspace.SessionStateProxy.SetVariable("window", $window)
+
+    $ps = [powershell]::Create().AddScript({
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$rootDir'
+                . '$scriptPath'
+            }" 2>&1
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "=== Get AppLocker Events ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
+            })
+        } catch {
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
+            })
+        }
+    })
+    $ps.Runspace = $runspace
+    $ps.BeginInvoke() | Out-Null
+})
+}
+
+# Compare Policies - Compares two AppLocker policy XML files for differences
+if ($null -ne $AL_ComparePolicies) {
+$AL_ComparePolicies.Add_Click({
+    $AL_OutputConsole.Text = "=== Compare Policies ===`n`nSelect two AppLocker policy XML files to compare.`n`nOpening file dialogs..."
+
+    $openDialog1 = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog1.Filter = "XML Files (*.xml)|*.xml"
+    $openDialog1.Title = "Select FIRST AppLocker Policy File"
+    $openDialog1.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+
+    if ($openDialog1.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $policy1 = $openDialog1.FileName
+
+        $openDialog2 = New-Object System.Windows.Forms.OpenFileDialog
+        $openDialog2.Filter = "XML Files (*.xml)|*.xml"
+        $openDialog2.Title = "Select SECOND AppLocker Policy File"
+        $openDialog2.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+
+        if ($openDialog2.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $policy2 = $openDialog2.FileName
+            $scriptPath = Join-Path $script:AaronLockerRoot "Compare-Policies.ps1"
+
+            $AL_OutputConsole.Text = "=== Compare Policies ===`n`nComparing:`n  Policy 1: $policy1`n  Policy 2: $policy2`n`nRunning..."
+
+            try {
+                $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                    `$rootDir = '$($script:AaronLockerRoot)'
+                    . '$scriptPath' -Policy1Path '$policy1' -Policy2Path '$policy2'
+                }" 2>&1
+                $AL_OutputConsole.Text = "=== Compare Policies ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
+            } catch {
+                $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+            }
+        }
+    }
+})
+}
+
+# Enum Writable Dirs - Enumerates writable directories under Windows/ProgramFiles
+if ($null -ne $AL_EnumWritableDirs) {
+$AL_EnumWritableDirs.Add_Click({
+    $scriptPath = Join-Path $script:AaronLockerRoot "Support\Enum-WritableDirs.ps1"
+    $AL_OutputConsole.Text = "=== Enumerate Writable Directories ===`n`nScans Windows and Program Files for user-writable directories.`nThis can take several minutes.`n`nRunning..."
+
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
+    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
+    $runspace.SessionStateProxy.SetVariable("window", $window)
+
+    $ps = [powershell]::Create().AddScript({
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$rootDir'
+                . '$scriptPath'
+            }" 2>&1
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "=== Enumerate Writable Directories ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
+            })
+        } catch {
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
+            })
+        }
+    })
+    $ps.Runspace = $runspace
+    $ps.BeginInvoke() | Out-Null
+})
+}
+
+# === POLICY CREATION ===
+
+# Create AppLocker Policies - Generates AppLocker policies from scan results
+if ($null -ne $AL_CreatePolicies) {
+$AL_CreatePolicies.Add_Click({
+    $scriptPath = Join-Path $script:AaronLockerRoot "Support\Create-Policies-AppLocker.ps1"
+    $AL_OutputConsole.Text = "=== Create AppLocker Policies ===`n`nGenerates Audit and Enforce AppLocker policies based on:`n  - Scan results`n  - Trusted signers`n  - Safe paths`n  - Hash rules`n`nOutput saved to Outputs folder.`n`nRunning..."
+
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
+    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
+    $runspace.SessionStateProxy.SetVariable("window", $window)
+
+    $ps = [powershell]::Create().AddScript({
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$rootDir'
+                . '$rootDir\Support\Config.ps1'
+                . '$scriptPath'
+            }" 2>&1
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "=== Create AppLocker Policies ===`n`n$($output -join "`n")`n`n=== POLICIES CREATED ===`n`nCheck Outputs folder for policy XML files."
+            })
+        } catch {
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
+            })
+        }
+    })
+    $ps.Runspace = $runspace
+    $ps.BeginInvoke() | Out-Null
+})
+}
+
+# Create WDAC Policies - Generates Windows Defender Application Control policies
+if ($null -ne $AL_CreateWDACPolicies) {
+$AL_CreateWDACPolicies.Add_Click({
+    $scriptPath = Join-Path $script:AaronLockerRoot "Support\Create-Policies-WDAC.ps1"
+    $AL_OutputConsole.Text = "=== Create WDAC Policies ===`n`nGenerates Windows Defender Application Control (WDAC) policies.`nWDAC provides kernel-mode code integrity protection.`n`nRunning..."
+
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
+    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
+    $runspace.SessionStateProxy.SetVariable("window", $window)
+
+    $ps = [powershell]::Create().AddScript({
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$rootDir'
+                . '$rootDir\Support\Config.ps1'
+                . '$scriptPath'
+            }" 2>&1
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "=== Create WDAC Policies ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
+            })
+        } catch {
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
+            })
+        }
+    })
+    $ps.Runspace = $runspace
+    $ps.BeginInvoke() | Out-Null
+})
+}
+
+# Build Rules for Writable Directories
+if ($null -ne $AL_BuildWritableRules) {
+$AL_BuildWritableRules.Add_Click({
+    $scriptPath = Join-Path $script:AaronLockerRoot "Support\BuildRulesForFilesInWritableDirectories.ps1"
+    $AL_OutputConsole.Text = "=== Build Rules for Writable Directories ===`n`nCreates hash/publisher rules for executables found in writable directories.`nThis allows legitimate apps in user-writable locations.`n`nRunning..."
+
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.Open()
+    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
+    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
+    $runspace.SessionStateProxy.SetVariable("window", $window)
+
+    $ps = [powershell]::Create().AddScript({
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$rootDir'
+                . '$rootDir\Support\Config.ps1'
+                . '$scriptPath'
+            }" 2>&1
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "=== Build Rules for Writable Directories ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
+            })
+        } catch {
+            $window.Dispatcher.Invoke([action]{
+                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
+            })
+        }
+    })
+    $ps.Runspace = $runspace
+    $ps.BeginInvoke() | Out-Null
+})
+}
+
+# === EXPORT & REPORTING ===
+
+# Export Policy to CSV
+if ($null -ne $AL_ExportToCsv) {
+$AL_ExportToCsv.Add_Click({
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "XML Files (*.xml)|*.xml"
+    $openDialog.Title = "Select AppLocker Policy XML to Export"
+    $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $policyPath = $openDialog.FileName
+        $scriptPath = Join-Path $script:AaronLockerRoot "Support\ExportPolicy-ToCsv.ps1"
+
+        $AL_OutputConsole.Text = "=== Export Policy to CSV ===`n`nExporting: $policyPath`n`nRunning..."
+
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$($script:AaronLockerRoot)'
+                . '$scriptPath' -AppLockerXML '$policyPath'
+            }" 2>&1
+            $AL_OutputConsole.Text = "=== Export Policy to CSV ===`n`n$($output -join "`n")`n`n=== EXPORTED ==="
+        } catch {
+            $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+        }
+    }
+})
+}
+
+# Export Policy to Excel
+if ($null -ne $AL_ExportToExcel) {
+$AL_ExportToExcel.Add_Click({
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "XML Files (*.xml)|*.xml"
+    $openDialog.Title = "Select AppLocker Policy XML to Export"
+    $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $policyPath = $openDialog.FileName
+        $scriptPath = Join-Path $script:AaronLockerRoot "ExportPolicy-ToExcel.ps1"
+
+        $AL_OutputConsole.Text = "=== Export Policy to Excel ===`n`nExporting: $policyPath`nRequires Excel installed.`n`nRunning..."
+
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$($script:AaronLockerRoot)'
+                . '$scriptPath' -AppLockerXML '$policyPath'
+            }" 2>&1
+            $AL_OutputConsole.Text = "=== Export Policy to Excel ===`n`n$($output -join "`n")`n`n=== EXPORTED ==="
+        } catch {
+            $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+        }
+    }
+})
+}
+
+# Generate Event Workbook
+if ($null -ne $AL_GenerateEventWorkbook) {
+$AL_GenerateEventWorkbook.Add_Click({
+    $scriptPath = Join-Path $script:AaronLockerRoot "Generate-EventWorkbook.ps1"
+    $AL_OutputConsole.Text = "=== Generate Event Workbook ===`n`nCreates an Excel workbook from AppLocker events.`nRequires Excel installed.`n`nRunning..."
+
+    try {
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+            `$rootDir = '$($script:AaronLockerRoot)'
+            . '$scriptPath'
+        }" 2>&1
+        $AL_OutputConsole.Text = "=== Generate Event Workbook ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
+    } catch {
+        $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+    }
+})
+}
+
+# === LOCAL CONFIGURATION ===
+
+# Configure for AppLocker
+if ($null -ne $AL_ConfigureForAppLocker) {
+$AL_ConfigureForAppLocker.Add_Click({
+    $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ConfigureForAppLocker.ps1"
+    $AL_OutputConsole.Text = "=== Configure for AppLocker ===`n`nConfigures local system for AppLocker:`n  - Enables AppIDSvc service`n  - Sets service to Automatic`n  - Configures event logging`n`nRunning..."
+
+    try {
+        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+            `$rootDir = '$($script:AaronLockerRoot)'
+            . '$scriptPath'
+        }" 2>&1
+        $AL_OutputConsole.Text = "=== Configure for AppLocker ===`n`n$($output -join "`n")`n`n=== CONFIGURED ==="
+    } catch {
+        $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+    }
+})
+}
+
+# Apply to Local GPO
+if ($null -ne $AL_ApplyToLocalGPO) {
+$AL_ApplyToLocalGPO.Add_Click({
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "XML Files (*.xml)|*.xml"
+    $openDialog.Title = "Select AppLocker Policy to Apply to Local GPO"
+    $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $policyPath = $openDialog.FileName
+        $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
+
+        $result = [System.Windows.MessageBox]::Show(
+            "Apply policy to LOCAL GPO?`n`nPolicy: $policyPath`n`nThis will modify the local Group Policy.",
+            "Confirm Apply to Local GPO",
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Warning
+        )
+
+        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+            $AL_OutputConsole.Text = "=== Apply to Local GPO ===`n`nApplying: $policyPath`n`nRunning..."
+
+            try {
+                $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                    `$rootDir = '$($script:AaronLockerRoot)'
+                    . '$scriptPath' -PolicyPath '$policyPath'
+                }" 2>&1
+                $AL_OutputConsole.Text = "=== Apply to Local GPO ===`n`n$($output -join "`n")`n`n=== APPLIED ==="
+            } catch {
+                $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+            }
+        }
+    }
+})
+}
+
+# Set GPO AppLocker Policy
+if ($null -ne $AL_SetGPOPolicy) {
+$AL_SetGPOPolicy.Add_Click({
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "XML Files (*.xml)|*.xml"
+    $openDialog.Title = "Select AppLocker Policy to Set on Domain GPO"
+    $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $policyPath = $openDialog.FileName
+        $scriptPath = Join-Path $script:AaronLockerRoot "GPOConfiguration\Set-GPOAppLockerPolicy.ps1"
+
+        # Ask for GPO name
+        $inputBox = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the GPO name:", "Set GPO AppLocker Policy", "AppLocker Policy")
+        if ($inputBox) {
+            $AL_OutputConsole.Text = "=== Set GPO AppLocker Policy ===`n`nGPO: $inputBox`nPolicy: $policyPath`n`nRunning..."
+
+            try {
+                $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                    `$rootDir = '$($script:AaronLockerRoot)'
+                    . '$scriptPath' -GpoName '$inputBox' -AppLockerXml '$policyPath'
+                }" 2>&1
+                $AL_OutputConsole.Text = "=== Set GPO AppLocker Policy ===`n`n$($output -join "`n")`n`n=== GPO UPDATED ==="
+            } catch {
+                $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+            }
+        }
+    }
+})
+}
+
+# Clear Local Policy
+if ($null -ne $AL_ClearLocalPolicy) {
+$AL_ClearLocalPolicy.Add_Click({
+    $result = [System.Windows.MessageBox]::Show(
+        "Are you sure you want to CLEAR the local AppLocker policy?`n`nThis action cannot be undone!",
+        "Confirm Clear Local Policy",
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Warning
+    )
+
+    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+        $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ClearLocalAppLockerPolicy.ps1"
+        $AL_OutputConsole.Text = "=== Clear Local Policy ===`n`nClearing local AppLocker policy...`n`nRunning..."
+
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$($script:AaronLockerRoot)'
+                . '$scriptPath'
+            }" 2>&1
+            $AL_OutputConsole.Text = "=== Clear Local Policy ===`n`n$($output -join "`n")`n`n=== POLICY CLEARED ==="
+        } catch {
+            $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+        }
+    }
+})
+}
+
+# Clear AppLocker Logs
+if ($null -ne $AL_ClearLogs) {
+$AL_ClearLogs.Add_Click({
+    $result = [System.Windows.MessageBox]::Show(
+        "Are you sure you want to CLEAR all AppLocker event logs?`n`nThis action cannot be undone!",
+        "Confirm Clear Logs",
+        [System.Windows.MessageBoxButton]::YesNo,
+        [System.Windows.MessageBoxImage]::Warning
+    )
+
+    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+        $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ClearApplockerLogs.ps1"
+        $AL_OutputConsole.Text = "=== Clear AppLocker Logs ===`n`nClearing AppLocker event logs...`n`nRunning..."
+
+        try {
+            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
+                `$rootDir = '$($script:AaronLockerRoot)'
+                . '$scriptPath'
+            }" 2>&1
+            $AL_OutputConsole.Text = "=== Clear AppLocker Logs ===`n`n$($output -join "`n")`n`n=== LOGS CLEARED ==="
+        } catch {
+            $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
+        }
+    }
+})
+}
+
+# === CUSTOMIZATION INPUTS - Open files in default editor ===
+
+if ($null -ne $AL_EditTrustedSigners) {
+$AL_EditTrustedSigners.Add_Click({
+    $filePath = Join-Path $script:AaronLockerRoot "CustomizationInputs\TrustedSigners.ps1"
+    if (Test-Path $filePath) {
+        Start-Process notepad.exe -ArgumentList $filePath
+        $AL_OutputConsole.Text = "Opened TrustedSigners.ps1 in Notepad.`n`nThis file defines publishers/signers whose software should be allowed.`n`nFile: $filePath"
+    } else {
+        $AL_OutputConsole.Text = "ERROR: File not found at $filePath"
+    }
+})
+}
+
+if ($null -ne $AL_EditSafePaths) {
+$AL_EditSafePaths.Add_Click({
+    $filePath = Join-Path $script:AaronLockerRoot "CustomizationInputs\GetSafePathsToAllow.ps1"
+    if (Test-Path $filePath) {
+        Start-Process notepad.exe -ArgumentList $filePath
+        $AL_OutputConsole.Text = "Opened GetSafePathsToAllow.ps1 in Notepad.`n`nThis file defines additional paths to whitelist.`n`nFile: $filePath"
+    } else {
+        $AL_OutputConsole.Text = "ERROR: File not found at $filePath"
+    }
+})
+}
+
+if ($null -ne $AL_EditUnsafePaths) {
+$AL_EditUnsafePaths.Add_Click({
+    $filePath = Join-Path $script:AaronLockerRoot "CustomizationInputs\UnsafePathsToBuildRulesFor.ps1"
+    if (Test-Path $filePath) {
+        Start-Process notepad.exe -ArgumentList $filePath
+        $AL_OutputConsole.Text = "Opened UnsafePathsToBuildRulesFor.ps1 in Notepad.`n`nThis file defines user-writable paths that need specific rules.`n`nFile: $filePath"
+    } else {
+        $AL_OutputConsole.Text = "ERROR: File not found at $filePath"
+    }
+})
+}
+
+if ($null -ne $AL_EditDenyList) {
+$AL_EditDenyList.Add_Click({
+    $filePath = Join-Path $script:AaronLockerRoot "CustomizationInputs\GetExeFilesToDenyList.ps1"
+    if (Test-Path $filePath) {
+        Start-Process notepad.exe -ArgumentList $filePath
+        $AL_OutputConsole.Text = "Opened GetExeFilesToDenyList.ps1 in Notepad.`n`nThis file defines executables that should be explicitly blocked.`n`nFile: $filePath"
+    } else {
+        $AL_OutputConsole.Text = "ERROR: File not found at $filePath"
+    }
+})
+}
+
+if ($null -ne $AL_EditHashRules) {
+$AL_EditHashRules.Add_Click({
+    $filePath = Join-Path $script:AaronLockerRoot "CustomizationInputs\HashRuleData.ps1"
+    if (Test-Path $filePath) {
+        Start-Process notepad.exe -ArgumentList $filePath
+        $AL_OutputConsole.Text = "Opened HashRuleData.ps1 in Notepad.`n`nThis file defines specific file hashes to allow/deny.`n`nFile: $filePath"
+    } else {
+        $AL_OutputConsole.Text = "ERROR: File not found at $filePath"
+    }
+})
+}
+
+if ($null -ne $AL_EditKnownAdmins) {
+$AL_EditKnownAdmins.Add_Click({
+    $filePath = Join-Path $script:AaronLockerRoot "CustomizationInputs\KnownAdmins.ps1"
+    if (Test-Path $filePath) {
+        Start-Process notepad.exe -ArgumentList $filePath
+        $AL_OutputConsole.Text = "Opened KnownAdmins.ps1 in Notepad.`n`nThis file defines admin accounts to exempt from certain rules.`n`nFile: $filePath"
+    } else {
+        $AL_OutputConsole.Text = "ERROR: File not found at $filePath"
+    }
+})
+}
+
+# === FOLDER SHORTCUTS ===
+
+if ($null -ne $AL_OpenOutputs) {
+$AL_OpenOutputs.Add_Click({
+    $folderPath = Join-Path $script:AaronLockerRoot "Outputs"
+    if (-not (Test-Path $folderPath)) {
+        New-Item -ItemType Directory -Path $folderPath -Force | Out-Null
+    }
+    Start-Process explorer.exe -ArgumentList $folderPath
+    $AL_OutputConsole.Text = "Opened Outputs folder in Explorer.`n`nThis folder contains generated AppLocker and WDAC policy files.`n`nPath: $folderPath"
+})
+}
+
+if ($null -ne $AL_OpenScanResults) {
+$AL_OpenScanResults.Add_Click({
+    $folderPath = Join-Path $script:AaronLockerRoot "ScanResults"
+    if (-not (Test-Path $folderPath)) {
+        New-Item -ItemType Directory -Path $folderPath -Force | Out-Null
+    }
+    Start-Process explorer.exe -ArgumentList $folderPath
+    $AL_OutputConsole.Text = "Opened ScanResults folder in Explorer.`n`nThis folder contains scan output files.`n`nPath: $folderPath"
+})
+}
 
 # Show window
 $window.ShowDialog() | Out-Null
