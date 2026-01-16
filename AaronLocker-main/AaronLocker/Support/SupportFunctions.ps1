@@ -367,7 +367,17 @@ function IsWin32Executable([string]$filename)
 
     # Read first 64 bytes (size of IMAGE_DOS_HEADER)
     # Always make sure returned data is an array, even if the file contains exactly one byte
-    $bytesImageDosHeader = @(Get-Content -Encoding Byte -TotalCount $sizeofImageDosHeader $filename -ErrorAction SilentlyContinue)
+    # Using .NET method instead of Get-Content -Encoding Byte for compatibility with Constrained Language Mode
+    try {
+        $allBytes = [System.IO.File]::ReadAllBytes($filename)
+        if ($allBytes.Length -ge $sizeofImageDosHeader) {
+            $bytesImageDosHeader = @($allBytes[0..($sizeofImageDosHeader - 1)])
+        } else {
+            $bytesImageDosHeader = @()
+        }
+    } catch {
+        $bytesImageDosHeader = @()
+    }
     if ($null -eq $bytesImageDosHeader -or $bytesImageDosHeader.Length -lt $sizeofImageDosHeader)
     {
         Write-Verbose "$filename : Non-existent or unreadable file, or less than $sizeofImageDosHeader bytes."
@@ -390,7 +400,12 @@ function IsWin32Executable([string]$filename)
 
     # Read up to where the NT headers are, and then the size of IMAGE_NT_HEADERS64 which should be more than we need
     $totalToRead = $offsetImageNtHeaders + $sizeofImageNtHeaders64
-    $bytesImageNtHeaders = Get-Content -Encoding Byte -TotalCount $totalToRead $filename -ErrorAction SilentlyContinue
+    # Reuse $allBytes from earlier read, or read again if needed (using .NET for CLM compatibility)
+    if ($allBytes.Length -ge $totalToRead) {
+        $bytesImageNtHeaders = $allBytes[0..($totalToRead - 1)]
+    } else {
+        $bytesImageNtHeaders = $allBytes
+    }
     if ($bytesImageNtHeaders.Length -lt $totalToRead)
     {
         Write-Verbose "$filename : Not a PE file; less than $totalToRead bytes."
