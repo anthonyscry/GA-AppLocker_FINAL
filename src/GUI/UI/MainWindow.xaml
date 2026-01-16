@@ -1,0 +1,2407 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        Title="GA-AppLocker Dashboard" Height="700" Width="1050" MinHeight="500" MinWidth="800"
+        WindowStartupLocation="CenterScreen" Background="#0D1117">
+    <Window.Resources>
+        <!-- GitHub Dark Theme Colors -->
+        <SolidColorBrush x:Key="BgDark" Color="#0D1117"/>
+        <SolidColorBrush x:Key="BgSidebar" Color="#161B22"/>
+        <SolidColorBrush x:Key="BgCard" Color="#21262D"/>
+        <SolidColorBrush x:Key="Border" Color="#30363D"/>
+        <SolidColorBrush x:Key="Blue" Color="#58A6FF"/>
+        <SolidColorBrush x:Key="Green" Color="#3FB950"/>
+        <SolidColorBrush x:Key="Orange" Color="#D29922"/>
+        <SolidColorBrush x:Key="Red" Color="#F85149"/>
+        <SolidColorBrush x:Key="Purple" Color="#8957E5"/>
+        <SolidColorBrush x:Key="Text1" Color="#E6EDF3"/>
+        <SolidColorBrush x:Key="Text2" Color="#8B949E"/>
+        <SolidColorBrush x:Key="Text3" Color="#6E7681"/>
+        <SolidColorBrush x:Key="Hover" Color="#30363D"/>
+
+        <!-- Button Styles -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#238636"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#2ea043"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Background" Value="#30363D"/>
+                    <Setter Property="Foreground" Value="#6E7681"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Background" Value="#21262D"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="BorderBrush" Value="#30363D"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="1"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#30363D"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Small Nav Button Style for Sidebar -->
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#8B949E"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#21262D"/>
+                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Custom Expander Style - hides default toggle arrow -->
+        <Style x:Key="MenuExpander" TargetType="Expander">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Expander">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                            <StackPanel>
+                                <ToggleButton x:Name="HeaderToggle" IsChecked="{Binding IsExpanded, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" Cursor="Hand">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent" Padding="8,6">
+                                                <ContentPresenter/>
+                                            </Border>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                    <ContentPresenter Content="{TemplateBinding Header}" ContentTemplate="{TemplateBinding HeaderTemplate}"/>
+                                </ToggleButton>
+                                <ContentPresenter x:Name="ExpanderContent" Content="{TemplateBinding Content}" Visibility="Collapsed"/>
+                            </StackPanel>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsExpanded" Value="True">
+                                <Setter TargetName="ExpanderContent" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Comprehensive Dark ComboBox Style -->
+        <Style x:Key="DarkComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Background" Value="#21262D"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="BorderBrush" Value="#30363D"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="MinHeight" Value="32"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Name="ToggleButton"
+                                          Background="{TemplateBinding Background}"
+                                          BorderBrush="{TemplateBinding BorderBrush}"
+                                          BorderThickness="{TemplateBinding BorderThickness}"
+                                          Foreground="{TemplateBinding Foreground}"
+                                          IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"
+                                          ClickMode="Press"
+                                          Focusable="false">
+                                <ToggleButton.Template>
+                                    <ControlTemplate TargetType="ToggleButton">
+                                        <Border Background="{TemplateBinding Background}"
+                                                BorderBrush="{TemplateBinding BorderBrush}"
+                                                BorderThickness="{TemplateBinding BorderThickness}"
+                                                CornerRadius="4"
+                                                SnapsToDevicePixels="True">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="32"/>
+                                                </Grid.ColumnDefinitions>
+                                                <ContentPresenter Grid.Column="0"
+                                                                HorizontalAlignment="Left"
+                                                                VerticalAlignment="Center"
+                                                                Margin="8,0,0,0"
+                                                                Content="{TemplateBinding Content}"
+                                                                ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                                                <Path Grid.Column="1"
+                                                      Data="M 0 0 L 4 4 L 8 0"
+                                                      Fill="#8B949E"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Stretch="Uniform"
+                                                      Width="8"
+                                                      Height="4"/>
+                                            </Grid>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="#30363D"/>
+                                            </Trigger>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter Property="Background" Value="#30363D"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </ToggleButton.Template>
+                            </ToggleButton>
+                            <ContentPresenter x:Name="ContentSite"
+                                            IsHitTestVisible="False"
+                                            Content="{TemplateBinding SelectionBoxItem}"
+                                            ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"
+                                            ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}"
+                                            Margin="8,0,32,0"
+                                            VerticalAlignment="Center"
+                                            HorizontalAlignment="Left"/>
+                            <TextBox x:Name="PART_EditableTextBox"
+                                     Style="{x:Null}"
+                                     Template="{DynamicResource ComboBoxTextBox}"
+                                     HorizontalAlignment="Left"
+                                     VerticalAlignment="Center"
+                                     Margin="8,0,32,0"
+                                     Focusable="True"
+                                     Background="Transparent"
+                                     Foreground="#E6EDF3"
+                                     Visibility="Collapsed"
+                                     IsReadOnly="{TemplateBinding IsReadOnly}"/>
+                            <Popup Name="Popup"
+                                   Placement="Bottom"
+                                   IsOpen="{TemplateBinding IsDropDownOpen}"
+                                   AllowsTransparency="True"
+                                   Focusable="False"
+                                   PopupAnimation="Slide">
+                                <Grid Name="DropDown"
+                                      SnapsToDevicePixels="True"
+                                      MinWidth="{TemplateBinding ActualWidth}"
+                                      MaxHeight="200">
+                                    <Border Background="#21262D"
+                                            BorderBrush="#30363D"
+                                            BorderThickness="1"
+                                            CornerRadius="4"
+                                            Margin="0,4,0,0"
+                                            Effect="{DynamicResource DropShadowEffect}"/>
+                                    <ScrollViewer Margin="4,8,4,8"
+                                                  SnapsToDevicePixels="True">
+                                        <StackPanel IsItemsHost="True"
+                                                    KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Popup>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Background" Value="#161B22"/>
+                                <Setter Property="Foreground" Value="#6E7681"/>
+                                <Setter Property="BorderBrush" Value="#30363D"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True" SourceName="ToggleButton">
+                                <Setter Property="BorderBrush" Value="#58A6FF"/>
+                            </Trigger>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter Property="Height" TargetName="DropDown" Value="95"/>
+                            </Trigger>
+                            <Trigger Property="IsGrouping" Value="True">
+                                <Setter Property="ScrollViewer.CanContentScroll" Value="False"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ComboBoxItem Style for Dark Theme -->
+        <Style x:Key="DarkComboBoxItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="#E6EDF3"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="Margin" Value="0,1"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBoxItem">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="0"
+                                CornerRadius="3"
+                                Padding="{TemplateBinding Padding}"
+                                SnapsToDevicePixels="True">
+                            <ContentPresenter HorizontalAlignment="Left"
+                                            VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter Property="Background" Value="#30363D"/>
+                                <Setter Property="Foreground" Value="#E6EDF3"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter Property="Background" Value="#58A6FF"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ComboBox TextBox Template -->
+        <ControlTemplate x:Key="ComboBoxTextBox" TargetType="TextBox">
+            <Border Background="Transparent"
+                    Focusable="False">
+                <ScrollViewer x:Name="PART_ContentHost"
+                              Background="Transparent"
+                              Focusable="False"
+                              HorizontalScrollBarVisibility="Hidden"
+                              VerticalScrollBarVisibility="Hidden"/>
+            </Border>
+        </ControlTemplate>
+
+        <!-- Drop Shadow Effect for Popup -->
+        <DropShadowEffect x:Key="DropShadowEffect"
+                         Color="#000000"
+                         Direction="270"
+                         ShadowDepth="2"
+                         BlurRadius="8"
+                         Opacity="0.3"/>
+
+        <!-- Global ComboBox Style (Applied by default) -->
+        <Style TargetType="ComboBox" BasedOn="{StaticResource DarkComboBoxStyle}"/>
+        <Style TargetType="ComboBoxItem" BasedOn="{StaticResource DarkComboBoxItemStyle}"/>
+    </Window.Resources>
+
+    <Grid>
+        <!-- Header -->
+        <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,0,1" Height="60" VerticalAlignment="Top">
+            <Grid Margin="20,0">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <Image x:Name="HeaderLogo" Width="32" Height="32" Margin="0,0,10,0"/>
+                    <TextBlock Text="GA-AppLocker Dashboard" FontSize="18" FontWeight="Bold"
+                               Foreground="#E6EDF3" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="HeaderVersion" Text="v1.2.5" FontSize="12" Foreground="#6E7681"
+                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                </StackPanel>
+                <!-- QoL: Mini Status Bar -->
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,0,0">
+                    <TextBlock x:Name="MiniStatusDomain" Text="ONLINE" FontSize="11" Foreground="#3FB950" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock x:Name="MiniStatusMode" Text="AUDIT" FontSize="11" Foreground="#D29922" VerticalAlignment="Center" Margin="0,0,8,0" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="MiniStatusPhase" Text="" FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock x:Name="MiniStatusConnected" Text="0 systems" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock x:Name="MiniStatusArtifacts" Text="0 artifacts" FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock x:Name="MiniStatusSync" Text="Ready" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                    <TextBlock x:Name="StatusText" Text="Initializing..." FontSize="11"
+                           Foreground="#6E7681" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Environment Status Banner -->
+        <Border x:Name="EnvironmentBanner" Background="#21262D" BorderBrush="#30363D"
+                BorderThickness="0,0,0,1" Height="40" VerticalAlignment="Top" Margin="0,60,0,0">
+            <Grid Margin="20,0">
+                <TextBlock x:Name="EnvironmentText" Text="" FontSize="12"
+                           Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Left"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <Button x:Name="NavSaveWorkspace" Content="Save Workspace" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,6,0" ToolTip="Save current workspace state (Ctrl+S)"/>
+                    <Button x:Name="NavLoadWorkspace" Content="Load Workspace" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,6,0" ToolTip="Load a previously saved workspace (Ctrl+O)"/>
+                    <Button x:Name="NavHelp" Content="Help" Style="{StaticResource SecondaryButton}" Padding="12,4" Margin="0,0,6,0"/>
+                    <Button x:Name="NavAbout" Content="About" Style="{StaticResource SecondaryButton}" Padding="12,4"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Main Content Area -->
+        <Grid Margin="0,104,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar Navigation -->
+            <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,0,1" Grid.Column="0">
+                <ScrollViewer x:Name="SidebarScrollViewer" VerticalScrollBarVisibility="Auto" Margin="0,10,0,10">
+                    <StackPanel>
+                        <!-- Dashboard -->
+                        <Button x:Name="NavDashboard" Content="Dashboard" Style="{StaticResource SecondaryButton}"
+                                HorizontalAlignment="Stretch" Margin="10,5"/>
+
+                        <!-- SETUP Section (Collapsible) -->
+                            <Expander x:Name="SetupSection" IsExpanded="True" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+                                <Expander.Header>
+                                    <TextBlock Text="SETUP" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
+                                </Expander.Header>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavAppLockerSetup" Content="AppLocker Setup" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavGroupMgmt" Content="Group Management" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavDiscovery" Content="AD Discovery" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- SCANNING Section (Collapsible) -->
+                            <Expander x:Name="ScanningSection" IsExpanded="True" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+                                <Expander.Header>
+                                    <TextBlock Text="SCANNING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
+                                </Expander.Header>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavArtifacts" Content="Artifacts" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavGapAnalysis" Content="Gap Analysis" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavRuleWizard" Content="Rule Wizard" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- TEMPLATES Section (Collapsible) - Phase 5 -->
+                            <Expander x:Name="TemplatesSection" IsExpanded="True" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+                                <Expander.Header>
+                                    <TextBlock Text="TEMPLATES" FontSize="10" FontWeight="Bold" Foreground="#8957E5" VerticalAlignment="Center" Width="150"/>
+                                </Expander.Header>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavTemplates" Content="Rule Templates" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavCreateTemplate" Content="Create Template" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavImportTemplate" Content="Import Template" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- DEPLOYMENT Section (Collapsible) -->
+                            <Expander x:Name="DeploymentSection" IsExpanded="True" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+                                <Expander.Header>
+                                    <TextBlock Text="DEPLOYMENT" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
+                                </Expander.Header>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavDeployment" Content="Deployment" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavWinRM" Content="WinRM Setup" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- MONITORING Section (Collapsible) -->
+                            <Expander x:Name="MonitoringSection" IsExpanded="True" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+                                <Expander.Header>
+                                    <TextBlock Text="MONITORING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
+                                </Expander.Header>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavEvents" Content="Events" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavReports" Content="Compliance Reports" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavSiem" Content="SIEM Integration" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                </StackPanel>
+                            </Expander>
+
+                            <!-- TESTING Section (Collapsible) -->
+                            <Expander x:Name="TestingSection" IsExpanded="True" Background="Transparent" BorderThickness="0" Margin="0,4,0,0">
+                                <Expander.Header>
+                                    <TextBlock Text="TESTING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
+                                </Expander.Header>
+                                <StackPanel Margin="4,0,0,0">
+                                    <Button x:Name="NavPolicySimulator" Content="Policy Simulator" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                </StackPanel>
+                            </Expander>
+                        </StackPanel>
+                    </ScrollViewer>
+            </Border>
+
+            <!-- Content Panel with ScrollViewer for scrolling -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <Grid Margin="20,10,10,10">
+                <!-- Dashboard Panel -->
+                <StackPanel x:Name="PanelDashboard" Visibility="Collapsed">
+                    <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <!-- Stats Cards -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Policy Health Card -->
+                        <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="Policy Health" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="HealthScore" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,8,0,0"/>
+                                <TextBlock x:Name="HealthStatus" Text="Loading..." FontSize="10" Foreground="#6E7681"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Events Card -->
+                        <Border Grid.Column="1" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="Total Events" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="TotalEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#58A6FF" Margin="0,8,0,0"/>
+                                <TextBlock x:Name="EventsStatus" Text="Loading..." FontSize="10" Foreground="#6E7681"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Allowed Card -->
+                        <Border Grid.Column="2" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="Allowed" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="AllowedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8002</TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Audited Card -->
+                        <Border Grid.Column="3" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,8,10" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="Audited" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="AuditedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#D29922" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8003</TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Blocked Card -->
+                        <Border Grid.Column="4" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Margin="0,0,0,10" Padding="12">
+                            <StackPanel>
+                                <TextBlock Text="Blocked" FontSize="11" Foreground="#8B949E"/>
+                                <TextBlock x:Name="BlockedEvents" Text="--" FontSize="26" FontWeight="Bold"
+                                           Foreground="#F85149" Margin="0,8,0,0"/>
+                                <TextBlock FontSize="10" Foreground="#6E7681">Event ID 8004</TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Data Visualization Charts Section -->
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <!-- Event Distribution Pie Chart -->
+                        <Border Grid.Column="0" Grid.Row="0" Background="#21262D" BorderBrush="#30363D"
+                                CornerRadius="6" Margin="0,0,8,10" Padding="15" MinHeight="250">
+                            <StackPanel>
+                                <TextBlock Text="Event Distribution" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                                <Viewbox Stretch="Uniform" MaxHeight="180">
+                                    <Grid Width="200" Height="200">
+                                        <Path x:Name="PieAllowed" Fill="#3FB950" Stroke="#0D1117" StrokeThickness="2"/>
+                                        <Path x:Name="PieAudited" Fill="#D29922" Stroke="#0D1117" StrokeThickness="2"/>
+                                        <Path x:Name="PieBlocked" Fill="#F85149" Stroke="#0D1117" StrokeThickness="2"/>
+                                    </Grid>
+                                </Viewbox>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,0">
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
+                                        <Rectangle Width="12" Height="12" Fill="#3FB950" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Allowed" FontSize="11" Foreground="#8B949E"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,15,0">
+                                        <Rectangle Width="12" Height="12" Fill="#D29922" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Audited" FontSize="11" Foreground="#8B949E"/>
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <Rectangle Width="12" Height="12" Fill="#F85149" Margin="0,0,5,0"/>
+                                        <TextBlock Text="Blocked" FontSize="11" Foreground="#8B949E"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Policy Health Gauge -->
+                        <Border Grid.Column="1" Grid.Row="0" Background="#21262D" BorderBrush="#30363D"
+                                CornerRadius="6" Margin="0,0,0,10" Padding="15" MinHeight="250">
+                            <StackPanel>
+                                <TextBlock Text="Policy Health Score" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                                <Viewbox Stretch="Uniform" MaxHeight="180">
+                                    <Grid Width="200" Height="110">
+                                        <Path x:Name="GaugeBackground" Fill="#30363D"/>
+                                        <Path x:Name="GaugeFill" Fill="#3FB950"/>
+                                        <TextBlock x:Name="GaugeScore" Text="0" FontSize="36" FontWeight="Bold"
+                                                   Foreground="#E6EDF3" HorizontalAlignment="Center"
+                                                   VerticalAlignment="Bottom" Margin="0,0,0,10"/>
+                                    </Grid>
+                                </Viewbox>
+                                <TextBlock x:Name="GaugeLabel" Text="No Policy Configured" FontSize="11"
+                                           Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Machine Type Distribution Bar Chart -->
+                        <Border Grid.Column="0" Grid.Row="1" Background="#21262D" BorderBrush="#30363D"
+                                CornerRadius="6" Margin="0,0,8,0" Padding="15" MinHeight="200">
+                            <StackPanel>
+                                <TextBlock Text="Machine Type Distribution" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                                <Grid Height="150" Margin="0,0,0,10">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Workstations -->
+                                    <TextBlock Grid.Column="0" Grid.Row="0" Text="Workstations" FontSize="10"
+                                               Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                    <Border Grid.Column="0" Grid.Row="1" Background="#0D1117" CornerRadius="4"
+                                            Margin="0,0,5,0" Padding="5">
+                                        <Grid>
+                                            <Rectangle x:Name="BarWorkstations" Fill="#58A6FF" Height="0"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                                            <TextBlock x:Name="LabelWorkstations" Text="0" FontSize="14" FontWeight="Bold"
+                                                       Foreground="#58A6FF" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Servers -->
+                                    <TextBlock Grid.Column="1" Grid.Row="0" Text="Servers" FontSize="10"
+                                               Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                    <Border Grid.Column="1" Grid.Row="1" Background="#0D1117" CornerRadius="4"
+                                            Margin="0,0,5,0" Padding="5">
+                                        <Grid>
+                                            <Rectangle x:Name="BarServers" Fill="#3FB950" Height="0"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                                            <TextBlock x:Name="LabelServers" Text="0" FontSize="14" FontWeight="Bold"
+                                                       Foreground="#3FB950" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Domain Controllers -->
+                                    <TextBlock Grid.Column="2" Grid.Row="0" Text="DCs" FontSize="10"
+                                               Foreground="#8B949E" HorizontalAlignment="Center" Margin="0,0,0,5"/>
+                                    <Border Grid.Column="2" Grid.Row="1" Background="#0D1117" CornerRadius="4"
+                                            Padding="5">
+                                        <Grid>
+                                            <Rectangle x:Name="BarDCs" Fill="#D29922" Height="0"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Bottom"/>
+                                            <TextBlock x:Name="LabelDCs" Text="0" FontSize="14" FontWeight="Bold"
+                                                       Foreground="#D29922" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+                                <TextBlock x:Name="TotalMachinesLabel" Text="Total: 0 machines" FontSize="11"
+                                           Foreground="#6E7681" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Event Trend Line Chart -->
+                        <Border Grid.Column="1" Grid.Row="1" Background="#21262D" BorderBrush="#30363D"
+                                CornerRadius="6" Padding="15" MinHeight="200">
+                            <StackPanel>
+                                <TextBlock Text="Event Trend (7 Days)" FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                                <Grid Height="150" Margin="0,0,0,10">
+                                    <Canvas x:Name="TrendChartCanvas" Background="#0D1117" ClipToBounds="True"/>
+                                </Grid>
+                                <TextBlock x:Name="TrendSummaryLabel" Text="No trend data available" FontSize="11"
+                                           Foreground="#6E7681" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Filters Row -->
+                    <Grid Margin="0,20,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Text="Time Range:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="DashboardTimeFilter" Grid.Column="1" Width="130" Height="26"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,15,0" FontSize="11">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#30363D"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#388BFD"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsSelected" Value="True"/>
+                                                <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="#30363D"/>
+                                            <Setter Property="Foreground" Value="#E6EDF3"/>
+                                        </MultiTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                            <ComboBoxItem Content="Last 7 Days" IsSelected="True"/>
+                            <ComboBoxItem Content="Last 30 Days"/>
+                        </ComboBox>
+
+                        <TextBlock Text="System:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="2" Margin="0,0,8,0"/>
+                        <ComboBox x:Name="DashboardSystemFilter" Grid.Column="3" Width="150" Height="26"
+                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" Margin="0,0,15,0" FontSize="11">
+                            <ComboBox.ItemContainerStyle>
+                                <Style TargetType="ComboBoxItem">
+                                    <Setter Property="Background" Value="#21262D"/>
+                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                    <Setter Property="Padding" Value="8,4"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsHighlighted" Value="True">
+                                            <Setter Property="Background" Value="#30363D"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                        <Trigger Property="IsSelected" Value="True">
+                                            <Setter Property="Background" Value="#388BFD"/>
+                                            <Setter Property="Foreground" Value="#FFFFFF"/>
+                                        </Trigger>
+                                        <MultiTrigger>
+                                            <MultiTrigger.Conditions>
+                                                <Condition Property="IsSelected" Value="True"/>
+                                                <Condition Property="Selector.IsSelectionActive" Value="False"/>
+                                            </MultiTrigger.Conditions>
+                                            <Setter Property="Background" Value="#30363D"/>
+                                            <Setter Property="Foreground" Value="#E6EDF3"/>
+                                        </MultiTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ComboBox.ItemContainerStyle>
+                            <ComboBoxItem Content="All Systems" IsSelected="True"/>
+                        </ComboBox>
+
+                        <Button x:Name="RefreshDashboardBtn" Content="Refresh"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="4" MinWidth="70" MinHeight="26"
+                                FontSize="11" ToolTip="Refresh Dashboard"/>
+                    </Grid>
+
+                    <!-- Output Area -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Margin="0,15,0,0" Padding="15" MinHeight="200">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="DashboardOutput" Text="Loading dashboard..."
+                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- Artifacts Panel -->
+                <StackPanel x:Name="PanelArtifacts" Visibility="Collapsed">
+                    <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,15"/>
+
+                    <!-- Local Scan Header -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Margin="0,0,0,10" Padding="15">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Local Artifact Scanning" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                <TextBlock Text="Scan the local system for executable artifacts" FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Local System" Style="{StaticResource PrimaryButton}" Grid.Column="1" MinHeight="32" MinWidth="140"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Directory Selection -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Margin="0,0,0,10" Padding="15">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Directories:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="Ctrl+click to select multiple, Shift+click for range" FontSize="11" Foreground="#6E7681" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="Max Files:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="MaxFilesText" Text="50000" Width="80" Height="28"
+                                         Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                         BorderThickness="1" FontSize="12" Padding="5" Grid.Column="3"/>
+                                <Button x:Name="ScanDirectoriesBtn" Content="Scan Directories"
+                                        Style="{StaticResource SecondaryButton}" Grid.Column="5" MinHeight="32"/>
+                            </Grid>
+
+                            <ListBox x:Name="DirectoryList" Grid.Row="1" Height="150" Background="#0D1117"
+                                     Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
+                                     SelectionMode="Extended" FontSize="12">
+                                <ListBoxItem Content="C:\Program Files"/>
+                                <ListBoxItem Content="C:\Program Files (x86)"/>
+                                <ListBoxItem Content="C:\ProgramData"/>
+                                <ListBoxItem Content="C:\Windows\System32"/>
+                                <ListBoxItem Content="C:\Windows\SysWOW64"/>
+                                <ListBoxItem Content="C:\Windows\Temp"/>
+                                <ListBoxItem Content="C:\Users\*\AppData\Local\Temp"/>
+                                <ListBoxItem Content="C:\Users\*\Downloads"/>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Artifacts List -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinHeight="200">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Text="Discovered Artifacts" FontSize="13" FontWeight="Bold"
+                                       Foreground="#8B949E" Margin="0,0,0,10"/>
+
+                            <ListBox x:Name="ArtifactsList" Grid.Row="1" Background="#0D1117"
+                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="11"/>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- Software Gap Analysis Panel -->
+                <StackPanel x:Name="PanelGapAnalysis" Visibility="Collapsed">
+                    <TextBlock Text="Software Gap Analysis" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Compare Software Baselines" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Select a baseline software list and compare against another host or imported list."
+                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Import and Compare Buttons -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="ImportBaselineBtn" Content="Import Baseline CSV" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ImportTargetBtn" Content="Import Target CSV" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                        <Button x:Name="CompareSoftwareBtn" Content="Compare Lists" Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
+                    </Grid>
+
+                    <!-- Comparison Results -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="Comparison Results" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" MaxHeight="250">
+                                <DataGrid x:Name="GapAnalysisGrid" Background="#161B22" Foreground="#E6EDF3"
+                                           BorderThickness="1" BorderBrush="#30363D" FontSize="11" FontFamily="Consolas"
+                                           GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                                           AutoGenerateColumns="False" IsReadOnly="True"
+                                           CanUserAddRows="False" CanUserDeleteRows="False"
+                                           RowBackground="#161B22" AlternatingRowBackground="#1C2128"
+                                           HorizontalGridLinesBrush="#30363D">
+                                    <DataGrid.ColumnHeaderStyle>
+                                        <Style TargetType="DataGridColumnHeader">
+                                            <Setter Property="Background" Value="#21262D"/>
+                                            <Setter Property="Foreground" Value="#E6EDF3"/>
+                                            <Setter Property="FontWeight" Value="Bold"/>
+                                            <Setter Property="Padding" Value="8,6"/>
+                                            <Setter Property="BorderBrush" Value="#30363D"/>
+                                            <Setter Property="BorderThickness" Value="0,0,1,1"/>
+                                        </Style>
+                                    </DataGrid.ColumnHeaderStyle>
+                                    <DataGrid.CellStyle>
+                                        <Style TargetType="DataGridCell">
+                                            <Setter Property="Padding" Value="6,4"/>
+                                            <Setter Property="BorderThickness" Value="0"/>
+                                            <Setter Property="Foreground" Value="#E6EDF3"/>
+                                            <Style.Triggers>
+                                                <Trigger Property="IsSelected" Value="True">
+                                                    <Setter Property="Background" Value="#388BFD"/>
+                                                    <Setter Property="Foreground" Value="#FFFFFF"/>
+                                                </Trigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DataGrid.CellStyle>
+                                    <DataGrid.Columns>
+                                        <DataGridTextColumn Header="Software Name" Binding="{Binding Name}" Width="*">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#E6EDF3"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="110">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Missing in Target">
+                                                            <Setter Property="Foreground" Value="#F85149"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Extra in Target">
+                                                            <Setter Property="Foreground" Value="#58A6FF"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Version Mismatch">
+                                                            <Setter Property="Foreground" Value="#D29922"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding Status}" Value="Match">
+                                                            <Setter Property="Foreground" Value="#3FB950"/>
+                                                            <Setter Property="FontWeight" Value="Bold"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Baseline" Binding="{Binding BaselineVersion}" Width="80">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                        <DataGridTextColumn Header="Target" Binding="{Binding TargetVersion}" Width="80">
+                                            <DataGridTextColumn.ElementStyle>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="#8B949E"/>
+                                                    <Setter Property="Padding" Value="4,2"/>
+                                                </Style>
+                                            </DataGridTextColumn.ElementStyle>
+                                        </DataGridTextColumn>
+                                    </DataGrid.Columns>
+                                </DataGrid>
+                            </ScrollViewer>
+                        </Grid>
+                    </Border>
+
+                    <!-- Summary Stats -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Total" FontSize="10" Foreground="#8B949E"/>
+                                <TextBlock x:Name="GapTotalCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="2" Background="#21262D" BorderBrush="#F85149" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Missing" FontSize="10" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapMissingCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#F85149" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="4" Background="#21262D" BorderBrush="#58A6FF" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Extra" FontSize="10" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapExtraCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#58A6FF" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                        <Border Grid.Column="6" Background="#21262D" BorderBrush="#D29922" BorderThickness="1" CornerRadius="6" Padding="10">
+                            <StackPanel>
+                                <TextBlock Text="Version Diff" FontSize="10" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="GapVersionCount" Text="0" FontSize="18" FontWeight="Bold" Foreground="#D29922" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+
+                    <!-- Export Button -->
+                    <Grid>
+                        <Button x:Name="ExportGapAnalysisBtn" Content="Export Comparison" Style="{StaticResource SecondaryButton}" Width="180" HorizontalAlignment="Left"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Rules Panel -->
+                <StackPanel x:Name="PanelRules" Visibility="Collapsed">
+                    <!-- Header -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="Rule Generator" FontSize="22" FontWeight="Bold" Foreground="#E6EDF3"/>
+                        <Button x:Name="AuditToggleBtn" Content="[!] AUDIT MODE" Grid.Column="1"
+                                Background="#F0883E" Foreground="#FFFFFF" FontSize="11" FontWeight="Bold"
+                                BorderThickness="0" Padding="16,6" Height="32"
+                                ToolTip="Toggle all rules between Audit and Enforce mode"/>
+                    </Grid>
+
+                    <!-- Section 1: Configuration -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- Rule Type -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,0,8"/>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <RadioButton x:Name="RuleTypeAuto" Content="Auto (Recommended)" IsChecked="True"
+                                                 Foreground="#58A6FF" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypePublisher" Content="Publisher"
+                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypeHash" Content="Hash"
+                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypePath" Content="Path"
+                                                 Foreground="#E6EDF3" FontSize="12"/>
+                                </StackPanel>
+
+                                <!-- Action & Group -->
+                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+                                    <StackPanel>
+                                        <TextBlock Text="Action:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
+                                                         Foreground="#3FB950" FontSize="12" Margin="0,0,20,0"/>
+                                            <RadioButton x:Name="RuleActionDeny" Content="Deny"
+                                                         Foreground="#F85149" FontSize="12"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Margin="30,0,0,0">
+                                        <TextBlock Text="Apply to Group:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="RuleGroupCombo" Height="30" MinWidth="220"
+                                                  Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="12">
+                                            <ComboBoxItem Content="AppLocker-Admins" IsSelected="True"/>
+                                            <ComboBoxItem Content="AppLocker-StandardUsers"/>
+                                            <ComboBoxItem Content="AppLocker-Service-Accounts"/>
+                                            <ComboBoxItem Content="AppLocker-Installers"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Section 2: Import Artifacts -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Import Artifacts" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+
+                            <!-- Quick Import -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="6"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Quick Load:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <Button x:Name="LoadCollectedArtifactsBtn" Content="Load Artifacts" Grid.Column="2"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0"/>
+                                <TextBlock x:Name="ArtifactCountBadge" Text="0" Grid.Column="4" FontSize="11" FontWeight="Bold"
+                                           Foreground="#6E7681" Background="#30363D" Padding="8,4" MinWidth="30" TextAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                                <Button x:Name="LoadCollectedEventsBtn" Content="Load Events" Grid.Column="6"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0"/>
+                                <TextBlock x:Name="EventCountBadge" Text="0" Grid.Column="8" FontSize="11" FontWeight="Bold"
+                                           Foreground="#6E7681" Background="#30363D" Padding="8,4" MinWidth="30" TextAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- File Import -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="ImportArtifactsBtn" Content="Import File" Grid.Column="0"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0"/>
+                                <Button x:Name="ImportFolderBtn" Content="Import Folder" Grid.Column="2"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0"/>
+                                <Button x:Name="DedupeBtn" Content="Deduplicate" Grid.Column="4"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0" MinWidth="110"/>
+                                <ComboBox x:Name="DedupeTypeCombo" Grid.Column="6" Height="30" Width="130"
+                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
+                                    <ComboBoxItem Content="By Publisher" IsSelected="True"/>
+                                    <ComboBoxItem Content="By Hash"/>
+                                    <ComboBoxItem Content="By Path"/>
+                                </ComboBox>
+                                <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="8"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0" MinWidth="100"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Section 3: Generate Rules -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Generate Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="GenerateRulesBtn" Content="Generate Rules" Grid.Column="0"
+                                        Style="{StaticResource PrimaryButton}" Height="36" FontSize="12" FontWeight="SemiBold"/>
+                                <Button x:Name="DefaultDenyRulesBtn" Content="Default Deny Rules" Grid.Column="2"
+                                        Style="{StaticResource SecondaryButton}" Height="36" FontSize="11"/>
+                                <Button x:Name="CreateBrowserDenyBtn" Content="Browser Deny Rules" Grid.Column="4"
+                                        Style="{StaticResource SecondaryButton}" Height="36" FontSize="11"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Section 4: Rules List -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                        <StackPanel>
+                            <!-- Header with count and actions -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Generated Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="RulesCountText" Grid.Column="2" Text="0 rules" FontSize="12" Foreground="#3FB950" VerticalAlignment="Center"/>
+                                <Button x:Name="DeleteRulesBtn" Content="Delete Selected" Grid.Column="5"
+                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Background="#F85149" Padding="10,0" MinWidth="110"/>
+                            </Grid>
+
+                            <!-- Filter and Search -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="100"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="130"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Filter:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="RulesTypeFilter" Grid.Column="2" Height="28" FontSize="11"
+                                          Background="#161B22" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="All Types" IsSelected="True"/>
+                                    <ComboBoxItem Content="Publisher"/>
+                                    <ComboBoxItem Content="Hash"/>
+                                    <ComboBoxItem Content="Path"/>
+                                </ComboBox>
+                                <ComboBox x:Name="RulesActionFilter" Grid.Column="4" Height="28" FontSize="11"
+                                          Background="#161B22" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="All Actions" IsSelected="True"/>
+                                    <ComboBoxItem Content="Allow"/>
+                                    <ComboBoxItem Content="Deny"/>
+                                </ComboBox>
+                                <ComboBox x:Name="RulesGroupFilter" Grid.Column="6" Height="28" FontSize="11"
+                                          Background="#161B22" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="All Groups" IsSelected="True"/>
+                                </ComboBox>
+                                <TextBox x:Name="RulesFilterSearch" Grid.Column="8" Height="28" FontSize="11"
+                                         Background="#161B22" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                         Padding="8,0" Text="Search rules..."/>
+                                <Button x:Name="RulesClearFilterBtn" Content="Clear" Grid.Column="10"
+                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" MinWidth="60" Padding="10,0"/>
+                            </Grid>
+
+                            <!-- DataGrid -->
+                            <DataGrid x:Name="RulesDataGrid" Height="280"
+                                      Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
+                                      GridLinesVisibility="Horizontal" HeadersVisibility="Column" AutoGenerateColumns="False"
+                                      CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Extended"
+                                      FontSize="11" RowBackground="#0D1117" AlternatingRowBackground="#161B22">
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="70" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="60" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Name / Value" Binding="{Binding Name}" Width="280" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="170" IsReadOnly="True"/>
+                                </DataGrid.Columns>
+                            </DataGrid>
+
+                            <!-- Filter count -->
+                            <TextBlock x:Name="RulesFilterCount" Text="" Margin="0,8,0,0"
+                                      FontSize="11" Foreground="#58A6FF" HorizontalAlignment="Right"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Section 5: Output Log -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Output Log" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                            <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                                <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
+                                           FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
+                                           TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- Events Panel -->
+                <StackPanel x:Name="PanelEvents" Visibility="Collapsed">
+                    <TextBlock Text="Event Monitor" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+
+                    <!-- Computer Selection -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Margin="0,0,0,10" Padding="15">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Computers:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="Ctrl+click to select multiple, Shift+click for range" FontSize="11" Foreground="#6E7681" VerticalAlignment="Center"/>
+                                <Button x:Name="ScanLocalEventsBtn" Content="Scan Local" Style="{StaticResource PrimaryButton}" Grid.Column="2" MinHeight="32"/>
+                                <Button x:Name="ScanRemoteEventsBtn" Content="Scan Selected" Style="{StaticResource PrimaryButton}" Grid.Column="4" MinHeight="32"/>
+                                <Button x:Name="RefreshComputersBtn" Content="Refresh List" Style="{StaticResource SecondaryButton}" Grid.Column="6" MinHeight="32"/>
+                            </Grid>
+
+                            <ListBox x:Name="EventComputersList" Grid.Row="1" Height="120" Background="#0D1117"
+                                     Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
+                                     SelectionMode="Extended" FontSize="12">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Width="200"/>
+                                            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor}" Width="80"/>
+                                            <TextBlock Text="{Binding OU}" Foreground="#6E7681"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Export Button -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Button x:Name="ExportEventsBtn" Content="Export Events to CSV" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" MinWidth="200" Height="34" FontSize="11" Padding="14,0"/>
+                    </Border>
+
+                    <!-- Event Filters - Row 1: Filter Type Buttons -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="Event Type:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            <Button x:Name="FilterAllBtn" Content="All" Style="{StaticResource SecondaryButton}" Grid.Column="2" Height="30" FontSize="11" Padding="14,0" MinWidth="60"/>
+                            <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Grid.Column="4" Height="30" FontSize="11" Padding="14,0" MinWidth="80"/>
+                            <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Grid.Column="6" Height="30" FontSize="11" Padding="14,0" MinWidth="80"/>
+                            <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Grid.Column="8" Height="30" FontSize="11" Padding="14,0" MinWidth="70"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Event Filters - Row 2: Date Range and Search -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <!-- Date Range Row -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="125"/>
+                                    <ColumnDefinition Width="20"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="125"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="From:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <DatePicker x:Name="EventsDateFrom" Grid.Column="2" Height="30" FontSize="11"
+                                           Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                           FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+
+                                <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
+                                           Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                           FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+                            </Grid>
+
+                            <!-- Search and Actions Row -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="EventsFilterSearch" Grid.Column="2" Height="30" FontSize="11"
+                                             Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                             Padding="8,4" Text="Search events..."/>
+
+                                    <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="4"
+                                            Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
+
+                                    <TextBlock x:Name="EventsFilterCount" Grid.Column="6" Text=""
+                                              FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="80"/>
+
+                                    <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="10" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Events Output -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="6" Padding="10" MinHeight="200" MaxHeight="400">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="EventsOutput"
+                                       Text="Scan Local, Scan Remote, Import/Export - Use AD Discovery to find computers first.&#x0a;Export events to CSV, then use Import CSV in Rule Generator to create rules."
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- Deployment Panel -->
+                <StackPanel x:Name="PanelDeployment" Visibility="Collapsed">
+                    <TextBlock Text="Deployment" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <!-- Deployment Buttons (disabled in workgroup mode) -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="CreateGP0Btn" Content="Create GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="DisableGpoBtn" Content="Disable AppLocker GPO" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                    </Grid>
+
+                    <!-- Import/Export Rules Buttons -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="ExportRulesBtn" Content="Export Rules" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ImportRulesBtn" Content="Import Rules to GPO" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                    </Grid>
+
+                    <!-- Import to GPO Section -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Import Rules to GPO" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Text="Target GPO:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0"/>
+                                <ComboBox x:Name="TargetGpoCombo" Grid.Column="2" Height="26" FontSize="11" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="GA-AppLocker-DC"/>
+                                    <ComboBoxItem Content="GA-AppLocker-Servers"/>
+                                    <ComboBoxItem Content="GA-AppLocker-Workstations"/>
+                                </ComboBox>
+                                <TextBlock Text="Mode:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="4"/>
+                                <ComboBox x:Name="ImportModeCombo" Grid.Column="6" Width="120" Height="26" FontSize="11" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="Merge (Add)" IsSelected="True" ToolTip="Add new rules, keep existing rules"/>
+                                    <ComboBoxItem Content="Overwrite" ToolTip="Replace all existing rules"/>
+                                </ComboBox>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Deployment Status" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock x:Name="DeploymentStatus" Text="Ready to deploy policies..."
+                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" MinHeight="200">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock FontFamily="Consolas" FontSize="12" Foreground="#8B949E">
+                                <Run Text="Deployment Workflow:" Foreground="#E6EDF3"/>
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Text="1. Discover AD computers"/>
+                                <LineBreak/>
+                                <Run Text="2. Collect artifacts"/>
+                                <LineBreak/>
+                                <Run Text="3. Generate rules (Publisher first)"/>
+                                <LineBreak/>
+                                <Run Text="4. Export rules to XML"/>
+                                <LineBreak/>
+                                <Run Text="5. Create GPO in Audit mode"/>
+                                <LineBreak/>
+                                <Run Text="6. Import rules to GPO"/>
+                                <LineBreak/>
+                                <Run Text="7. Monitor for X days"/>
+                                <LineBreak/>
+                                <Run Text="8. Switch to Enforce mode"/>
+                                <LineBreak/>
+                                <LineBreak/>
+                                <Run Text="Best Practices:" Foreground="#E6EDF3"/>
+                                <LineBreak/>
+                                <Run Text="- Use Publisher rules first"/>
+                                <LineBreak/>
+                                <Run Text="- Use Hash rules for unsigned files"/>
+                                <LineBreak/>
+                                <Run Text="- Avoid Path rules when possible"/>
+                                <LineBreak/>
+                                <Run Text="- Always start in Audit mode"/>
+                                <LineBreak/>
+                                <Run Text="- Use role-based groups"/>
+                            </TextBlock>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- Compliance Panel -->
+                <StackPanel x:Name="PanelCompliance" Visibility="Collapsed">
+                    <TextBlock Text="Compliance" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <!-- Computer Selection -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Margin="0,0,0,10" Padding="15">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Computers:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="Ctrl+click to select multiple, Shift+click for range" FontSize="11" Foreground="#6E7681" VerticalAlignment="Center"/>
+                                <Button x:Name="ScanLocalComplianceBtn" Content="Scan Local" Style="{StaticResource PrimaryButton}" Grid.Column="2" MinHeight="32"/>
+                                <Button x:Name="ScanSelectedComplianceBtn" Content="Scan Selected" Style="{StaticResource PrimaryButton}" Grid.Column="4" MinHeight="32"/>
+                                <Button x:Name="RefreshComplianceListBtn" Content="Refresh List" Style="{StaticResource SecondaryButton}" Grid.Column="6" MinHeight="32"/>
+                            </Grid>
+
+                            <ListBox x:Name="ComplianceComputersList" Grid.Row="1" Height="120" Background="#0D1117"
+                                     Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
+                                     SelectionMode="Extended" FontSize="12">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Width="200"/>
+                                            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor}" Width="80"/>
+                                            <TextBlock Text="{Binding OU}" Foreground="#6E7681"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Actions -->
+                    <Grid Margin="0,0,0,8">
+                        <Button x:Name="GenerateEvidenceBtn" Content="Generate Evidence Package"
+                                Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Width="220" MinHeight="32"/>
+                    </Grid>
+
+                    <!-- Compliance Filters -->
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0" Text="Filter:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center"/>
+
+                        <!-- Status Filter -->
+                        <ComboBox x:Name="ComplianceStatusFilter" Grid.Column="2" Height="24" FontSize="10"
+                                  Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                            <ComboBoxItem Content="All Status" Tag="" IsSelected="True"/>
+                            <ComboBoxItem Content="Compliant" Tag="Compliant"/>
+                            <ComboBoxItem Content="Non-Compliant" Tag="Non-Compliant"/>
+                            <ComboBoxItem Content="Error" Tag="Error"/>
+                            <ComboBoxItem Content="Pending" Tag="Pending"/>
+                        </ComboBox>
+
+                        <!-- Search Box -->
+                        <TextBox x:Name="ComplianceFilterSearch" Grid.Column="4" Height="24" FontSize="10"
+                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                 Padding="5,2" Text="Search computers..."/>
+
+                        <!-- Clear Filter Button -->
+                        <Button x:Name="ComplianceClearFilterBtn" Content="Clear" Grid.Column="6"
+                                Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" MinWidth="55"/>
+
+                        <!-- Filter Count -->
+                        <TextBlock x:Name="ComplianceFilterCount" Grid.Column="8" Text=""
+                                  FontSize="10" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="90"/>
+                    </Grid>
+
+                    <!-- Compliance Output -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="6" Padding="10" MinHeight="200" MaxHeight="400">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="ComplianceOutput"
+                                       Text="Scan Local, Scan Selected - Use AD Discovery to find computers first.&#x0a;Generates compliance evidence package with policy, inventory, and reports."
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- Reports Panel -->
+                <StackPanel x:Name="PanelReports" Visibility="Collapsed">
+                    <TextBlock Text="Compliance Reports" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <!-- Report Configuration Section -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Report Configuration" FontSize="14" FontWeight="Bold"
+                                       Foreground="#E6EDF3" Margin="0,0,0,15"/>
+
+                            <!-- Report Type Selection -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Report Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="ReportTypeSelector" Grid.Column="1" Height="28" FontSize="12"
+                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="Executive Summary" Tag="Executive" IsSelected="True"/>
+                                    <ComboBoxItem Content="Detailed Technical Report" Tag="Technical"/>
+                                    <ComboBoxItem Content="Audit Trail Report" Tag="Audit"/>
+                                    <ComboBoxItem Content="Policy Comparison Report" Tag="Comparison"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Date Range Selection -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Date Range:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <DatePicker x:Name="ReportStartDate" Grid.Column="1" Height="28" FontSize="12"
+                                            Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                            SelectedDate="{x:Static sys:DateTime.Today}"/>
+                                <TextBlock Grid.Column="2" Text="" />
+                                <TextBlock Grid.Column="3" Text="to" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <DatePicker x:Name="ReportEndDate" Grid.Column="4" Height="28" FontSize="12"
+                                            Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                            SelectedDate="{x:Static sys:DateTime.Today}"/>
+                            </Grid>
+
+                            <!-- Quick Date Range Buttons -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="" />
+                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                    <Button x:Name="ReportLast7Days" Content="Last 7 Days" Style="{StaticResource SecondaryButton}"
+                                            Padding="8,4" Margin="0,0,6,0" FontSize="11"/>
+                                    <Button x:Name="ReportLast30Days" Content="Last 30 Days" Style="{StaticResource SecondaryButton}"
+                                            Padding="8,4" Margin="0,0,6,0" FontSize="11"/>
+                                    <Button x:Name="ReportLast90Days" Content="Last 90 Days" Style="{StaticResource SecondaryButton}"
+                                            Padding="8,4" FontSize="11"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Target System Selection -->
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Target System:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="ReportTargetSystem" Grid.Column="1" Height="28" FontSize="12"
+                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="All Systems" Tag="All" IsSelected="True"/>
+                                    <ComboBoxItem Content="Local System Only" Tag="Local"/>
+                                </ComboBox>
+                            </Grid>
+
+                            <!-- Generate Report Button -->
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="" />
+                                <Button x:Name="GenerateReportBtn" Content="Generate Report" Style="{StaticResource PrimaryButton}"
+                                        Grid.Column="1" Height="32" FontSize="13" HorizontalAlignment="Left" MinWidth="140"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Report Actions Section -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="ExportToPdfBtn" Content="Export to PDF" Style="{StaticResource SecondaryButton}"
+                                Grid.Column="0" Height="32" FontSize="12"/>
+                        <Button x:Name="ExportToHtmlBtn" Content="Export to HTML" Style="{StaticResource SecondaryButton}"
+                                Grid.Column="2" Height="32" FontSize="12"/>
+                        <Button x:Name="ExportToCsvBtn" Content="Export to CSV" Style="{StaticResource SecondaryButton}"
+                                Grid.Column="4" Height="32" FontSize="12"/>
+                        <Button x:Name="ScheduleReportBtn" Content="Schedule Report" Style="{StaticResource SecondaryButton}"
+                                Grid.Column="6" Height="32" FontSize="12"/>
+                    </Grid>
+
+                    <!-- Scheduled Reports Section -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Scheduled Reports" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3"/>
+                                <Button x:Name="RefreshScheduledReportsBtn" Content="Refresh" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="2" Height="24" FontSize="11" Padding="8,2"/>
+                            </Grid>
+
+                            <ListBox x:Name="ScheduledReportsList" Grid.Row="1" Height="100" Background="#0D1117"
+                                     Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
+                                     FontSize="11">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding ReportName}" FontWeight="Bold" FontSize="12"/>
+                                            <TextBlock Text="{Binding Schedule}" FontSize="10" Foreground="#8B949E"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                        </Grid>
+                    </Border>
+
+                    <!-- Report Preview Section -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" MinHeight="350" MaxHeight="550">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Report Preview" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3"/>
+                                <TextBlock x:Name="ReportGeneratedTime" Grid.Column="2" Text=""
+                                          FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="ReportStatus" Grid.Column="4" Text="Ready"
+                                          FontSize="11" Foreground="#3FB950" VerticalAlignment="Center"/>
+                            </Grid>
+
+                            <!-- Report Content Viewer -->
+                            <Border Grid.Row="1" Background="#010409" BorderBrush="#30363D" BorderThickness="1"
+                                    CornerRadius="6" Padding="10">
+                                <ScrollViewer x:Name="ReportPreviewScroll" VerticalScrollBarVisibility="Auto"
+                                              HorizontalScrollBarVisibility="Disabled">
+                                    <TextBlock x:Name="ReportPreview"
+                                               Text="Configure report settings above and click 'Generate Report' to create a compliance report.&#x0a;&#x0a;Available Report Types:&#x0a;• Executive Summary - High-level overview with risk scores and trends&#x0a;• Detailed Technical - Full event logs, rule analysis, and violations&#x0a;• Audit Trail - Complete history of admin actions and policy changes&#x0a;• Policy Comparison - Compare policies across different time periods&#x0a;&#x0a;Reports can be exported to PDF, HTML, or CSV formats."
+                                               FontFamily="Consolas" FontSize="11" Foreground="#E6EDF3"
+                                               TextWrapping="Wrap"/>
+                                </ScrollViewer>
+                            </Border>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- WinRM Panel -->
+                <StackPanel x:Name="PanelWinRM" Visibility="Collapsed">
+                    <TextBlock Text="WinRM Setup" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="WinRM (Windows Remote Management)" FontSize="14" FontWeight="Bold"
+                                       Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="WinRM is required for remote PowerShell and AppLocker scanning."
+                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- WinRM Buttons (disabled when not on DC) -->
+                    <!-- Main WinRM Buttons -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="CreateWinRMGpoBtn" Content="Create/Update WinRM GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ForceGPUpdateBtn" Content="Force GPUpdate (All Computers)" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                    </Grid>
+
+                    <!-- Enable/Disable GPO Buttons -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="EnableWinRMGpoBtn" Content="Enable GPO Link" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="DisableWinRMGpoBtn" Content="Disable GPO Link" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                    </Grid>
+
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" MinHeight="200" MaxHeight="400">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="WinRMOutput" Text="Create/Update WinRM GPO to enable remote management. Force GPUpdate to push to all computers."
+                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- AD Discovery Panel -->
+                <StackPanel x:Name="PanelDiscovery" Visibility="Collapsed">
+                    <TextBlock Text="AD Discovery" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+
+                    <!-- Search and Discover Row -->
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Text="Filter:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                        <TextBox x:Name="ADSearchFilter" Grid.Column="2" Text="*" Height="26"
+                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                 BorderThickness="1" FontSize="11" Padding="5"
+                                 ToolTip="Use * for all, or enter computer name filter"/>
+                        <Button x:Name="DiscoverComputersBtn" Content="Discover"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="4" MinWidth="80"/>
+                    </Grid>
+
+                    <!-- Action Buttons Row -->
+                    <Grid Margin="0,0,0,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <Button x:Name="TestConnectivityBtn" Content="Test Connectivity"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="SelectAllComputersBtn" Content="Select All"
+                                Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                        <Button x:Name="ScanSelectedBtn" Content="Scan Selected"
+                                Style="{StaticResource PrimaryButton}" Grid.Column="4"/>
+                    </Grid>
+
+                    <!-- Online/Offline Computers Grid -->
+                    <Grid Margin="0,0,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Online Computers List -->
+                        <Border Grid.Column="0" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="8" Height="140">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Online Computers (Ctrl+Click to multi-select)" FontSize="10" FontWeight="Bold"
+                                           Foreground="#3FB950" Margin="0,0,0,4"/>
+                                <ListBox x:Name="DiscoveredComputersList" Grid.Row="1" Background="#0D1117"
+                                         Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="9"
+                                         SelectionMode="Extended"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Offline Computers List -->
+                        <Border Grid.Column="2" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="8" Height="140">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+                                <TextBlock Grid.Row="0" Text="Offline Computers" FontSize="10" FontWeight="Bold"
+                                           Foreground="#F85149" Margin="0,0,0,4"/>
+                                <ListBox x:Name="OfflineComputersList" Grid.Row="1" Background="#0D1117"
+                                         Foreground="#8B949E" BorderThickness="0" FontFamily="Consolas" FontSize="9"
+                                         SelectionMode="Extended"/>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- Status Line -->
+                    <TextBlock x:Name="DiscoveryStatus" Text="Ready to discover computers"
+                               FontSize="10" Foreground="#8B949E" Margin="0,6,0,0"/>
+
+                    <!-- Discovery Output -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="6" Padding="10" Margin="0,8,0,0" MinHeight="120">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="DiscoveryOutput" Text="Click 'Discover' to search AD..."
+                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- Group Management Panel -->
+                <StackPanel x:Name="PanelGroupMgmt" Visibility="Collapsed">
+                    <TextBlock Text="Group Management" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="AD Group Membership Management" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Export AD groups to editable CSV, modify memberships, then import changes back."
+                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Export Section -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Export Current State" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Export all AD groups with current members to CSV" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <Button x:Name="ExportGroupsBtn" Content="Export Groups" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Import Section -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Import Desired State" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="120"/>
+                                </Grid.ColumnDefinitions>
+                                <CheckBox x:Name="DryRunCheck" Content="Dry Run (Preview)" IsChecked="True" Grid.Column="0" Foreground="#E6EDF3"/>
+                                <CheckBox x:Name="AllowRemovalsCheck" Content="Allow Removals" Grid.Column="2" Foreground="#E6EDF3"/>
+                                <CheckBox x:Name="IncludeProtectedCheck" Content="Include Tier-0" Grid.Column="4" Foreground="#E6EDF3"/>
+                                <Button x:Name="ImportGroupsBtn" Content="Import Changes" Style="{StaticResource SecondaryButton}" Grid.Column="8"/>
+                            </Grid>
+                            <TextBlock Text="Tier-0 Protected Groups: Domain Admins, Enterprise Admins, Schema Admins, Administrators" FontSize="11" Foreground="#6E7681"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Output -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" MinHeight="200">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <TextBlock x:Name="GroupMgmtOutput" Text="Click 'Export Groups' to begin..."
+                                       FontFamily="Consolas" FontSize="12" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- AppLocker Setup Panel -->
+                <StackPanel x:Name="PanelAppLockerSetup" Visibility="Collapsed">
+                    <TextBlock Text="AppLocker Setup" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="20" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="AppLocker Bootstrap" FontSize="14" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Create AppLocker OU, groups (allow/deny), and generate default policy. Auto-populates Domain Admins."
+                                       FontSize="12" Foreground="#8B949E" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Bootstrap Section -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <StackPanel>
+                            <TextBlock Text="Initialize AppLocker Structure" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,6"/>
+                            <Grid Margin="0,0,0,6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="160"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="OU Name:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <TextBox x:Name="OUNameText" Text="AppLocker" Width="100" Height="26" Grid.Column="2" Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1" FontSize="12" Padding="5"/>
+                                <CheckBox x:Name="AutoPopulateCheck" Content="Auto-Populate Admins" IsChecked="True" Grid.Column="4" Foreground="#E6EDF3"/>
+                                <Button x:Name="BootstrapAppLockerBtn" Content="Initialize" Style="{StaticResource PrimaryButton}" Grid.Column="6" MinHeight="28"/>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="160"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Remove protection from AppLocker OUs (allows deletion)" FontSize="11" Foreground="#F85149" VerticalAlignment="Center"/>
+                                <Button x:Name="RemoveOUProtectionBtn" Content="Remove OU Protection" Style="{StaticResource SecondaryButton}" Grid.Column="1" MinHeight="26"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- GPO Phase/Mode Quick Assignment -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="GPO Management (DC/Servers/Workstations)" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <!-- GPO Status Column -->
+                                <StackPanel Grid.Column="0">
+                                    <!-- DC GPO -->
+                                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Domain Controllers" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3"/>
+                                                <TextBlock x:Name="DCGPOStatus" Text="Not Created" FontSize="10" Foreground="#6E7681"/>
+                                            </StackPanel>
+                                            <ComboBox x:Name="DCGPOPhase" Grid.Column="1" Width="60" Height="24" FontSize="10" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                                <ComboBoxItem Content="--" IsSelected="True"/>
+                                                <ComboBoxItem Content="P1"/>
+                                                <ComboBoxItem Content="P2"/>
+                                                <ComboBoxItem Content="P3"/>
+                                                <ComboBoxItem Content="P4"/>
+                                            </ComboBox>
+                                            <ComboBox x:Name="DCGPOMode" Grid.Column="3" Width="75" Height="24" FontSize="10" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                                <ComboBoxItem Content="Audit" IsSelected="True"/>
+                                                <ComboBoxItem Content="Enforce"/>
+                                            </ComboBox>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Servers GPO -->
+                                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Padding="10" Margin="0,0,0,8">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Servers" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3"/>
+                                                <TextBlock x:Name="ServersGPOStatus" Text="Not Created" FontSize="10" Foreground="#6E7681"/>
+                                            </StackPanel>
+                                            <ComboBox x:Name="ServersGPOPhase" Grid.Column="1" Width="60" Height="24" FontSize="10" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                                <ComboBoxItem Content="--" IsSelected="True"/>
+                                                <ComboBoxItem Content="P1"/>
+                                                <ComboBoxItem Content="P2"/>
+                                                <ComboBoxItem Content="P3"/>
+                                                <ComboBoxItem Content="P4"/>
+                                            </ComboBox>
+                                            <ComboBox x:Name="ServersGPOMode" Grid.Column="3" Width="75" Height="24" FontSize="10" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                                <ComboBoxItem Content="Audit" IsSelected="True"/>
+                                                <ComboBoxItem Content="Enforce"/>
+                                            </ComboBox>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Workstations GPO -->
+                                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="4" Padding="10">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="8"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Grid.Column="0">
+                                                <TextBlock Text="Workstations" FontSize="11" FontWeight="Bold" Foreground="#E6EDF3"/>
+                                                <TextBlock x:Name="WorkstationsGPOStatus" Text="Not Created" FontSize="10" Foreground="#6E7681"/>
+                                            </StackPanel>
+                                            <ComboBox x:Name="WorkstationsGPOPhase" Grid.Column="1" Width="60" Height="24" FontSize="10" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                                <ComboBoxItem Content="--" IsSelected="True"/>
+                                                <ComboBoxItem Content="P1"/>
+                                                <ComboBoxItem Content="P2"/>
+                                                <ComboBoxItem Content="P3"/>
+                                                <ComboBoxItem Content="P4"/>
+                                            </ComboBox>
+                                            <ComboBox x:Name="WorkstationsGPOMode" Grid.Column="3" Width="75" Height="24" FontSize="10" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                                <ComboBoxItem Content="Audit" IsSelected="True"/>
+                                                <ComboBoxItem Content="Enforce"/>
+                                            </ComboBox>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- Actions Column -->
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Quick Actions" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                                    <Button x:Name="CreateGPOsBtn" Content="Create 3 GPOs" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" MinHeight="32"/>
+                                    <Button x:Name="ApplyGPOSettingsBtn" Content="Apply Phase/Mode" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8" MinHeight="32"/>
+                                    <Button x:Name="LinkGPOsBtn" Content="Link to OUs" Style="{StaticResource SecondaryButton}" MinHeight="32"/>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Output - Fixed height with scrolling -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Height="280">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <TextBlock x:Name="AppLockerSetupOutput" Text="Click 'Initialize' to create AppLocker structure..."
+                                       FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
+                                       TextWrapping="Wrap"/>
+                        </ScrollViewer>
+                    </Border>
+                </StackPanel>
+
+                <!-- About Panel -->
+                <ScrollViewer x:Name="PanelAbout" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <StackPanel Orientation="Horizontal">
+                                <Image x:Name="AboutLogo" Width="64" Height="64" Margin="0,0,20,0" VerticalAlignment="Center"
+                                       Source="C:\GA-AppLocker_FINAL\general_atomics_logo_big.ico"/>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="GA-AppLocker Dashboard" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3"/>
+                                    <TextBlock x:Name="AboutVersion" Text="Version 1.2.5" FontSize="13" Foreground="#8B949E" Margin="0,4,0,0"/>
+                                    <TextBlock Text="AppLocker Policy Management - AaronLocker Aligned" FontSize="12" Foreground="#6E7681" Margin="0,4,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Description" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
+                                    <Run Text="GA-AppLocker Dashboard is a comprehensive tool for managing Application Whitelisting policies across Windows environments. "/>
+                                    <Run Text="Aligned with AaronLocker best practices, it provides audit-friendly workflows for discovering, scanning, rule generation, and deployment."/>
+                                    <LineBreak/>
+                                    <LineBreak/>
+                                    <Run Text="Designed for security professionals who need to implement least-privilege application control without disrupting business operations."/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Features" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
+                                    <Run Text="- AppLocker structure initialization (OU, groups, policies)"/>
+                                    <LineBreak/>
+                                    <Run Text="- AD group membership export/import with safety controls"/>
+                                    <LineBreak/>
+                                    <Run Text="- Automated artifact discovery and rule generation"/>
+                                    <LineBreak/>
+                                    <Run Text="- Publisher-first rule strategy with hash fallback"/>
+                                    <LineBreak/>
+                                    <Run Text="- GPO deployment with audit-first enforcement"/>
+                                    <LineBreak/>
+                                    <Run Text="- Real-time event monitoring and filtering"/>
+                                    <LineBreak/>
+                                    <Run Text="- Compliance evidence package generation"/>
+                                    <LineBreak/>
+                                    <Run Text="- WinRM remote management setup"/>
+                                    <LineBreak/>
+                                    <Run Text="- Admin browser deny rules for security"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <StackPanel>
+                                <TextBlock Text="Requirements" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                                <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
+                                    <Run Text="- Windows 10/11 or Windows Server 2019+"/>
+                                    <LineBreak/>
+                                    <Run Text="- PowerShell 5.1+"/>
+                                    <LineBreak/>
+                                    <Run Text="- Active Directory module (for domain features)"/>
+                                    <LineBreak/>
+                                    <Run Text="- Group Policy module (for GPO deployment)"/>
+                                    <LineBreak/>
+                                    <Run Text="- Administrator privileges recommended"/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20">
+                            <StackPanel>
+                                <TextBlock Text="License" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                                <TextBlock Text="Â© 2026 GA-ASI. Internal use only." FontSize="11" Foreground="#6E7681"/>
+                                <TextBlock Text="Use in accordance with organizational security policies." FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Rule Templates Panel - Phase 5 -->
+                <StackPanel x:Name="PanelTemplates" Visibility="Collapsed">
+                    <TextBlock Text="Rule Templates" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+
+                    <!-- Toolbar -->
+                    <Border Background="#21262D" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TemplateSearch" Grid.Column="0" Background="#0D1117" Foreground="#E6EDF3"
+                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,6" FontSize="12"
+                                         Text="Search templates..."/>
+                                <ComboBox x:Name="TemplateCategoryFilter" Grid.Column="1" Background="#0D1117" Foreground="#E6EDF3"
+                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,4" FontSize="12" Margin="8,0,0,0">
+                                    <ComboBoxItem Content="All Categories" IsSelected="True"/>
+                                    <ComboBoxItem Content="Security Baselines"/>
+                                    <ComboBoxItem Content="Productivity"/>
+                                    <ComboBoxItem Content="Development"/>
+                                    <ComboBoxItem Content="Utilities"/>
+                                    <ComboBoxItem Content="Custom"/>
+                                </ComboBox>
+                            </Grid>
+                            <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
+                                <Button x:Name="ExportTemplateBtn" Content="Export Template" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="RefreshTemplatesBtn" Content="Refresh" Style="{StaticResource SecondaryButton}"/>
+                            </WrapPanel>
+                        </Grid>
+                    </Border>
+
+                    <!-- Main Content -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="300"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Template List -->
+                        <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="12" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="Available Templates" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                <ListBox x:Name="TemplatesList" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                                         Height="450" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="8">
+                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                                <TextBlock Text="{Binding Category}" FontSize="11" Foreground="#8B949E" Margin="0,2,0,0"/>
+                                                <TextBlock Text="{Binding RuleCount}" FontSize="10" Foreground="#6E7681" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Template Preview -->
+                        <Border Grid.Column="1" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="20">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <StackPanel>
+                                    <TextBlock x:Name="TemplateName" Text="Select a template to preview" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                    <TextBlock x:Name="TemplateCategory" Text="" FontSize="12" Foreground="#8957E5" Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="TemplateDescription" Text="" FontSize="12" Foreground="#8B949E" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                                    <!-- Rules Summary -->
+                                    <Border Background="#0D1117" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                                        <StackPanel>
+                                            <TextBlock Text="Rules Summary" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                            <TextBlock x:Name="TemplateRulesSummary" Text="No template selected" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Included Applications -->
+                                    <Border Background="#0D1117" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                                        <StackPanel>
+                                            <TextBlock Text="Included Applications" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                            <TextBlock x:Name="TemplateApplications" Text="No template selected" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Action Buttons -->
+                                    <WrapPanel Margin="0,16,0,0">
+                                        <Button x:Name="ApplyTemplateBtn" Content="Apply Template" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0" IsEnabled="False"/>
+                                        <Button x:Name="EditTemplateBtn" Content="Edit Template" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0" IsEnabled="False"/>
+                                        <Button x:Name="DeleteTemplateBtn" Content="Delete" Style="{StaticResource SecondaryButton}" Foreground="#F85149" IsEnabled="False"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
+                </StackPanel>
+
+                <!-- Help Panel -->
+                <ScrollViewer x:Name="PanelHelp" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <WrapPanel>
+                                <Button x:Name="HelpBtnWorkflow" Content="Workflow" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnWhatsNew" Content="What's New in v1.2.5" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnPolicyGuide" Content="Policy Guide" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnRules" Content="Rule Best Practices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnTroubleshooting" Content="Troubleshooting" Style="{StaticResource SecondaryButton}"/>
+                            </WrapPanel>
+                        </Border>
+
+                        <Border Background="#21262D" CornerRadius="8" Padding="20">
+                            <StackPanel>
+                                <TextBlock x:Name="HelpTitle" Text="Help - Workflow" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                <TextBlock x:Name="HelpText" TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
+                                    <Run Text="Select a topic above to view help documentation."/>
+                                </TextBlock>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Window>

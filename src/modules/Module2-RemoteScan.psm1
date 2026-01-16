@@ -329,15 +329,20 @@ function Test-ComputerOnline {
         }
     }
 
+    $ping = $null
     try {
         # Use .NET Ping for faster timeout control
         $ping = New-Object System.Net.NetworkInformation.Ping
         $result = $ping.Send($ComputerName, $TimeoutMs)
         $pingResult = ($result.Status -eq [System.Net.NetworkInformation.IPStatus]::Success)
-        $ping.Dispose()
     }
     catch {
         $pingResult = $false
+    }
+    finally {
+        if ($ping) {
+            $ping.Dispose()
+        }
     }
 
     return @{

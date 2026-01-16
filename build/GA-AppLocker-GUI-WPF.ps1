@@ -6431,6 +6431,30 @@ if ($null -eq $TargetGpoCombo) { Write-Log "WARNING: Control 'TargetGpoCombo' no
 $ImportModeCombo = $window.FindName("ImportModeCombo")
 if ($null -eq $ImportModeCombo) { Write-Log "WARNING: Control 'ImportModeCombo' not found in XAML" -Level "WARNING" }
 
+# Additional controls for dashboard and status
+$GaugeScore = $window.FindName("GaugeScore")
+if ($null -eq $GaugeScore) { Write-Log "WARNING: Control 'GaugeScore' not found in XAML" -Level "WARNING" }
+$GaugeLabel = $window.FindName("GaugeLabel")
+if ($null -eq $GaugeLabel) { Write-Log "WARNING: Control 'GaugeLabel' not found in XAML" -Level "WARNING" }
+$LabelWorkstations = $window.FindName("LabelWorkstations")
+if ($null -eq $LabelWorkstations) { Write-Log "WARNING: Control 'LabelWorkstations' not found in XAML" -Level "WARNING" }
+$LabelServers = $window.FindName("LabelServers")
+if ($null -eq $LabelServers) { Write-Log "WARNING: Control 'LabelServers' not found in XAML" -Level "WARNING" }
+$LabelDCs = $window.FindName("LabelDCs")
+if ($null -eq $LabelDCs) { Write-Log "WARNING: Control 'LabelDCs' not found in XAML" -Level "WARNING" }
+$MiniStatusMode = $window.FindName("MiniStatusMode")
+if ($null -eq $MiniStatusMode) { Write-Log "WARNING: Control 'MiniStatusMode' not found in XAML" -Level "WARNING" }
+$MiniStatusPhase = $window.FindName("MiniStatusPhase")
+if ($null -eq $MiniStatusPhase) { Write-Log "WARNING: Control 'MiniStatusPhase' not found in XAML" -Level "WARNING" }
+$MiniStatusConnected = $window.FindName("MiniStatusConnected")
+if ($null -eq $MiniStatusConnected) { Write-Log "WARNING: Control 'MiniStatusConnected' not found in XAML" -Level "WARNING" }
+$HeaderLogo = $window.FindName("HeaderLogo")
+if ($null -eq $HeaderLogo) { Write-Log "WARNING: Control 'HeaderLogo' not found in XAML" -Level "WARNING" }
+$EventMonitorPanel = $window.FindName("EventMonitorPanel")
+if ($null -eq $EventMonitorPanel) { Write-Log "WARNING: Control 'EventMonitorPanel' not found in XAML" -Level "WARNING" }
+$ArtifactPanel = $window.FindName("ArtifactPanel")
+if ($null -eq $ArtifactPanel) { Write-Log "WARNING: Control 'ArtifactPanel' not found in XAML" -Level "WARNING" }
+
 # Global variables
 $script:CollectedArtifacts = @()
 $script:IsWorkgroup = $false
@@ -9679,12 +9703,12 @@ function Refresh-Data {
     [System.Windows.Forms.Application]::DoEvents()
 
     # Get time filter
-    $timeFilter = $DashboardTimeFilter.SelectedItem.Content
+    $timeFilter = if ($DashboardTimeFilter.SelectedItem) { $DashboardTimeFilter.SelectedItem.Content } else { "Last 7 Days" }
     $daysBack = if ($timeFilter -eq "Last 7 Days") { 7 } else { 30 }
     $cutoffDate = (Get-Date).AddDays(-$daysBack)
 
     # Get system filter
-    $systemFilter = $DashboardSystemFilter.SelectedItem.Content
+    $systemFilter = if ($DashboardSystemFilter.SelectedItem) { $DashboardSystemFilter.SelectedItem.Content } else { "All Systems" }
 
     # Get policy health from local system
     $summary = Get-DashboardSummary
@@ -9717,7 +9741,7 @@ function Refresh-Data {
         }
 
         # Update system filter dropdown
-        $currentSelection = $DashboardSystemFilter.SelectedItem.Content
+        $currentSelection = if ($DashboardSystemFilter.SelectedItem) { $DashboardSystemFilter.SelectedItem.Content } else { "All Systems" }
         $DashboardSystemFilter.Items.Clear()
         $allItem = New-Object System.Windows.Controls.ComboBoxItem
         $allItem.Content = "All Systems"
@@ -12697,7 +12721,7 @@ $DefaultDenyRulesBtn.Add_Click({
     Write-Log "Adding default deny rules for bypass locations"
 
     $sid = Get-SelectedSid
-    $groupName = $RuleGroupCombo.SelectedItem.Content
+    $groupName = if ($RuleGroupCombo.SelectedItem) { $RuleGroupCombo.SelectedItem.Content } else { "Everyone" }
 
     $RulesOutput.Text = "=== GENERATING DEFAULT DENY RULES ===`n`n"
     $RulesOutput.Text += "These rules block execution from common bypass locations.`n"
@@ -13191,7 +13215,7 @@ $GenerateRulesBtn.Add_Click({
                 else { "Path" }
 
     $action = if ($RuleActionAllow.IsChecked) { "Allow" } else { "Deny" }
-    $selectedGroup = $RuleGroupCombo.SelectedItem.Content
+    $selectedGroup = if ($RuleGroupCombo.SelectedItem) { $RuleGroupCombo.SelectedItem.Content } else { "Everyone" }
 
     # QoL: Bulk Action Confirmation
     $confirmMsg = "[!] You are about to:`n`n"
@@ -15870,7 +15894,7 @@ function New-CustomTemplate {
         $CreateTemplateBtn.Add_Click({
             $name = $TemplateNameInput.Text.Trim()
             $desc = $TemplateDescInput.Text.Trim()
-            $category = $TemplateCategoryInput.SelectedItem.Content
+            $category = if ($TemplateCategoryInput.SelectedItem) { $TemplateCategoryInput.SelectedItem.Content } else { "Custom" }
             $rulesJson = $TemplateRulesInput.Text.Trim()
 
             if ([string]::IsNullOrEmpty($name)) {
@@ -16140,7 +16164,7 @@ function Invoke-RuleWizard {
                 $ReviewRuleType.Text = "Rule Type: $ruleType"
                 $ReviewApplications.Text = "Applications: $($selectedApps.Count) selected"
                 $ReviewAction.Text = "Action: $(if ($AllowActionRadio.IsChecked) { 'Allow' } else { 'Deny' })"
-                $ReviewUserGroup.Text = "User Group: $($UserGroupCombo.SelectedItem.Content)"
+                $ReviewUserGroup.Text = "User Group: $(if ($UserGroupCombo.SelectedItem) { $UserGroupCombo.SelectedItem.Content } else { 'Everyone' })"
                 $ReviewExceptions.Text = "Exceptions: $(if ($UseExceptionsCheck.IsChecked) { 'Enabled' } else { 'None' })"
             }
         }
