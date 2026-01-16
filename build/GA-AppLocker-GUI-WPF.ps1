@@ -2991,19 +2991,19 @@ function Format-ReportAsHtml {
                         </tr>
                         <tr>
                             <td>Executable (EXE)</td>
-                            <td><span class="badge badge-$($ReportData.PolicyCoverage.ExeCoverage -eq 'Yes' ? 'success' : 'danger')">$($ReportData.PolicyCoverage.ExeCoverage)</span></td>
+                            <td><span class="badge badge-$(if ($ReportData.PolicyCoverage.ExeCoverage -eq 'Yes') { 'success' } else { 'danger' })">$($ReportData.PolicyCoverage.ExeCoverage)</span></td>
                         </tr>
                         <tr>
                             <td>Installer (MSI)</td>
-                            <td><span class="badge badge-$($ReportData.PolicyCoverage.MsiCoverage -eq 'Yes' ? 'success' : 'danger')">$($ReportData.PolicyCoverage.MsiCoverage)</span></td>
+                            <td><span class="badge badge-$(if ($ReportData.PolicyCoverage.MsiCoverage -eq 'Yes') { 'success' } else { 'danger' })">$($ReportData.PolicyCoverage.MsiCoverage)</span></td>
                         </tr>
                         <tr>
                             <td>Script</td>
-                            <td><span class="badge badge-$($ReportData.PolicyCoverage.ScriptCoverage -eq 'Yes' ? 'success' : 'danger')">$($ReportData.PolicyCoverage.ScriptCoverage)</span></td>
+                            <td><span class="badge badge-$(if ($ReportData.PolicyCoverage.ScriptCoverage -eq 'Yes') { 'success' } else { 'danger' })">$($ReportData.PolicyCoverage.ScriptCoverage)</span></td>
                         </tr>
                         <tr>
                             <td>DLL</td>
-                            <td><span class="badge badge-$($ReportData.PolicyCoverage.DllCoverage -eq 'Yes' ? 'success' : 'danger')">$($ReportData.PolicyCoverage.DllCoverage)</span></td>
+                            <td><span class="badge badge-$(if ($ReportData.PolicyCoverage.DllCoverage -eq 'Yes') { 'success' } else { 'danger' })">$($ReportData.PolicyCoverage.DllCoverage)</span></td>
                         </tr>
                     </table>
                 </div>
@@ -3281,7 +3281,7 @@ function Format-ReportAsHtml {
                             <td>$($app.Period2Count)</td>
                             <td><span class="badge $changeClass">$changeText</span></td>
                         </tr>
-"#
+"@
             }
 
             $html += @"
@@ -3488,6 +3488,7 @@ function Remove-ScheduledReport {
 $xamlString = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         Title="GA-AppLocker Dashboard" Height="700" Width="1050" MinHeight="500" MinWidth="800"
         WindowStartupLocation="CenterScreen" Background="#0D1117">
     <Window.Resources>
@@ -4263,46 +4264,21 @@ $xamlString = @"
                 <StackPanel x:Name="PanelArtifacts" Visibility="Collapsed">
                     <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,15"/>
 
-                    <!-- Remote Computer Selection -->
+                    <!-- Local Scan Header -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Margin="0,0,0,10" Padding="15">
                         <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                            <Grid Grid.Row="0" Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Local Artifact Scanning" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                <TextBlock Text="Scan the local system for executable artifacts" FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
+                            </StackPanel>
 
-                                <TextBlock Grid.Column="0" Text="Remote Computers:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBlock Grid.Column="1" Text="Ctrl+click to select multiple, Shift+click for range" FontSize="11" Foreground="#6E7681" VerticalAlignment="Center"/>
-                                <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Local" Style="{StaticResource PrimaryButton}" Grid.Column="2" MinHeight="32"/>
-                                <Button x:Name="ScanRemoteArtifactsBtn" Content="Scan Selected" Style="{StaticResource PrimaryButton}" Grid.Column="4" MinHeight="32"/>
-                                <Button x:Name="RefreshArtifactComputersBtn" Content="Refresh List" Style="{StaticResource SecondaryButton}" Grid.Column="6" MinHeight="32"/>
-                            </Grid>
-
-                            <ListBox x:Name="ArtifactComputersList" Grid.Row="1" Height="120" Background="#0D1117"
-                                     Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
-                                     SelectionMode="Extended" FontSize="12">
-                                <ListBox.ItemTemplate>
-                                    <DataTemplate>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" Width="200"/>
-                                            <TextBlock Text="{Binding Status}" Foreground="{Binding StatusColor}" Width="80"/>
-                                            <TextBlock Text="{Binding OU}" Foreground="#6E7681"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ListBox.ItemTemplate>
-                            </ListBox>
+                            <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Local System" Style="{StaticResource PrimaryButton}" Grid.Column="1" MinHeight="32" MinWidth="140"/>
                         </Grid>
                     </Border>
 
@@ -5012,21 +4988,21 @@ $xamlString = @"
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="50"/>
                             <ColumnDefinition Width="4"/>
-                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="65"/>
                             <ColumnDefinition Width="4"/>
-                            <ColumnDefinition Width="70"/>
+                            <ColumnDefinition Width="65"/>
                             <ColumnDefinition Width="4"/>
-                            <ColumnDefinition Width="60"/>
+                            <ColumnDefinition Width="50"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="35"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="30"/>
                             <ColumnDefinition Width="8"/>
                             <ColumnDefinition Width="40"/>
                             <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="100"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="90"/>
                             <ColumnDefinition Width="8"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="8"/>
@@ -5041,36 +5017,36 @@ $xamlString = @"
 
                         <!-- Event Type Filter Buttons -->
                         <Button x:Name="FilterAllBtn" Content="All" Style="{StaticResource SecondaryButton}" Grid.Column="2" Height="24" FontSize="10" Margin="0"/>
-                        <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Grid.Column="3" Height="24" FontSize="10" Margin="0"/>
-                        <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Grid.Column="4" Height="24" FontSize="10" Margin="0"/>
-                        <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Grid.Column="5" Height="24" FontSize="10" Margin="0"/>
+                        <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Grid.Column="4" Height="24" FontSize="10" Margin="0"/>
+                        <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Grid.Column="6" Height="24" FontSize="10" Margin="0"/>
+                        <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Grid.Column="8" Height="24" FontSize="10" Margin="0"/>
 
                         <!-- Date Range Pickers -->
-                        <TextBlock Grid.Column="6" Text="From:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" TextAlignment="Center"/>
-                        <DatePicker x:Name="EventsDateFrom" Grid.Column="7" Height="24" FontSize="10"
+                        <TextBlock Grid.Column="10" Text="From:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" TextAlignment="Center"/>
+                        <DatePicker x:Name="EventsDateFrom" Grid.Column="12" Height="24" FontSize="10"
                                    Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
                                    FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                        <TextBlock Grid.Column="8" Text="To:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" TextAlignment="Center"/>
-                        <DatePicker x:Name="EventsDateTo" Grid.Column="9" Height="24" FontSize="10"
+                        <TextBlock Grid.Column="14" Text="To:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" TextAlignment="Center"/>
+                        <DatePicker x:Name="EventsDateTo" Grid.Column="16" Height="24" FontSize="10"
                                    Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
                                    FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
                         <!-- Search Box -->
-                        <TextBox x:Name="EventsFilterSearch" Grid.Column="10" Height="24" FontSize="10"
+                        <TextBox x:Name="EventsFilterSearch" Grid.Column="18" Height="24" FontSize="10" MinWidth="120"
                                  Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
                                  Padding="5,2" Text="Search events..."/>
 
                         <!-- Clear Filter Button -->
-                        <Button x:Name="EventsClearFilterBtn" Content="Clear" Grid.Column="12"
+                        <Button x:Name="EventsClearFilterBtn" Content="Clear" Grid.Column="20"
                                 Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" MinWidth="55"/>
 
                         <!-- Filter Count -->
-                        <TextBlock x:Name="EventsFilterCount" Grid.Column="14" Text=""
-                                  FontSize="10" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="90"/>
+                        <TextBlock x:Name="EventsFilterCount" Grid.Column="22" Text=""
+                                  FontSize="10" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="40"/>
 
                         <!-- Refresh Button -->
-                        <Button x:Name="RefreshEventsBtn" Content="Refresh" Style="{StaticResource PrimaryButton}" Grid.Column="16" Height="24" FontSize="10" MinWidth="70"/>
+                        <Button x:Name="RefreshEventsBtn" Content="Refresh" Style="{StaticResource PrimaryButton}" Grid.Column="24" Height="24" FontSize="10" MinWidth="70"/>
                     </Grid>
 
                     <!-- Events Output -->
@@ -5180,15 +5156,15 @@ $xamlString = @"
                                 <LineBreak/>
                                 <Run Text="Best Practices:" Foreground="#E6EDF3"/>
                                 <LineBreak/>
-                                <Run Text="â€¢ Use Publisher rules first"/>
+                                <Run Text="- Use Publisher rules first"/>
                                 <LineBreak/>
-                                <Run Text="â€¢ Use Hash rules for unsigned files"/>
+                                <Run Text="- Use Hash rules for unsigned files"/>
                                 <LineBreak/>
-                                <Run Text="â€¢ Avoid Path rules when possible"/>
+                                <Run Text="- Avoid Path rules when possible"/>
                                 <LineBreak/>
-                                <Run Text="â€¢ Always start in Audit mode"/>
+                                <Run Text="- Always start in Audit mode"/>
                                 <LineBreak/>
-                                <Run Text="â€¢ Use role-based groups"/>
+                                <Run Text="- Use role-based groups"/>
                             </TextBlock>
                         </ScrollViewer>
                     </Border>
@@ -5340,14 +5316,12 @@ $xamlString = @"
                                 <TextBlock Grid.Column="0" Text="Date Range:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center"/>
                                 <DatePicker x:Name="ReportStartDate" Grid.Column="1" Height="28" FontSize="12"
                                             Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                            SelectedDate="{x:Static sys:DateTime.Today}"
-                                            xmlns:sys="clr-namespace:System;assembly=mscorlib"/>
+                                            SelectedDate="{x:Static sys:DateTime.Today}"/>
                                 <TextBlock Grid.Column="2" Text="" />
                                 <TextBlock Grid.Column="3" Text="to" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                 <DatePicker x:Name="ReportEndDate" Grid.Column="4" Height="28" FontSize="12"
                                             Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                            SelectedDate="{x:Static sys:DateTime.Today}"
-                                            xmlns:sys="clr-namespace:System;assembly=mscorlib"/>
+                                            SelectedDate="{x:Static sys:DateTime.Today}"/>
                             </Grid>
 
                             <!-- Quick Date Range Buttons -->
@@ -5901,23 +5875,23 @@ $xamlString = @"
                             <StackPanel>
                                 <TextBlock Text="Features" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
-                                    <Run Text="â€¢ AppLocker structure initialization (OU, groups, policies)"/>
+                                    <Run Text="- AppLocker structure initialization (OU, groups, policies)"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ AD group membership export/import with safety controls"/>
+                                    <Run Text="- AD group membership export/import with safety controls"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ Automated artifact discovery and rule generation"/>
+                                    <Run Text="- Automated artifact discovery and rule generation"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ Publisher-first rule strategy with hash fallback"/>
+                                    <Run Text="- Publisher-first rule strategy with hash fallback"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ GPO deployment with audit-first enforcement"/>
+                                    <Run Text="- GPO deployment with audit-first enforcement"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ Real-time event monitoring and filtering"/>
+                                    <Run Text="- Real-time event monitoring and filtering"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ Compliance evidence package generation"/>
+                                    <Run Text="- Compliance evidence package generation"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ WinRM remote management setup"/>
+                                    <Run Text="- WinRM remote management setup"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ Admin browser deny rules for security"/>
+                                    <Run Text="- Admin browser deny rules for security"/>
                                 </TextBlock>
                             </StackPanel>
                         </Border>
@@ -5926,15 +5900,15 @@ $xamlString = @"
                             <StackPanel>
                                 <TextBlock Text="Requirements" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
-                                    <Run Text="â€¢ Windows 10/11 or Windows Server 2019+"/>
+                                    <Run Text="- Windows 10/11 or Windows Server 2019+"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ PowerShell 5.1+"/>
+                                    <Run Text="- PowerShell 5.1+"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ Active Directory module (for domain features)"/>
+                                    <Run Text="- Active Directory module (for domain features)"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ Group Policy module (for GPO deployment)"/>
+                                    <Run Text="- Group Policy module (for GPO deployment)"/>
                                     <LineBreak/>
-                                    <Run Text="â€¢ Administrator privileges recommended"/>
+                                    <Run Text="- Administrator privileges recommended"/>
                                 </TextBlock>
                             </StackPanel>
                         </Border>
@@ -6194,6 +6168,17 @@ $DashboardSystemFilter = $window.FindName("DashboardSystemFilter")
 $RefreshDashboardBtn = $window.FindName("RefreshDashboardBtn")
 $DashboardOutput = $window.FindName("DashboardOutput")
 
+# Dashboard Chart controls (Phase 4)
+$PieAllowed = $window.FindName("PieAllowed")
+$PieAudited = $window.FindName("PieAudited")
+$PieBlocked = $window.FindName("PieBlocked")
+$GaugeBackground = $window.FindName("GaugeBackground")
+$GaugeFill = $window.FindName("GaugeFill")
+$BarWorkstations = $window.FindName("BarWorkstations")
+$BarServers = $window.FindName("BarServers")
+$BarDCs = $window.FindName("BarDCs")
+$TrendChartCanvas = $window.FindName("TrendChartCanvas")
+
 # GPO Quick Assignment controls
 $DCGPOStatus = $window.FindName("DCGPOStatus")
 $ServersGPOStatus = $window.FindName("ServersGPOStatus")
@@ -6213,11 +6198,8 @@ $MaxFilesText = $window.FindName("MaxFilesText")
 $ScanDirectoriesBtn = $window.FindName("ScanDirectoriesBtn")
 $DirectoryList = $window.FindName("DirectoryList")
 $ArtifactsList = $window.FindName("ArtifactsList")
-# Artifact Remote controls
-$ArtifactComputersList = $window.FindName("ArtifactComputersList")
+# Artifact Local Scan controls
 $ScanLocalArtifactsBtn = $window.FindName("ScanLocalArtifactsBtn")
-$ScanRemoteArtifactsBtn = $window.FindName("ScanRemoteArtifactsBtn")
-$RefreshArtifactComputersBtn = $window.FindName("RefreshArtifactComputersBtn")
 $RuleTypeAuto = $window.FindName("RuleTypeAuto")
 $RuleTypePublisher = $window.FindName("RuleTypePublisher")
 $RuleTypeHash = $window.FindName("RuleTypeHash")
@@ -6685,14 +6667,16 @@ function Show-ConfirmationDialog {
     }
 
     # Show dialog
+    $buttonType = if ($RequireTyping) {
+        [System.Windows.MessageBoxButton]::OKCancel
+    } else {
+        [System.Windows.MessageBoxButton]::YesNo
+    }
+
     $result = [System.Windows.MessageBox]::Show(
         $fullMessage,
         $Title,
-        if ($RequireTyping) {
-            [System.Windows.MessageBoxButton]::OKCancel
-        } else {
-            [System.Windows.MessageBoxButton]::YesNo
-        },
+        $buttonType,
         [System.Windows.MessageBoxImage]::Warning
     )
 
@@ -6949,7 +6933,11 @@ function Register-KeyboardShortcuts {
     )
 
     # Remove the basic activity tracker since we're adding comprehensive keyboard handling
-    $Window.Remove_KeyDown($script:ActivityTrackerKeyDown) -ErrorAction SilentlyContinue
+    try {
+        $Window.Remove_KeyDown($script:ActivityTrackerKeyDown)
+    } catch {
+        # Ignore if handler wasn't attached
+    }
 
     $Window.Add_KeyDown({
         param($sender, $e)
@@ -7194,10 +7182,10 @@ function Format-RuleTypeDisplay {
     $type = if ($Rule.Type) { $Rule.Type } else { "Path" }
 
     $indicator = switch ($type) {
-        "Publisher" { "ðŸ¢" }
-        "Hash" { "ðŸ”" }
-        "Path" { "ðŸ“" }
-        default { "â€¢" }
+        "Publisher" { "[PUB]" }
+        "Hash" { "[HASH]" }
+        "Path" { "[PATH]" }
+        default { "[?]" }
     }
 
     return "$indicator $type"
@@ -7223,19 +7211,19 @@ function Apply-RuleTypeFormatting {
         switch ($rule.Type) {
             "Publisher" {
                 $rule.TypeColor = "#58A6FF"  # Blue
-                $rule.TypeIcon = "ðŸ¢"
+                $rule.TypeIcon = "[PUB]"
             }
             "Hash" {
                 $rule.TypeColor = "#A371F7"  # Purple
-                $rule.TypeIcon = "ðŸ”"
+                $rule.TypeIcon = "[HASH]"
             }
             "Path" {
                 $rule.TypeColor = "#3FB950"  # Green
-                $rule.TypeIcon = "ðŸ“"
+                $rule.TypeIcon = "[PATH]"
             }
             default {
                 $rule.TypeColor = "#8B949E"  # Gray
-                $rule.TypeIcon = "â€¢"
+                $rule.TypeIcon = "[?]"
             }
         }
     }
@@ -7393,7 +7381,8 @@ function Test-EnforceModeReadiness {
                 $gpo = Get-GPO -Name $gpoName -ErrorAction SilentlyContinue
                 if ($gpo) {
                     # Check if GPO has any links
-                    if ([xml]$gpo.Xml).GPO.LinksTo -and [xml]$gpo.Xml).GPO.LinksTo -ne "") {
+                    $xml = [xml]$gpo.Xml
+                    if ($xml.GPO.LinksTo -and $xml.GPO.LinksTo -ne "") {
                         $linkedGPOs++
                     }
                 }
@@ -7479,15 +7468,18 @@ function Show-EnforceModeValidationDialog {
 
     $message += "`n`nDo you want to proceed with enforce mode?"
 
+    # Determine the icon to show based on validation result
+    if ($ValidationResult.ready) {
+        $icon = [System.Windows.MessageBoxImage]::Information
+    } else {
+        $icon = [System.Windows.MessageBoxImage]::Warning
+    }
+
     $result = [System.Windows.MessageBox]::Show(
         $message,
         "Enforce Mode Validation",
         [System.Windows.MessageBoxButton]::YesNo,
-        if ($ValidationResult.ready) {
-            [System.Windows.MessageBoxImage]::Information
-        } else {
-            [System.Windows.MessageBoxImage]::Warning
-        }
+        $icon
     )
 
     $proceed = ($result -eq [System.Windows.MessageBoxResult]::Yes)
@@ -8152,87 +8144,87 @@ function Get-HelpContent {
 
 Phase 1: SETUP
 1. AppLocker Setup - Initialize AD structure
-   â€¢ Creates AppLocker OU and groups:
+   - Creates AppLocker OU and groups:
      - AppLocker-Admins, AppLocker-StandardUsers
      - AppLocker-Service-Accounts, AppLocker-Installers
-   â€¢ Sets Domain Admins as owner (for deletion)
-   â€¢ Click 'Remove OU Protection' if needed
+   - Sets Domain Admins as owner (for deletion)
+   - Click 'Remove OU Protection' if needed
 
 2. Group Management - Configure AD groups
-   â€¢ Export current group membership to CSV
-   â€¢ Edit CSV to add/remove members
-   â€¢ Import changes (preview first, then apply)
+   - Export current group membership to CSV
+   - Edit CSV to add/remove members
+   - Import changes (preview first, then apply)
 
 3. AD Discovery - Find target computers
-   â€¢ Shows Online/Offline in separate lists
-   â€¢ Select only online hosts for scanning
+   - Shows Online/Offline in separate lists
+   - Select only online hosts for scanning
 
 Phase 2: SCANNING
 4. Artifacts - Collect executable inventory
-   â€¢ Scan Localhost - Quick local scan
-   â€¢ Comprehensive Scan - AaronLocker-style scan creates:
+   - Scan Localhost - Quick local scan
+   - Comprehensive Scan - AaronLocker-style scan creates:
      Executables.csv, Publishers.csv, InstalledSoftware.csv
      RunningProcesses.csv, WritableDirectories.csv
-   â€¢ Output saved to C:\GA-AppLocker\Scans\
+   - Output saved to C:\GA-AppLocker\Scans\
 
 5. Rule Generator - Create AppLocker rules
-   â€¢ Import Artifact - Imports any CSV (scans or events)
-   â€¢ Import Folder - Recursively imports all CSVs
-   â€¢ Use Search/Filter to find specific artifacts
-   â€¢ Preview rules before export
+   - Import Artifact - Imports any CSV (scans or events)
+   - Import Folder - Recursively imports all CSVs
+   - Use Search/Filter to find specific artifacts
+   - Preview rules before export
 
    Rule Types:
-   â€¢ Auto (Recommended) - Publisher for signed, Hash for unsigned
-   â€¢ Publisher - Uses code signing certificate
-   â€¢ Hash - SHA256 hash (breaks on updates)
-   â€¢ Path - File path (least secure)
+   - Auto (Recommended) - Publisher for signed, Hash for unsigned
+   - Publisher - Uses code signing certificate
+   - Hash - SHA256 hash (breaks on updates)
+   - Path - File path (least secure)
 
-   â€¢ Select Allow/Deny and target AppLocker group
-   â€¢ Default Deny Rules - Block TEMP, Downloads, AppData
-   â€¢ One-Click Audit Toggle (Deployment panel)
+   - Select Allow/Deny and target AppLocker group
+   - Default Deny Rules - Block TEMP, Downloads, AppData
+   - One-Click Audit Toggle (Deployment panel)
 
 Phase 3: DEPLOYMENT
 6. Deployment - Deploy policies via GPO
-   â€¢ Create GPO - Creates and links AppLocker GPO
-   â€¢ Toggle Audit/Enforce - One-click mode switch
-   â€¢ Export Rules - Save to C:\GA-AppLocker\Rules\
-   â€¢ Import Rules - Load existing AppLocker XML
+   - Create GPO - Creates and links AppLocker GPO
+   - Toggle Audit/Enforce - One-click mode switch
+   - Export Rules - Save to C:\GA-AppLocker\Rules\
+   - Import Rules - Load existing AppLocker XML
 
 7. WinRM Setup - Enable remote management
-   â€¢ Creates WinRM GPO with:
+   - Creates WinRM GPO with:
      - Service auto-config, Basic auth, TrustedHosts *
      - Firewall rules for ports 5985/5986
-   â€¢ Force GPUpdate - Push policy to all computers
-   â€¢ Enable/Disable GPO Link
+   - Force GPUpdate - Push policy to all computers
+   - Enable/Disable GPO Link
 
 Phase 4: MONITORING
 8. Events - Monitor AppLocker events
-   â€¢ Scan Local/Remote for AppLocker events
-   â€¢ Quick Date Presets: Last Hour, Today, 7 Days, 30 Days
-   â€¢ Filter by Allowed (8002) / Audit (8003) / Blocked (8004)
-   â€¢ Export to CSV for analysis
-   â€¢ Import events into Rule Generator
+   - Scan Local/Remote for AppLocker events
+   - Quick Date Presets: Last Hour, Today, 7 Days, 30 Days
+   - Filter by Allowed (8002) / Audit (8003) / Blocked (8004)
+   - Export to CSV for analysis
+   - Import events into Rule Generator
 
 9. Dashboard - Overview and statistics
-   â€¢ Mini Status Bar shows domain, artifact count, sync status
-   â€¢ Policy Health Score
-   â€¢ Event counts from C:\GA-AppLocker\Events\
-   â€¢ Filter by time range (7/30 days)
-   â€¢ Filter by computer system
+   - Mini Status Bar shows domain, artifact count, sync status
+   - Policy Health Score
+   - Event counts from C:\GA-AppLocker\Events\
+   - Filter by time range (7/30 days)
+   - Filter by computer system
 
 10. Compliance - Generate evidence packages
-    â€¢ Creates timestamped folder with policies and events
-    â€¢ Ready for audit documentation
+    - Creates timestamped folder with policies and events
+    - Ready for audit documentation
 
 BEST PRACTICES:
-â€¢ Always start in Audit mode (Event ID 8003)
-â€¢ Use Auto rule type (Publisher for signed, Hash for unsigned)
-â€¢ Add Default Deny Rules for bypass locations
-â€¢ Monitor events for 7-14 days before enforcing
-â€¢ Maintain break-glass admin access
-â€¢ Use Search/Filter for large artifact lists
-â€¢ Preview rules before export to verify structure
-â€¢ Use Quick Date Presets for fast event filtering
+- Always start in Audit mode (Event ID 8003)
+- Use Auto rule type (Publisher for signed, Hash for unsigned)
+- Add Default Deny Rules for bypass locations
+- Monitor events for 7-14 days before enforcing
+- Maintain break-glass admin access
+- Use Search/Filter for large artifact lists
+- Preview rules before export to verify structure
+- Use Quick Date Presets for fast event filtering
 "@
         }
         "Rules" {
@@ -8241,68 +8233,68 @@ BEST PRACTICES:
 
 RULE TYPE PRIORITY (Highest to Lowest):
 1. Publisher Rules (Preferred)
-   â€¢ Most resilient to updates
-   â€¢ Covers all versions from publisher
-   â€¢ Example: Microsoft Corporation, Adobe Inc.
+   - Most resilient to updates
+   - Covers all versions from publisher
+   - Example: Microsoft Corporation, Adobe Inc.
 
 2. Hash Rules (Fallback for unsigned)
-   â€¢ Most specific but fragile
-   â€¢ Changes with each file update
-   â€¢ Use only for unsigned executables
-   â€¢ Example: SHA256 hash
+   - Most specific but fragile
+   - Changes with each file update
+   - Use only for unsigned executables
+   - Example: SHA256 hash
 
 3. Path Rules (Exceptions only)
-   â€¢ Too permissive, easily bypassed
-   â€¢ Use only for:
+   - Too permissive, easily bypassed
+   - Use only for:
      - Denying specific user-writable paths
      - Allowing specific admin tools
-   â€¢ Example: %OSDRIVE%\Users\*\Downloads\*\*
+   - Example: %OSDRIVE%\Users\*\Downloads\*\*
 
 SECURITY PRINCIPLES:
-â€¢ DENY-FIRST MODEL
+- DENY-FIRST MODEL
   - Default deny all executables
   - Explicitly allow only approved software
   - Deny user-writable locations
 
-â€¢ LEAST PRIVILEGE
+- LEAST PRIVILEGE
   - Different rules for different user groups
   - AppLocker-Admin: Full allow
   - AppLocker-StandardUsers: Restricted
   - AppLocker-Dev: Development tools
 
-â€¢ AUDIT BEFORE ENFORCE
+- AUDIT BEFORE ENFORCE
   - Deploy in Audit mode first
   - Monitor for 7-14 days
   - Review and address false positives
   - Switch to Enforce only after validation
 
 RULE COLLECTIONS TO CONFIGURE:
-â€¢ Executable (.exe, .com)
-â€¢ Script (.ps1, .bat, .cmd, .vbs)
-â€¢ Windows Installer (.msi, .msp)
-â€¢ DLL (optional - advanced)
-â€¢ Packaged Apps/MSIX (Windows 10+)
+- Executable (.exe, .com)
+- Script (.ps1, .bat, .cmd, .vbs)
+- Windows Installer (.msi, .msp)
+- DLL (optional - advanced)
+- Packaged Apps/MSIX (Windows 10+)
 
 COMMON PITFALLS TO AVOID:
-â€¢ Using wildcards in path rules
-â€¢ Forgetting to update hash rules after updates
-â€¢ Not testing with actual user accounts
-â€¢ Skipping the audit phase
-â€¢ Forgetting service accounts
-â€¢ Not documenting exceptions
+- Using wildcards in path rules
+- Forgetting to update hash rules after updates
+- Not testing with actual user accounts
+- Skipping the audit phase
+- Forgetting service accounts
+- Not documenting exceptions
 
 GROUP STRATEGY:
-â€¢ AppLocker-Admin - Full system access
-â€¢ AppLocker-Installers - Software installation rights
-â€¢ AppLocker-StandardUsers - Restricted workstation users
-â€¢ AppLocker-Dev - Developer tools access
-â€¢ AppLocker-Deny-* - Explicit deny for risky paths
+- AppLocker-Admin - Full system access
+- AppLocker-Installers - Software installation rights
+- AppLocker-StandardUsers - Restricted workstation users
+- AppLocker-Dev - Developer tools access
+- AppLocker-Deny-* - Explicit deny for risky paths
 
 ADMIN SECURITY:
-â€¢ Consider denying browsers for admin accounts
-â€¢ Admins should use separate workstations
-â€¢ Break-glass access for emergency situations
-â€¢ Document all exceptions and justifications
+- Consider denying browsers for admin accounts
+- Admins should use separate workstations
+- Break-glass access for emergency situations
+- Document all exceptions and justifications
 "@
         }
         "Troubleshooting" {
@@ -8311,81 +8303,81 @@ ADMIN SECURITY:
 
 ISSUE: Events not appearing in Event Monitor
 SOLUTIONS:
-â€¢ Verify AppLocker ID 8001 (Policy Applied) appears first
-â€¢ Check Application Identity service is running
-â€¢ Verify policy is actually enforced (gpresult /r)
-â€¢ Restart Application Identity service if needed
+- Verify AppLocker ID 8001 (Policy Applied) appears first
+- Check Application Identity service is running
+- Verify policy is actually enforced (gpresult /r)
+- Restart Application Identity service if needed
 
 ISSUE: All executables being blocked
 SOLUTIONS:
-â€¢ Check if policy is in Enforce mode (should start as Audit)
-â€¢ Verify rule collection is enabled
-â€¢ Check for conflicting deny rules
-â€¢ Review event logs for specific blocked files
+- Check if policy is in Enforce mode (should start as Audit)
+- Verify rule collection is enabled
+- Check for conflicting deny rules
+- Review event logs for specific blocked files
 
 ISSUE: False positives - legitimate apps blocked
 SOLUTIONS:
-â€¢ Add specific Publisher rule for the application
-â€¢ Check if app needs to run from user-writable location
-â€¢ Consider creating exception path rule
-â€¢ Review hash rule if app version changed
+- Add specific Publisher rule for the application
+- Check if app needs to run from user-writable location
+- Consider creating exception path rule
+- Review hash rule if app version changed
 
 ISSUE: Policy not applying to computers
 SOLUTIONS:
-â€¢ Run: gpresult /r /scope computer
-â€¢ Check GPO is linked to correct OU
-â€¢ Verify GPO security filtering
-â€¢ Force GP update: gpupdate /force
-â€¢ Check DNS resolution for domain controllers
+- Run: gpresult /r /scope computer
+- Check GPO is linked to correct OU
+- Verify GPO security filtering
+- Force GP update: gpupdate /force
+- Check DNS resolution for domain controllers
 
 ISSUE: Cannot create GPO (access denied)
 SOLUTIONS:
-â€¢ Must be Domain Admin or have GPO creation rights
-â€¢ Check Group Policy Management console permissions
-â€¢ Verify RSAT is installed if running from workstation
-â€¢ Run PowerShell as Administrator
+- Must be Domain Admin or have GPO creation rights
+- Check Group Policy Management console permissions
+- Verify RSAT is installed if running from workstation
+- Run PowerShell as Administrator
 
 ISSUE: WinRM connection failures
 SOLUTIONS:
-â€¢ Verify WinRM GPO has applied (gpupdate /force)
-â€¢ Check firewall allows port 5985/5986
-â€¢ Test with: Test-WsMan -ComputerName <target>
-â€¢ Ensure target computer has WinRM enabled
+- Verify WinRM GPO has applied (gpupdate /force)
+- Check firewall allows port 5985/5986
+- Test with: Test-WsMan -ComputerName <target>
+- Ensure target computer has WinRM enabled
 
 ISSUE: Rule generation errors
 SOLUTIONS:
-â€¢ Verify artifact scan completed successfully
-â€¢ Check CSV format is correct (UTF-8 encoding)
-â€¢ Ensure Publisher info exists in file version
-â€¢ Use Hash rules for unsigned executables
+- Verify artifact scan completed successfully
+- Check CSV format is correct (UTF-8 encoding)
+- Ensure Publisher info exists in file version
+- Use Hash rules for unsigned executables
 
 ISSUE: Group import fails
 SOLUTIONS:
-â€¢ Verify CSV format: GroupName,Members (semicolon-separated)
-â€¢ Check member accounts exist in AD
-â€¢ Ensure you have rights to modify group membership
-â€¢ Use dry-run first to preview changes
+- Verify CSV format: GroupName,Members (semicolon-separated)
+- Check member accounts exist in AD
+- Ensure you have rights to modify group membership
+- Use dry-run first to preview changes
 
 ISSUE: High CPU/memory during scan
 SOLUTIONS:
-â€¢ Reduce MaxFiles setting
-â€¢ Scan specific directories instead of full drives
-â€¢ Run during off-peak hours
-â€¢ Use AD discovery to target specific computers
+- Reduce MaxFiles setting
+- Scan specific directories instead of full drives
+- Run during off-peak hours
+- Use AD discovery to target specific computers
 
 USEFUL PowerShell COMMANDS:
-â€¢ Get-AppLockerPolicy -Effective
-â€¢ Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/EXE and DLL'
-â€¢ Test-AppLockerPolicy
-â€¢ Set-AppLockerPolicy
-â€¢ gpupdate /force
-â€¢ gpresult /r /scope computer
+- Get-AppLockerPolicy -Effective
+- Get-WinEvent -LogName 'Microsoft-Windows-AppLocker/EXE and DLL'
+- Test-AppLockerPolicy
+- Set-AppLockerPolicy
+- gpupdate /force
+- gpresult /r /scope computer
 
 LOG LOCATIONS:
-â€¢ AppLocker Events: Event Viewer -> Applications and Services -> Microsoft -> Windows -> AppLocker
-â€¢ Group Policy: Event Viewer -> Windows Logs -> System
-â€¢ Application ID: Services.msc -> Application Identity
-â€¢ Application Logs: C:\GA-AppLocker\Logs\
+- AppLocker Events: Event Viewer -> Applications and Services -> Microsoft -> Windows -> AppLocker
+- Group Policy: Event Viewer -> Windows Logs -> System
+- Application ID: Services.msc -> Application Identity
+- Application Logs: C:\GA-AppLocker\Logs\
 
 ESCALATION PATH:
 1. Review this help documentation
@@ -8402,100 +8394,100 @@ ESCALATION PATH:
 QUALITY-OF-LIFE FEATURES:
 
 [1] Search/Filter (Rule Generator Panel)
-   â€¢ Filter artifacts by publisher, path, or filename
-   â€¢ Filter generated rules by any property
-   â€¢ Real-time filtering as you type
-   â€¢ Location: Top of Rule Generator panel
+   - Filter artifacts by publisher, path, or filename
+   - Filter generated rules by any property
+   - Real-time filtering as you type
+   - Location: Top of Rule Generator panel
 
 [2] One-Click Audit Toggle (Deployment Panel)
-   â€¢ Instantly switch between Audit and Enforce modes
-   â€¢ Updates all rule collections at once
-   â€¢ Confirmation dialog before mode change
-   â€¢ Location: Deployment panel, "Toggle Audit/Enforce" button
+   - Instantly switch between Audit and Enforce modes
+   - Updates all rule collections at once
+   - Confirmation dialog before mode change
+   - Location: Deployment panel, "Toggle Audit/Enforce" button
 
 [3] Rule Preview Panel (Rule Generator Panel)
-   â€¢ Preview XML rules before generation
-   â€¢ Shows exact XML that will be exported
-   â€¢ Helps verify rule structure
-   â€¢ Location: Rule Generator panel, "Preview Rules" button
+   - Preview XML rules before generation
+   - Shows exact XML that will be exported
+   - Helps verify rule structure
+   - Location: Rule Generator panel, "Preview Rules" button
 
 [4] Mini Status Bar (Top Navigation Bar)
-   â€¢ Real-time domain status (joined/workgroup)
-   â€¢ Artifact count indicator
-   â€¢ Sync status for data refresh
-   â€¢ Location: Top bar, right side
+   - Real-time domain status (joined/workgroup)
+   - Artifact count indicator
+   - Sync status for data refresh
+   - Location: Top bar, right side
 
 [5] Bulk Action Confirmation
-   â€¢ Confirmation dialogs before destructive operations
-   â€¢ Prevents accidental rule clear
-   â€¢ Prevents accidental GPO deletion
-   â€¢ Shows count of affected items
+   - Confirmation dialogs before destructive operations
+   - Prevents accidental rule clear
+   - Prevents accidental GPO deletion
+   - Shows count of affected items
 
 [6] Quick Date Presets (Events Panel)
-   â€¢ Last Hour: Events from the last 60 minutes
-   â€¢ Today: Events from today
-   â€¢ Last 7 Days: Events from past week
-   â€¢ Last 30 Days: Events from past month
-   â€¢ Location: Events panel, quick date buttons
+   - Last Hour: Events from the last 60 minutes
+   - Today: Events from today
+   - Last 7 Days: Events from past week
+   - Last 30 Days: Events from past month
+   - Location: Events panel, quick date buttons
 
 BUG FIXES:
 
 [1] UTF-16 Encoding Fix
-   â€¢ AppLocker XML policies now use proper UTF-16 encoding
-   â€¢ Previous UTF-8 encoding caused import failures
-   â€¢ All exported policies now compatible with AppLocker
+   - AppLocker XML policies now use proper UTF-16 encoding
+   - Previous UTF-8 encoding caused import failures
+   - All exported policies now compatible with AppLocker
 
 [2] Regex Pattern Improvements
-   â€¢ Directory safety classification now uses robust regex escaping
-   â€¢ Prevents false positives in path matching
-   â€¢ More reliable unsafe path detection
+   - Directory safety classification now uses robust regex escaping
+   - Prevents false positives in path matching
+   - More reliable unsafe path detection
 
 [3] System.Web Assembly Loading
-   â€¢ Added assembly loading for HTML encoding security
-   â€¢ Prevents encoding errors in compliance reports
+   - Added assembly loading for HTML encoding security
+   - Prevents encoding errors in compliance reports
 
 [4] Emoji Character Removal
-   â€¢ Removed emoji characters for PowerShell compatibility
-   â€¢ Replaced with ASCII equivalents
-   â€¢ Prevents syntax errors in script parsing
+   - Removed emoji characters for PowerShell compatibility
+   - Replaced with ASCII equivalents
+   - Prevents syntax errors in script parsing
 
 ARCHITECTURE IMPROVEMENTS:
 
 [1] Standardized Artifact Data Model
-   â€¢ Common artifact structure across all modules
-   â€¢ Properties: name, path, publisher, hash, version, size, modifiedDate, fileType
-   â€¢ Automatic property name mapping between formats
+   - Common artifact structure across all modules
+   - Properties: name, path, publisher, hash, version, size, modifiedDate, fileType
+   - Automatic property name mapping between formats
 
 [2] Artifact Conversion Functions
-   â€¢ Convert-AppLockerArtifact: Maps between naming conventions
-   â€¢ Handles Module2 (lowercase), GUI (PascalCase), CSV import formats
-   â€¢ Ensures interoperability between modules
+   - Convert-AppLockerArtifact: Maps between naming conventions
+   - Handles Module2 (lowercase), GUI (PascalCase), CSV import formats
+   - Ensures interoperability between modules
 
 [3] Rule Validation Before Export
-   â€¢ Test-AppLockerRules: Validates all required properties exist
-   â€¢ Pre-export validation catches missing data
-   â€¢ Returns success, errors, warnings
+   - Test-AppLockerRules: Validates all required properties exist
+   - Pre-export validation catches missing data
+   - Returns success, errors, warnings
 
 [4] Unit Tests for Artifact Interoperability
-   â€¢ 22 new tests in GA-AppLocker.Artifact.Tests.ps1
-   â€¢ Tests artifact creation, conversion, validation
-   â€¢ Tests property name mappings
-   â€¢ 20 passing, 2 skipped
+   - 22 new tests in GA-AppLocker.Artifact.Tests.ps1
+   - Tests artifact creation, conversion, validation
+   - Tests property name mappings
+   - 20 passing, 2 skipped
 
 DOCUMENTATION UPDATES:
 
 [1] ARTIFACT-DATA-MODEL.md
-   â€¢ Complete documentation of artifact data structure
-   â€¢ Property name mapping tables
-   â€¢ Usage examples and best practices
+   - Complete documentation of artifact data structure
+   - Property name mapping tables
+   - Usage examples and best practices
 
 [2] Updated README.md
-   â€¢ v1.2.5 release notes
-   â€¢ New features and bug fixes documented
+   - v1.2.5 release notes
+   - New features and bug fixes documented
 
 [3] Updated CLAUDE.md
-   â€¢ Technical documentation for new functions
-   â€¢ GUI feature descriptions
+   - Technical documentation for new functions
+   - GUI feature descriptions
 
 HOW TO USE NEW FEATURES:
 
@@ -8520,9 +8512,9 @@ Quick Date Presets:
    3. Events automatically filter by selected range
 
 For detailed technical documentation, see:
-   â€¢ docs/ARTIFACT-DATA-MODEL.md - Artifact and rule data structures
-   â€¢ claude.md - Developer reference
-   â€¢ README.md - Project overview
+   - docs/ARTIFACT-DATA-MODEL.md - Artifact and rule data structures
+   - claude.md - Developer reference
+   - README.md - Project overview
 "@
         }
         "PolicyGuide" {
@@ -10364,165 +10356,6 @@ $ScanLocalArtifactsBtn.Add_Click({
     $script:LocalScanHandle = @{Handle = $handle; PowerShell = $powerShell}
 })
 
-# Scan Remote Artifacts button - scans selected computers for artifacts
-$ScanRemoteArtifactsBtn.Add_Click({
-    Write-Log "Starting remote artifact scan"
-
-    # Get selected computers from ListBox
-    $selectedItems = $ArtifactComputersList.SelectedItems
-    if ($selectedItems.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please select at least one computer from the list.", "No Computers Selected", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        return
-    }
-
-    $computers = $selectedItems | ForEach-Object { $_.Name.ToString() }
-
-    $ArtifactsList.Items.Clear()
-    $RulesOutput.Text = "=== REMOTE ARTIFACT SCAN ===`n`nScanning $($computers.Count) selected computers via WinRM...`n"
-    $RulesOutput.Text += "Collecting: Executable artifacts from common directories`n"
-    [System.Windows.Forms.Application]::DoEvents()
-
-    # Import Module2 for remote scanning
-    try {
-        Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
-
-        $allArtifacts = [System.Collections.ArrayList]::new()
-        $successCount = 0
-        $failCount = 0
-
-        foreach ($computer in $computers) {
-            $ArtifactsList.Items.Add("")
-            $ArtifactsList.Items.Add("[$computer] Scanning...")
-            [System.Windows.Forms.Application]::DoEvents()
-
-            # Scan remote computer for artifacts
-            $result = Get-RemoteArtifacts -ComputerName $computer -ErrorAction Stop
-
-            if ($result.success) {
-                $successCount++
-
-                foreach ($art in $result.artifacts) {
-                    # Normalize to standard artifact format
-                    $normalized = @{
-                        name = if ($art.FileName) { $art.FileName } else { (Split-Path $art.Path -Leaf) }
-                        path = $art.Path
-                        publisher = if ($art.Publisher) { $art.Publisher } else { "Unknown" }
-                        hash = if ($art.Hash) { $art.Hash } else { "" }
-                        version = if ($art.Version) { $art.Version } else { "" }
-                        size = if ($art.Size) { $art.Size } else { 0 }
-                        modifiedDate = if ($art.ModifiedDate) { $art.ModifiedDate } else { (Get-Date) }
-                        fileType = if ($art.FileType) { $art.FileType } else { "EXE" }
-                    }
-                    [void]$allArtifacts.Add($normalized)
-                }
-
-                $ArtifactsList.Items.Add("[$computer] Found: $($result.artifacts.Count) artifacts")
-            } else {
-                $failCount++
-                $ArtifactsList.Items.Add("[$computer] FAILED: $($result.error)")
-            }
-
-            [System.Windows.Forms.Application]::DoEvents()
-        }
-
-        # Save to script variable for use in Rule Generator
-        $script:CollectedArtifacts = $allArtifacts
-
-        # Update badges in Rule Generator
-        Update-Badges
-
-        # Export artifacts to CSV automatically
-        $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-        $csvPath = "C:\GA-AppLocker\Scans\RemoteScan_$($computers.Count)Computers_$timestamp.csv"
-
-        $ArtifactsList.Items.Add("")
-        $ArtifactsList.Items.Add("Saving to: $csvPath...")
-
-        # Ensure Scans folder exists
-        $scansFolder = "C:\GA-AppLocker\Scans"
-        if (-not (Test-Path $scansFolder)) {
-            New-Item -ItemType Directory -Path $scansFolder -Force | Out-Null
-        }
-
-        # Convert artifacts to CSV format and save
-        $csvData = $allArtifacts | ForEach-Object {
-            [PSCustomObject]@{
-                Name = $_.name
-                Path = $_.path
-                Publisher = $_.publisher
-                Hash = $_.hash
-                Version = $_.version
-                Size = $_.size
-                ModifiedDate = $_.modifiedDate
-                FileType = $_.fileType
-            }
-        }
-
-        $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-
-        $ArtifactsList.Items.Add("[OK] Saved: $csvPath")
-        $ArtifactsList.Items.Add("")
-        $ArtifactsList.Items.Add("=== SCAN COMPLETE ===")
-        $ArtifactsList.Items.Add("Computers: $successCount success, $failCount failed")
-        $ArtifactsList.Items.Add("Total artifacts: $($allArtifacts.Count)")
-        $ArtifactsList.Items.Add("")
-        $ArtifactsList.Items.Add("Use in Rule Generator > Generate Rules to create rules.")
-
-        $RulesOutput.Text += "`n`n=== SCAN COMPLETE ===`n"
-        $RulesOutput.Text += "Computers: $successCount success, $failCount failed`n"
-        $RulesOutput.Text += "Artifacts: $($allArtifacts.Count) unique files`n"
-        $RulesOutput.Text += "`nExported to: $csvPath`n"
-        $RulesOutput.Text += "Go to Rule Generator to create rules from these artifacts."
-
-        Write-Log "Remote artifact scan complete: $($allArtifacts.Count) artifacts from $successCount computers, saved to: $csvPath"
-    } catch {
-        $errorMsg = $_.Exception.Message
-        $ArtifactsList.Items.Add("")
-        $ArtifactsList.Items.Add("ERROR: $errorMsg")
-        $RulesOutput.Text = "Remote scan failed: $errorMsg"
-        Write-Log "Remote artifact scan failed: $errorMsg" -Level "ERROR"
-    }
-})
-
-# Refresh Artifact Computers button - loads from AD Discovery
-$RefreshArtifactComputersBtn.Add_Click({
-    $ArtifactComputersList.Items.Clear()
-
-    # Try to get computers from discovery results
-    if ($script:DiscoveredComputers.Count -gt 0) {
-        $RulesOutput.Text = "Refreshing artifact computer list from AD Discovery...`n"
-
-        foreach ($compInfo in $script:DiscoveredComputersInfo) {
-            $status = "Online"
-            $statusColor = "#3FB950"
-
-            if ($compInfo.IsOffline -eq $true) {
-                $status = "Offline"
-                $statusColor = "#F85149"
-            } elseif ($compInfo.ResponseTime -gt 500) {
-                $status = "Slow"
-                $statusColor = "#D29922"
-            }
-
-            $item = [PSCustomObject]@{
-                Name = $compInfo.Name
-                Status = $status
-                StatusColor = $statusColor
-                OU = if ($compInfo.OU) { $compInfo.OU } else { "" }
-            }
-
-            $ArtifactComputersList.Items.Add($item)
-        }
-
-        $RulesOutput.Text += "`nLoaded: $($ArtifactComputersList.Items.Count) computers from AD Discovery`n"
-        $RulesOutput.Text += "Select computers and click 'Scan Selected' to collect artifacts."
-        Write-Log "Artifact computer list refreshed: $($ArtifactComputersList.Items.Count) computers"
-    } else {
-        $RulesOutput.Text = "No computers in AD Discovery.`n`nGo to AD Discovery tab first to discover computers.`nThen return here to scan them for artifacts."
-        Write-Log "No computers available for artifact scanning"
-    }
-})
-
 # Rules events
 $ImportArtifactsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -10890,7 +10723,7 @@ $DedupeBtn.Add_Click({
     # Update badges
     Update-Badges
 
-    Write-Log "Deduplicated by $dedupeType: $beforeCount -> $($uniqueArtifacts.Count) (removed $removedCount)"
+    Write-Log "Deduplicated by ${dedupeType}: $beforeCount -> $($uniqueArtifacts.Count) (removed $removedCount)"
     [System.Windows.MessageBox]::Show(
         "Deduplication complete!`n`nBy: $dedupeType`nBefore: $beforeCount`nAfter: $($uniqueArtifacts.Count)`nRemoved: $removedCount duplicates",
         "Deduplication Complete",
@@ -11916,7 +11749,7 @@ function Show-GroupSelectionDialog {
     $window.ShowDialog() | Out-Null
 
     return $result
-})
+}
 
 # ============================================================
 # PHASE 4: Bulk Editing Helper Functions
@@ -13637,18 +13470,18 @@ $CreateWinRMGpoBtn.Add_Click({
         return
     }
 
-    $WinRMOutput.Text = "=== WINRM GPO CREATION ===`n`nCreating WinRM GPO...`n`nThis will:`n  â€¢ Create 'Enable WinRM' GPO`n  â€¢ Link to domain root`n  â€¢ Configure WinRM service settings`n  â€¢ Enable firewall rules`n`nPlease wait..."
+    $WinRMOutput.Text = "=== WINRM GPO CREATION ===`n`nCreating WinRM GPO...`n`nThis will:`n  - Create 'Enable WinRM' GPO`n  - Link to domain root`n  - Configure WinRM service settings`n  - Enable firewall rules`n`nPlease wait..."
     [System.Windows.Forms.Application]::DoEvents()
 
     $result = New-WinRMGpo
 
     if ($result.success) {
         $action = if ($result.isNew) { "CREATED" } else { "UPDATED" }
-        $WinRMOutput.Text = "=== WINRM GPO $action ===`n`nSUCCESS: GPO $($result.message)`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nConfigured Settings:`n`nWinRM Service:`n  â€¢ Auto-config: Enabled`n  â€¢ IPv4 Filter: * (all)`n  â€¢ IPv6 Filter: * (all)`n  â€¢ Basic Auth: Enabled`n  â€¢ Unencrypted Traffic: Disabled`n`nWinRM Client:`n  â€¢ Basic Auth: Enabled`n  â€¢ TrustedHosts: * (all)`n  â€¢ Unencrypted Traffic: Disabled`n`nFirewall Rules:`n  â€¢ WinRM HTTP (5985): Allowed`n  â€¢ WinRM HTTPS (5986): Allowed`n`nService: Automatic startup`n`nTo force immediate update: gpupdate /force"
+        $WinRMOutput.Text = "=== WINRM GPO $action ===`n`nSUCCESS: GPO $($result.message)`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nConfigured Settings:`n`nWinRM Service:`n  - Auto-config: Enabled`n  - IPv4 Filter: * (all)`n  - IPv6 Filter: * (all)`n  - Basic Auth: Enabled`n  - Unencrypted Traffic: Disabled`n`nWinRM Client:`n  - Basic Auth: Enabled`n  - TrustedHosts: * (all)`n  - Unencrypted Traffic: Disabled`n`nFirewall Rules:`n  - WinRM HTTP (5985): Allowed`n  - WinRM HTTPS (5986): Allowed`n`nService: Automatic startup`n`nTo force immediate update: gpupdate /force"
         Write-Log "WinRM GPO $action successfully: $($result.gpoName)"
         [System.Windows.MessageBox]::Show("WinRM GPO $action successfully!`n`nGPO: $($result.gpoName)`n`nLinked to: $($result.linkedTo)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     } else {
-        $WinRMOutput.Text = "=== WINRM GPO FAILED ===`n`nERROR: $($result.error)`n`nPossible causes:`n  â€¢ Not running as Domain Admin`n  â€¢ Group Policy module not available`n  â€¢ Insufficient permissions`n`nPlease run as Domain Administrator and try again."
+        $WinRMOutput.Text = "=== WINRM GPO FAILED ===`n`nERROR: $($result.error)`n`nPossible causes:`n  - Not running as Domain Admin`n  - Group Policy module not available`n  - Insufficient permissions`n`nPlease run as Domain Administrator and try again."
         Write-Log "Failed to create/update WinRM GPO: $($result.error)" -Level "ERROR"
         [System.Windows.MessageBox]::Show("Failed to create/update WinRM GPO:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
@@ -13704,7 +13537,7 @@ $ForceGPUpdateBtn.Add_Click({
     }
 
     $confirm = [System.Windows.MessageBox]::Show(
-        "This will run 'gpupdate /force' on all domain computers.`n`nThis requires:`n  â€¢ WinRM already enabled on target machines`n  â€¢ Administrative access to remote computers`n`nContinue?",
+        "This will run 'gpupdate /force' on all domain computers.`n`nThis requires:`n  - WinRM already enabled on target machines`n  - Administrative access to remote computers`n`nContinue?",
         "Confirm Force GPUpdate",
         [System.Windows.MessageBoxButton]::YesNo,
         [System.Windows.MessageBoxImage]::Question
@@ -15174,7 +15007,7 @@ function Export-AsTemplate {
         foreach ($collection in $policy.RuleCollections) {
             foreach ($rule in $collection) {
                 $ruleData = @{
-                    Name = $rule.Name ?: "Unnamed Rule"
+                    Name = if ($rule.Name) { $rule.Name } else { "Unnamed Rule" }
                     Type = $rule.Condition.ConditionType
                     User = $rule.User.Value
                     Action = $rule.Action.ToString()
@@ -16107,10 +15940,6 @@ $window.add_Loaded({
         $ScanRemoteEventsBtn.IsEnabled = $false
         $RefreshComputersBtn.IsEnabled = $false
 
-        # Disable remote scanning in Artifacts panel
-        $ScanRemoteArtifactsBtn.IsEnabled = $false
-        $RefreshArtifactComputersBtn.IsEnabled = $false
-
         # Disable remote scanning in Compliance panel
         $ScanSelectedComplianceBtn.IsEnabled = $false
         $RefreshComplianceListBtn.IsEnabled = $false
@@ -16150,10 +15979,6 @@ $window.add_Loaded({
         # Disable remote scanning in Events panel
         $ScanRemoteEventsBtn.IsEnabled = $false
         $RefreshComputersBtn.IsEnabled = $false
-
-        # Disable remote scanning in Artifacts panel
-        $ScanRemoteArtifactsBtn.IsEnabled = $false
-        $RefreshArtifactComputersBtn.IsEnabled = $false
 
         # Disable remote scanning in Compliance panel
         $ScanSelectedComplianceBtn.IsEnabled = $false
@@ -16285,3 +16110,4 @@ $window.add_Loaded({
 
 # Show window
 $window.ShowDialog() | Out-Null
+
