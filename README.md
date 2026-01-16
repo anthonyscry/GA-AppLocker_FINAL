@@ -1,86 +1,182 @@
 # GA-AppLocker Dashboard
 
-**AaronLocker-Aligned AppLocker Policy Management Tool**
+**Enterprise AppLocker Policy Management Tool**
 
-A PowerShell WPF application for enterprise AppLocker deployment, aligned with Microsoft AaronLocker best practices.
+A comprehensive PowerShell WPF application for enterprise AppLocker deployment, aligned with Microsoft AaronLocker best practices.
 
-![Version](https://img.shields.io/badge/version-1.2.5-blue)
+![Version](https://img.shields.io/badge/version-1.3.0-blue)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgray)
 
+## Table of Contents
+
+- [Overview](#overview)
+- [What's New](#whats-new-in-v130)
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start Guide](#quick-start-guide)
+- [Documentation](#documentation)
+- [Requirements](#requirements)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+
 ## Overview
 
-GA-AppLocker Dashboard provides a complete AppLocker lifecycle management solution with quality-of-life enhancements for enterprise deployments:
+GA-AppLocker Dashboard provides complete AppLocker lifecycle management with an intuitive graphical interface:
 
-1. **Setup** - Initialize AD structure (OU, groups, starter policy)
-2. **Discovery** - Find and ping-check domain computers
-3. **Scanning** - Collect software artifacts (local or remote)
-4. **Rule Generation** - Create Publisher/Hash/Path rules with validation
-5. **Deployment** - Export rules, create GPOs
-6. **Monitoring** - View events, track policy health
-7. **Compliance** - Generate evidence packages
+```
+Setup -> Discovery -> Scanning -> Rules -> Deployment -> Monitoring -> Compliance
+```
 
-## What's New in v1.2.5
+### Core Capabilities
 
-### Quality-of-Life Features
-- **Search/Filter** - Filter artifacts and rules by publisher, path, filename
-- **Audit Toggle** - One-click switch between Audit and Enforce modes
-- **Rule Preview** - Preview XML rules before generation
-- **Mini Status Bar** - Real-time domain, artifact count, and sync status
-- **Bulk Confirmation** - Confirmation dialogs before destructive operations
-- **Quick Date Presets** - Last Hour, Today, Last 7 Days, Last 30 Days event filtering
+| Phase | Description | Panel |
+|-------|-------------|-------|
+| **Setup** | Initialize AD structure, create groups | AppLocker Setup |
+| **Discovery** | Find and test domain computers | AD Discovery |
+| **Scanning** | Collect software artifacts | Artifacts |
+| **Rules** | Generate Publisher/Hash/Path rules | Rule Generator |
+| **Deployment** | Create GPOs, apply policies | Deployment |
+| **Monitoring** | View events, track health | Events, Dashboard |
+| **Compliance** | Generate evidence packages | Compliance |
+
+## What's New in v1.3.0
+
+### UI/UX Improvements
+- **Cleaner Rule Generator** - Reorganized into 5 clear sections with better spacing
+- **Improved Help System** - Comprehensive documentation with visual separators
+- **Standardized Button Sizes** - Consistent 30-36px heights across all panels
+- **Better Visual Hierarchy** - Clear section headers with descriptive labels
+- **Fixed Event Monitor Filters** - Button layout corrected for proper text display
 
 ### Bug Fixes
-- **UTF-16 Encoding** - Fixed XML export to use proper UTF-16 encoding (required for AppLocker)
-- **Regex Patterns** - Improved directory safety classification with robust regex escaping
-- **System.Web Assembly** - Added assembly loading for HTML encoding security
-- **Emoji Removal** - Replaced emoji characters with ASCII for PowerShell compatibility
+- **Fixed Chart Elements** - Added missing FindName initializations for all chart controls
+- **Removed Duplicate Content** - Cleaned up ~470 lines of duplicate XAML
+- **Removed Emojis** - Replaced with ASCII text indicators for PS 5.1 compatibility
+- **Fixed Text Encoding** - Corrected corrupted bullet point characters in help content
 
-### Architecture Improvements
-- **Standardized Artifact Model** - Common artifact data structure across all modules
-- **Artifact Conversion** - Automatic property name mapping between different formats
-- **Rule Validation** - Pre-export validation ensures all required properties exist
-- **Unit Tests** - 20 new artifact interoperability tests (all passing)
+### Security Enhancements
+- **Remote Scanning Removed** - Artifact panel now focuses on local scanning only
+- **AD Discovery Integration** - Remote scanning capabilities moved to AD Discovery panel
+- **Simplified Permissions** - Clearer separation between local and remote operations
 
 ## Features
 
-### Setup
-| Feature | Description |
-|---------|-------------|
-| AppLocker Setup | Create AD OU, security groups, and starter policy |
-| Group Management | Export/import group membership via CSV |
-| AD Discovery | Find computers with online/offline status |
+### Setup (AppLocker Setup Panel)
+Initialize your Active Directory structure for AppLocker deployment:
+- Create AppLocker OU with security groups
+- Configure group membership via CSV import/export
+- Set up Domain Admins as owner for deletion access
+- Remove OU protection option available
 
-### Scanning
-| Feature | Description |
-|---------|-------------|
-| Artifact Collection | Scan for executables, DLLs, scripts, MSIs |
-| Comprehensive Scan | AaronLocker-style full inventory |
-| Remote Scanning | Scan multiple computers via WinRM |
+### Discovery (AD Discovery Panel)
+Find target computers for AppLocker deployment:
+- Scan Active Directory for all computers
+- Separate computers into Online/Offline lists
+- Test connectivity to each computer
+- Export computer inventory to CSV
 
-### Rule Generation
-| Feature | Description |
-|---------|-------------|
-| Publisher Rules | Create rules from code signing certificates |
-| Hash Rules | Create rules from file hashes (unsigned files) |
-| Path Rules | Create rules from file paths |
-| From Events | Generate rules from AppLocker event logs |
+### Scanning (Artifacts Panel)
+Collect executable inventory from your environment:
+- **Quick Load**: Pull artifacts from Event Monitor
+- **Import File**: Load CSV exports manually
+- **Import Folder**: Batch load multiple CSVs
+- **Deduplicate**: Remove duplicates by Publisher/Hash/Path
+- **Export List**: Save filtered artifact list
 
-### Deployment
-| Feature | Description |
-|---------|-------------|
-| Rule Export | Export to AppLocker XML format |
-| GPO Management | Create/link AppLocker GPOs |
-| WinRM Setup | Configure remote management via GPO |
-| Browser Deny | Generate admin browser deny rules |
+### Rule Generator (Rules Panel)
+Create AppLocker rules with enhanced workflow:
 
-### Monitoring
-| Feature | Description |
-|---------|-------------|
-| Dashboard | Policy health score, event statistics |
-| Event Monitor | View Allowed/Blocked/Audit events |
-| Gap Analysis | Compare software between systems |
-| Compliance | Generate audit evidence packages |
+**Configuration Section:**
+- Rule type selection (Auto/Publisher/Hash/Path)
+- Action selection (Allow/Deny)
+- Target AD group assignment
+
+**Import Artifacts Section:**
+- Quick load from other panels
+- File and folder import options
+- Deduplication tools
+- Export capabilities
+
+**Generate Rules Section:**
+- Generate rules from artifacts
+- Default Deny Rules (block bypass locations)
+- Browser Deny Rules (admin protection)
+
+**Rules List Section:**
+- Filter by Type, Action, Group
+- Search functionality
+- Delete selected rules
+- DataGrid with sorting
+
+**Output Log Section:**
+- Real-time generation feedback
+- Success/error messages
+
+### Deployment (Deployment Panel)
+Deploy policies via Group Policy:
+- Create AppLocker GPOs
+- One-click Audit/Enforce toggle
+- Export rules to XML
+- Import existing policies
+- Assign GPOs to OUs (DCs/Servers/Workstations)
+
+### Monitoring (Dashboard & Events Panels)
+Track policy effectiveness:
+- **Dashboard**: Policy health score, event statistics, machine counts
+- **Events**: Filter by type (Allowed/Audit/Blocked), quick date presets, export to CSV
+- **Charts**: Visual representation of data (pie charts, gauge, bar charts)
+
+### Compliance (Compliance Panel)
+Generate audit evidence packages:
+- Timestamped evidence folders
+- Policy snapshots
+- Event log exports
+- HTML compliance reports
+
+## Quick Start Guide
+
+Follow these steps to deploy AppLocker in your environment:
+
+### Step 1: Prepare (5 minutes)
+1. Run the application as Administrator
+2. Go to **AppLocker Setup** panel
+3. Click **Create AppLocker Structure**
+4. Go to **AD Discovery** panel
+5. Click **Discover Computers** to find targets
+
+### Step 2: Collect Artifacts (15-30 minutes)
+1. Go to **Artifacts** panel
+2. Click **Scan Local System** for quick local scan
+3. Or select online computers and click **Scan Selected**
+4. Artifacts saved to `C:\GA-AppLocker\Scans\`
+
+### Step 3: Generate Rules (10 minutes)
+1. Go to **Rule Generator** panel
+2. Click **Load Artifacts** to pull from scan
+3. Configure: Type=Auto, Action=Allow, Group=AppLocker-StandardUsers
+4. Click **Generate Rules**
+5. Click **Default Deny Rules** for security
+6. Click **Export List** to save
+
+### Step 4: Deploy in Audit Mode (5 minutes)
+1. Go to **Deployment** panel
+2. Click **Create GPO** (Audit mode)
+3. Click **Export Rules** to save policy
+4. Run `gpupdate /force` on test computer
+5. Wait 7-14 days, monitor events
+
+### Step 5: Monitor (7-14 days)
+1. Go to **Events** panel
+2. Review Audit events (Event ID 8003)
+3. Add rules for legitimate software
+4. Document exceptions
+
+### Step 6: Enforce (5 minutes)
+1. Go to **Deployment** panel
+2. Click **[!] AUDIT MODE** to switch to Enforce
+3. Confirm the change
+4. Run `gpupdate /force` on target computers
 
 ## Requirements
 
