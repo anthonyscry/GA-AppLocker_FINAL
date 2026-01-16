@@ -17315,8 +17315,29 @@ $window.add_Loaded({
 # ============================================================
 # AARONLOCKER TOOLS - Button Event Handlers
 # ============================================================
-# Define AaronLocker root path
-$script:AaronLockerRoot = "C:\GA-AppLocker\AaronLocker-main\AaronLocker"
+# Define AaronLocker root path - search multiple locations
+$script:AaronLockerRoot = $null
+$aaronLockerSearchPaths = @(
+    # 1. Relative to script location (for running from repo/extracted folder)
+    (Join-Path $PSScriptRoot "..\AaronLocker-main\AaronLocker"),
+    (Join-Path $PSScriptRoot "AaronLocker-main\AaronLocker"),
+    # 2. Standard install location
+    "C:\GA-AppLocker\AaronLocker-main\AaronLocker",
+    # 3. Alternative locations
+    (Join-Path $env:ProgramData "GA-AppLocker\AaronLocker-main\AaronLocker"),
+    (Join-Path $env:USERPROFILE "GA-AppLocker\AaronLocker-main\AaronLocker")
+)
+foreach ($searchPath in $aaronLockerSearchPaths) {
+    if (Test-Path (Join-Path $searchPath "Support\Config.ps1")) {
+        $script:AaronLockerRoot = $searchPath
+        Write-Log "AaronLocker found at: $searchPath"
+        break
+    }
+}
+if (-not $script:AaronLockerRoot) {
+    $script:AaronLockerRoot = "C:\GA-AppLocker\AaronLocker-main\AaronLocker"
+    Write-Log "AaronLocker not found - using default path: $($script:AaronLockerRoot)" -Level "WARNING"
+}
 
 # Helper function to run AaronLocker scripts
 function Invoke-AaronLockerScript {
