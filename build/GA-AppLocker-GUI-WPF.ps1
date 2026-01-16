@@ -921,16 +921,17 @@ function New-WinRMGpo {
             $gpo = New-GPO -Name $GpoName -Comment "WinRM Configuration for Remote Management - Created by GA-AppLocker" -ErrorAction Stop
             Write-Log "GPO created: $($gpo.Id)"
             $isNew = $true
+        }
 
-            # Link to domain
-            try {
-                New-GPLink -Name $GpoName -Target $OU -LinkEnabled Yes -ErrorAction Stop | Out-Null
-                Write-Log "GPO linked to: $OU"
-            }
-            catch {
-                if ($_.Exception.Message -notlike "*already linked*") {
-                    throw $_
-                }
+        # Always try to link GPO to domain (whether new or existing)
+        try {
+            New-GPLink -Name $GpoName -Target $OU -LinkEnabled Yes -ErrorAction Stop | Out-Null
+            Write-Log "GPO linked to: $OU"
+        }
+        catch {
+            if ($_.Exception.Message -notlike "*already linked*") {
+                Write-Log "GPO link warning: $($_.Exception.Message)" -Level "WARNING"
+            } else {
                 Write-Log "GPO already linked to $OU"
             }
         }
@@ -10135,17 +10136,7 @@ $CreateGPOsBtn.Add_Click({
     }
 
     try {
-        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
-            Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-        } else {
-            $script:ModulePath = "C:\GA-AppLocker\src\modules"
-            if (Test-Path $script:ModulePath) {
-                Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-            } else {
-                Write-Log "ERROR: Module path not found for Module4-PolicyLab" -Level "ERROR"
-                return
-            }
-        }
+        # Use embedded New-AppLockerGpo function - no module import needed
         Import-Module GroupPolicy -ErrorAction Stop
 
         $gpoNames = @("GA-AppLocker-DC", "GA-AppLocker-Servers", "GA-AppLocker-Workstations")
@@ -10153,7 +10144,7 @@ $CreateGPOsBtn.Add_Click({
         $successCount = 0
 
         foreach ($gpoName in $gpoNames) {
-            $result = New-AppLockerGPO -GpoName $gpoName
+            $result = New-AppLockerGpo -GpoName $gpoName
             if ($result.success) {
                 $results += "Created: $gpoName`n"
                 Write-Log "Created GPO: $gpoName"
@@ -10201,17 +10192,7 @@ $ApplyGPOSettingsBtn.Add_Click({
     }
 
     try {
-        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
-            Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-        } else {
-            $script:ModulePath = "C:\GA-AppLocker\src\modules"
-            if (Test-Path $script:ModulePath) {
-                Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-            } else {
-                Write-Log "ERROR: Module path not found for Module4-PolicyLab" -Level "ERROR"
-                return
-            }
-        }
+        # Use embedded functions - no module import needed
         Import-Module GroupPolicy -ErrorAction Stop
 
         # Get selected phase/mode for each GPO
@@ -10321,17 +10302,7 @@ $LinkGPOsBtn.Add_Click({
     }
 
     try {
-        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
-            Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-        } else {
-            $script:ModulePath = "C:\GA-AppLocker\src\modules"
-            if (Test-Path $script:ModulePath) {
-                Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-            } else {
-                Write-Log "ERROR: Module path not found for Module4-PolicyLab" -Level "ERROR"
-                return
-            }
-        }
+        # Use embedded functions - no module import needed
         Import-Module GroupPolicy -ErrorAction Stop
         Import-Module ActiveDirectory -ErrorAction Stop
 
@@ -14902,7 +14873,7 @@ $ImportRulesBtn.Add_Click({
     Write-Log "Importing rules to GPO: $targetGpoName (Mode: $(if ($isMergeMode) { 'Merge' } else { 'Overwrite' }))"
 
     try {
-        Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
+        # Use embedded functions - no module import needed
         Import-Module GroupPolicy -ErrorAction Stop
 
         # Load new rules from XML file
