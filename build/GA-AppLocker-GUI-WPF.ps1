@@ -6202,6 +6202,7 @@ $xamlString = @"
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
                                     <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
                                 </Grid.RowDefinitions>
 
                                 <Button x:Name="AL_EditTrustedSigners" Content="Trusted Signers" Style="{StaticResource NavButton}"
@@ -6217,17 +6218,23 @@ $xamlString = @"
                                         Grid.Column="3" Grid.Row="0" Margin="0,0,0,4" MinHeight="28"
                                         ToolTip="Edit GetExeFilesToDenyList.ps1 - Executables to block"/>
                                 <Button x:Name="AL_EditHashRules" Content="Hash Rules" Style="{StaticResource NavButton}"
-                                        Grid.Column="0" Grid.Row="1" Margin="0,0,4,0" MinHeight="28"
+                                        Grid.Column="0" Grid.Row="1" Margin="0,0,4,4" MinHeight="28"
                                         ToolTip="Edit HashRuleData.ps1 - Specific file hashes"/>
                                 <Button x:Name="AL_EditKnownAdmins" Content="Known Admins" Style="{StaticResource NavButton}"
-                                        Grid.Column="1" Grid.Row="1" Margin="0,0,4,0" MinHeight="28"
+                                        Grid.Column="1" Grid.Row="1" Margin="0,0,4,4" MinHeight="28"
                                         ToolTip="Edit KnownAdmins.ps1 - Admin accounts to exempt"/>
-                                <Button x:Name="AL_OpenOutputs" Content="Open Outputs Folder" Style="{StaticResource SecondaryButton}"
-                                        Grid.Column="2" Grid.Row="1" Margin="0,0,4,0" MinHeight="28"
+                                <Button x:Name="AL_OpenOutputs" Content="Outputs Folder" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="2" Grid.Row="1" Margin="0,0,4,4" MinHeight="28"
                                         ToolTip="Open the Outputs folder containing generated policies"/>
-                                <Button x:Name="AL_OpenScanResults" Content="Open Scan Results" Style="{StaticResource SecondaryButton}"
-                                        Grid.Column="3" Grid.Row="1" Margin="0,0,0,0" MinHeight="28"
+                                <Button x:Name="AL_OpenScanResults" Content="Scan Results" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="3" Grid.Row="1" Margin="0,0,0,4" MinHeight="28"
                                         ToolTip="Open the ScanResults folder"/>
+                                <Button x:Name="AL_SetupAccessChk" Content="Setup AccessChk.exe" Style="{StaticResource PrimaryButton}"
+                                        Grid.Column="0" Grid.ColumnSpan="2" Grid.Row="2" Margin="0,0,4,0" MinHeight="28"
+                                        ToolTip="Required for AaronLocker scanning - locate or browse for accesschk.exe"/>
+                                <Button x:Name="AL_OpenAaronLocker" Content="Open AaronLocker Folder" Style="{StaticResource SecondaryButton}"
+                                        Grid.Column="2" Grid.ColumnSpan="2" Grid.Row="2" Margin="0,0,0,0" MinHeight="28"
+                                        ToolTip="Open the main AaronLocker folder"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -6433,6 +6440,8 @@ $AL_EditHashRules = $window.FindName("AL_EditHashRules")
 $AL_EditKnownAdmins = $window.FindName("AL_EditKnownAdmins")
 $AL_OpenOutputs = $window.FindName("AL_OpenOutputs")
 $AL_OpenScanResults = $window.FindName("AL_OpenScanResults")
+$AL_SetupAccessChk = $window.FindName("AL_SetupAccessChk")
+$AL_OpenAaronLocker = $window.FindName("AL_OpenAaronLocker")
 # AaronLocker parameter controls - Scan Directories
 $AL_ScanWritableWindir = $window.FindName("AL_ScanWritableWindir")
 $AL_ScanWritablePF = $window.FindName("AL_ScanWritablePF")
@@ -17865,6 +17874,135 @@ $AL_OpenScanResults.Add_Click({
     }
     Start-Process explorer.exe -ArgumentList $folderPath
     $AL_OutputConsole.Text = "Opened ScanResults folder in Explorer.`n`nThis folder contains scan output files.`n`nPath: $folderPath"
+})
+}
+
+if ($null -ne $AL_OpenAaronLocker) {
+$AL_OpenAaronLocker.Add_Click({
+    if (Test-Path $script:AaronLockerRoot) {
+        Start-Process explorer.exe -ArgumentList $script:AaronLockerRoot
+        $AL_OutputConsole.Text = "Opened AaronLocker folder in Explorer.`n`nPath: $script:AaronLockerRoot"
+    } else {
+        $AL_OutputConsole.Text = "AaronLocker folder not found: $script:AaronLockerRoot"
+    }
+})
+}
+
+# === SETUP ACCESSCHK.EXE ===
+if ($null -ne $AL_SetupAccessChk) {
+$AL_SetupAccessChk.Add_Click({
+    $targetPath = Join-Path $script:AaronLockerRoot "accesschk.exe"
+
+    # Check if already exists in AaronLocker folder
+    if (Test-Path $targetPath) {
+        $AL_OutputConsole.Text = "AccessChk.exe is already installed.`n`nLocation: $targetPath`n`nYou can run Scan and Create Policies."
+        [System.Windows.MessageBox]::Show(
+            "AccessChk.exe is already installed at:`n$targetPath`n`nYou can run scanning and policy creation.",
+            "AccessChk.exe Found",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Information
+        )
+        return
+    }
+
+    # Check common locations for accesschk.exe
+    $searchPaths = @(
+        "C:\GA-AppLocker\accesschk.exe",
+        "C:\GA-AppLocker\AaronLocker-main\accesschk.exe",
+        "C:\GA-AppLocker\AaronLocker-main\AaronLocker\accesschk.exe",
+        (Join-Path $PSScriptRoot "accesschk.exe"),
+        (Join-Path $PSScriptRoot "..\accesschk.exe"),
+        "$env:USERPROFILE\Downloads\accesschk.exe",
+        "$env:USERPROFILE\Desktop\accesschk.exe",
+        "C:\Tools\accesschk.exe",
+        "C:\Sysinternals\accesschk.exe"
+    )
+
+    $foundPath = $null
+    foreach ($path in $searchPaths) {
+        if (Test-Path $path) {
+            $foundPath = $path
+            break
+        }
+    }
+
+    if ($foundPath) {
+        # Found it - ask to copy
+        $result = [System.Windows.MessageBox]::Show(
+            "Found AccessChk.exe at:`n$foundPath`n`nCopy it to the AaronLocker folder?",
+            "AccessChk.exe Found",
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Question
+        )
+
+        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+            try {
+                Copy-Item -Path $foundPath -Destination $targetPath -Force
+                $AL_OutputConsole.Text = "AccessChk.exe copied successfully.`n`nFrom: $foundPath`nTo: $targetPath`n`nYou can now run Scan and Create Policies."
+                [System.Windows.MessageBox]::Show(
+                    "AccessChk.exe installed successfully!`n`nYou can now run scanning and policy creation.",
+                    "Setup Complete",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Information
+                )
+            } catch {
+                $AL_OutputConsole.Text = "ERROR copying AccessChk.exe:`n$($_.Exception.Message)"
+                [System.Windows.MessageBox]::Show(
+                    "Failed to copy AccessChk.exe.`n`n$($_.Exception.Message)",
+                    "Copy Failed",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Error
+                )
+            }
+        }
+    } else {
+        # Not found - prompt user to browse
+        $AL_OutputConsole.Text = "AccessChk.exe not found in common locations.`n`nPlease browse to select accesschk.exe..."
+
+        $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $openDialog.Filter = "AccessChk (accesschk.exe)|accesschk.exe|Executables (*.exe)|*.exe"
+        $openDialog.Title = "Select AccessChk.exe (Sysinternals)"
+        $openDialog.InitialDirectory = "C:\GA-AppLocker"
+
+        if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $selectedFile = $openDialog.FileName
+
+            # Verify it's accesschk.exe
+            if ((Split-Path $selectedFile -Leaf) -ne "accesschk.exe") {
+                $result = [System.Windows.MessageBox]::Show(
+                    "The selected file is not named 'accesschk.exe'.`n`nFile: $(Split-Path $selectedFile -Leaf)`n`nContinue anyway?",
+                    "Unexpected Filename",
+                    [System.Windows.MessageBoxButton]::YesNo,
+                    [System.Windows.MessageBoxImage]::Warning
+                )
+                if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
+                    $AL_OutputConsole.Text = "Setup cancelled."
+                    return
+                }
+            }
+
+            try {
+                Copy-Item -Path $selectedFile -Destination $targetPath -Force
+                $AL_OutputConsole.Text = "AccessChk.exe copied successfully.`n`nFrom: $selectedFile`nTo: $targetPath`n`nYou can now run Scan and Create Policies."
+                [System.Windows.MessageBox]::Show(
+                    "AccessChk.exe installed successfully!`n`nYou can now run scanning and policy creation.",
+                    "Setup Complete",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Information
+                )
+            } catch {
+                $AL_OutputConsole.Text = "ERROR copying AccessChk.exe:`n$($_.Exception.Message)"
+                [System.Windows.MessageBox]::Show(
+                    "Failed to copy AccessChk.exe.`n`n$($_.Exception.Message)",
+                    "Copy Failed",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Error
+                )
+            }
+        } else {
+            $AL_OutputConsole.Text = "Setup cancelled.`n`nTo use scanning features, place accesschk.exe in:`n$script:AaronLockerRoot`n`nYou can download it from:`nhttps://live.sysinternals.com/accesschk.exe"
+        }
+    }
 })
 }
 
