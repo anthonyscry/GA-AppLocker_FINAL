@@ -5746,7 +5746,7 @@ $xamlString = @"
                         <Border Background="#21262D" CornerRadius="8" Padding="20">
                             <StackPanel>
                                 <TextBlock Text="License" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
-                                <TextBlock Text="Â© 2026 GA-ASI. Internal use only." FontSize="11" Foreground="#6E7681"/>
+                                <TextBlock Text="(c) 2026 GA-ASI. Internal use only." FontSize="11" Foreground="#6E7681"/>
                                 <TextBlock Text="Use in accordance with organizational security policies." FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
@@ -7255,13 +7255,13 @@ function Format-RuleTypeDisplay {
         Format rule type with color indicator for display
     .DESCRIPTION
         Adds visual indicators for different rule types:
-        - Publisher: Blue icon ðŸ¢
-        - Hash: Purple icon ðŸ”
-        - Path: Green icon ðŸ“
+        - Publisher: Blue indicator
+        - Hash: Purple indicator
+        - Path: Green indicator
     .PARAMETER Rule
         The rule object
     .OUTPUTS
-        Formatted type string with emoji indicator
+        Formatted type string with color indicator
     #>
     param(
         [Parameter(Mandatory = $true)]
@@ -10568,7 +10568,16 @@ $ScanLocalArtifactsBtn.Add_Click({
                         foreach ($file in $files) {
                             try {
                                 $versionInfo = $file.VersionInfo
-                                $publisher = if ($versionInfo.CompanyName) { $versionInfo.CompanyName } else { "Unknown" }
+
+                                # Get publisher from digital signature (like remote scanning)
+                                $sig = Get-AuthenticodeSignature $file.FullName -ErrorAction SilentlyContinue
+                                if ($sig.SignerCertificate) {
+                                    $publisher = $sig.SignerCertificate.Subject -replace 'CN=|,.*$',''
+                                } elseif ($versionInfo.CompanyName) {
+                                    $publisher = $versionInfo.CompanyName
+                                } else {
+                                    $publisher = "Unknown"
+                                }
 
                                 # Determine file type
                                 $fileType = switch ($file.Extension.ToLower()) {
@@ -10583,15 +10592,24 @@ $ScanLocalArtifactsBtn.Add_Click({
                                     default { "Unknown" }
                                 }
 
+                                # Calculate hash for unsigned files
+                                $fileHash = ""
+                                if (-not $sig.SignerCertificate) {
+                                    try {
+                                        $fileHash = (Get-FileHash -Path $file.FullName -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
+                                    } catch { }
+                                }
+
                                 $artifact = @{
                                     name = $file.Name
                                     path = $file.FullName
                                     publisher = $publisher
-                                    hash = ""
+                                    hash = $fileHash
                                     version = if ($versionInfo.FileVersion) { $versionInfo.FileVersion } else { "" }
                                     size = $file.Length
                                     modifiedDate = $file.LastWriteTime
                                     fileType = $fileType
+                                    isSigned = [bool]$sig.SignerCertificate
                                 }
                                 $dirArtifacts += $artifact
                                 [void]$allArtifacts.Add($artifact)
