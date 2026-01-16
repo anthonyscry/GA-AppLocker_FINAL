@@ -467,38 +467,6 @@ function New-HashRule {
     return @{ success = $true; id = $guid; type = "Hash"; hash = $hash; fileName = $fileName; action = $Action; sid = $UserOrGroupSid; xml = $xml }
 }
 
-function New-PathRule {
-    param(
-        [string]$FilePath,
-        [string]$Action = "Allow",
-        [string]$UserOrGroupSid = "S-1-1-0"
-    )
-
-    if (-not $FilePath) {
-        return @{ success = $false; error = "File path is required" }
-    }
-
-    $directory = Split-Path -Parent $FilePath -ErrorAction SilentlyContinue
-    if (-not $directory) {
-        return @{ success = $false; error = "Could not determine directory from path" }
-    }
-
-    $guid = "{" + (New-Guid).ToString() + "}"
-    $pathPattern = "$directory\*"
-    $ruleName = Split-Path -Leaf $directory
-    $xml = "<FilePathRule Id=`"$guid`" Name=`"$ruleName`" UserOrGroupSid=`"$UserOrGroupSid`" Action=`"$Action`"><Conditions><FilePathCondition Path=`"$pathPattern`"/></Conditions></FilePathRule>"
-
-    return @{
-        success = $true
-        id = $guid
-        type = "Path"
-        path = $pathPattern
-        action = $Action
-        sid = $UserOrGroupSid
-        xml = $xml
-    }
-}
-
 function New-RulesFromArtifacts {
     param(
         [array]$Artifacts,
@@ -905,15 +873,6 @@ function New-WinRMGpo {
     )
 
     try {
-        # Check for admin elevation first
-        $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-        if (-not $isAdmin) {
-            return @{
-                success = $false
-                error = "This operation requires Administrator (Domain Admin) rights. Please run PowerShell as Administrator."
-            }
-        }
-
         Import-Module GroupPolicy -ErrorAction Stop
         Import-Module ActiveDirectory -ErrorAction SilentlyContinue
 
@@ -3945,7 +3904,11 @@ $xamlString = @"
                                     <TextBlock Text="TEMPLATES" FontSize="10" FontWeight="Bold" Foreground="#8957E5" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
-                                    <Button x:Name="NavTemplates" Content="Template Manager" Style="{StaticResource NavButton}"
+                                    <Button x:Name="NavTemplates" Content="Rule Templates" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavCreateTemplate" Content="Create Template" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavImportTemplate" Content="Import Template" Style="{StaticResource NavButton}"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                 </StackPanel>
                             </Expander>
@@ -3973,10 +3936,10 @@ $xamlString = @"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                     <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource NavButton}"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavReports" Content="Compliance Reports (WIP)" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False"/>
-                                    <Button x:Name="NavSiem" Content="SIEM Integration (WIP)" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False"/>
+                                    <Button x:Name="NavReports" Content="Compliance Reports" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavSiem" Content="SIEM Integration" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                 </StackPanel>
                             </Expander>
 
@@ -3986,8 +3949,8 @@ $xamlString = @"
                                     <TextBlock Text="TESTING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
-                                    <Button x:Name="NavPolicySimulator" Content="Policy Simulator (WIP)" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False"/>
+                                    <Button x:Name="NavPolicySimulator" Content="Policy Simulator" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
@@ -4299,52 +4262,64 @@ $xamlString = @"
 
                 <!-- Artifacts Panel -->
                 <StackPanel x:Name="PanelArtifacts" Visibility="Collapsed">
-                    <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#58A6FF" Margin="0,0,0,15"/>
+                    <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,15"/>
 
-                    <!-- Directory Selection and Scan -->
+                    <!-- Local Scan Header -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Margin="0,0,0,10" Padding="15">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Local Artifact Scanning" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                <TextBlock Text="Scan the local system for executable artifacts" FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Local System" Style="{StaticResource PrimaryButton}" Grid.Column="1" MinHeight="32" MinWidth="140"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Directory Selection -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Margin="0,0,0,10" Padding="15">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <!-- Header with description -->
-                            <StackPanel Grid.Row="0" Margin="0,0,0,10">
-                                <TextBlock Text="Local Artifact Scanning" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3"/>
-                                <TextBlock Text="Select directories to scan for executable artifacts (Ctrl+click for multiple, Shift+click for range)" FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
-                            </StackPanel>
-
-                            <!-- Controls row -->
-                            <Grid Grid.Row="1" Margin="0,0,0,10">
+                            <Grid Grid.Row="0" Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="Max Files:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox x:Name="MaxFilesText" Text="50000" Width="80" Height="32"
+                                <TextBlock Grid.Column="0" Text="Directories:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBlock Grid.Column="1" Text="Ctrl+click to select multiple, Shift+click for range" FontSize="11" Foreground="#6E7681" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2" Text="Max Files:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="MaxFilesText" Text="50000" Width="80" Height="28"
                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                         BorderThickness="1" FontSize="12" Padding="5" Grid.Column="1"/>
-                                <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Selected Directories"
-                                        Style="{StaticResource PrimaryButton}" Grid.Column="3" MinHeight="32" MinWidth="180"/>
+                                         BorderThickness="1" FontSize="12" Padding="5" Grid.Column="3"/>
+                                <Button x:Name="ScanDirectoriesBtn" Content="Scan Directories"
+                                        Style="{StaticResource SecondaryButton}" Grid.Column="5" MinHeight="32"/>
                             </Grid>
 
-                            <ListBox x:Name="DirectoryList" Grid.Row="2" Height="150" Background="#0D1117"
+                            <ListBox x:Name="DirectoryList" Grid.Row="1" Height="150" Background="#0D1117"
                                      Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
                                      SelectionMode="Extended" FontSize="12">
-                                <ListBoxItem Content="C:\ (Entire C Drive - may take longer)"/>
                                 <ListBoxItem Content="C:\Program Files"/>
                                 <ListBoxItem Content="C:\Program Files (x86)"/>
                                 <ListBoxItem Content="C:\ProgramData"/>
                                 <ListBoxItem Content="C:\Windows\System32"/>
                                 <ListBoxItem Content="C:\Windows\SysWOW64"/>
                                 <ListBoxItem Content="C:\Windows\Temp"/>
-                                <ListBoxItem Content="C:\Users"/>
                                 <ListBoxItem Content="C:\Users\*\AppData\Local\Temp"/>
                                 <ListBoxItem Content="C:\Users\*\Downloads"/>
                             </ListBox>
@@ -4353,7 +4328,7 @@ $xamlString = @"
 
                     <!-- Artifacts List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinHeight="150" MaxHeight="350">
+                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinHeight="200">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -4363,10 +4338,8 @@ $xamlString = @"
                             <TextBlock Grid.Row="0" Text="Discovered Artifacts" FontSize="13" FontWeight="Bold"
                                        Foreground="#8B949E" Margin="0,0,0,10"/>
 
-                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                                <ListBox x:Name="ArtifactsList" Background="#0D1117"
-                                         Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="11"/>
-                            </ScrollViewer>
+                            <ListBox x:Name="ArtifactsList" Grid.Row="1" Background="#0D1117"
+                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="11"/>
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -4540,7 +4513,7 @@ $xamlString = @"
                 <!-- Rules Panel -->
                 <StackPanel x:Name="PanelRules" Visibility="Collapsed">
                     <!-- Header -->
-                    <Grid Margin="0,0,0,10">
+                    <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -4553,9 +4526,9 @@ $xamlString = @"
                     </Grid>
 
                     <!-- Section 1: Configuration -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
                         <StackPanel>
-                            <TextBlock Text="Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                            <TextBlock Text="Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -4567,47 +4540,32 @@ $xamlString = @"
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Rule Type -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,0,6"/>
-                                <ComboBox x:Name="RuleTypeCombo" Grid.Row="0" Grid.Column="1" Height="28" Width="200" HorizontalAlignment="Left" Margin="0,0,0,6"
-                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="12">
-                                    <ComboBoxItem Content="Auto (Recommended)" IsSelected="True"/>
-                                    <ComboBoxItem Content="Publisher"/>
-                                    <ComboBoxItem Content="Hash"/>
-                                    <ComboBoxItem Content="Path"/>
-                                </ComboBox>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,0,8"/>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <RadioButton x:Name="RuleTypeAuto" Content="Auto (Recommended)" IsChecked="True"
+                                                 Foreground="#58A6FF" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypePublisher" Content="Publisher"
+                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypeHash" Content="Hash"
+                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypePath" Content="Path"
+                                                 Foreground="#E6EDF3" FontSize="12"/>
+                                </StackPanel>
 
                                 <!-- Action & Group -->
                                 <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
                                     <StackPanel>
                                         <TextBlock Text="Action:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                        <ToggleButton x:Name="ActionToggle" Content="Allow" Width="150" Height="28" FontSize="12" FontWeight="SemiBold"
-                                                      Background="#238636" Foreground="#FFFFFF" BorderBrush="#30363D" BorderThickness="1">
-                                            <ToggleButton.Style>
-                                                <Style TargetType="ToggleButton">
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="ToggleButton">
-                                                                <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
-                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                                </Border>
-                                                                <ControlTemplate.Triggers>
-                                                                    <Trigger Property="IsChecked" Value="True">
-                                                                        <Setter TargetName="border" Property="Background" Value="#DA3633"/>
-                                                                    </Trigger>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="border" Property="Opacity" Value="0.9"/>
-                                                                    </Trigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </ToggleButton.Style>
-                                        </ToggleButton>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
+                                                         Foreground="#3FB950" FontSize="12" Margin="0,0,20,0"/>
+                                            <RadioButton x:Name="RuleActionDeny" Content="Deny"
+                                                         Foreground="#F85149" FontSize="12"/>
+                                        </StackPanel>
                                     </StackPanel>
-                                    <StackPanel Margin="20,0,0,0">
+                                    <StackPanel Margin="30,0,0,0">
                                         <TextBlock Text="Apply to Group:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                        <ComboBox x:Name="RuleGroupCombo" Height="28" MinWidth="220"
+                                        <ComboBox x:Name="RuleGroupCombo" Height="30" MinWidth="220"
                                                   Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="12">
                                             <ComboBoxItem Content="AppLocker-Admins" IsSelected="True"/>
                                             <ComboBoxItem Content="AppLocker-StandardUsers"/>
@@ -4621,12 +4579,12 @@ $xamlString = @"
                     </Border>
 
                     <!-- Section 2: Import Artifacts -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
                         <StackPanel>
-                            <TextBlock Text="Import Artifacts" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                            <TextBlock Text="Import Artifacts" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
                             <!-- Quick Import -->
-                            <Grid Margin="0,0,0,8">
+                            <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
@@ -4662,6 +4620,8 @@ $xamlString = @"
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Button x:Name="ImportArtifactsBtn" Content="Import File" Grid.Column="0"
@@ -4676,14 +4636,16 @@ $xamlString = @"
                                     <ComboBoxItem Content="By Hash"/>
                                     <ComboBoxItem Content="By Path"/>
                                 </ComboBox>
+                                <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="8"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0" MinWidth="100"/>
                             </Grid>
                         </StackPanel>
                     </Border>
 
                     <!-- Section 3: Generate Rules -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
                         <StackPanel>
-                            <TextBlock Text="Generate Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                            <TextBlock Text="Generate Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -4703,29 +4665,26 @@ $xamlString = @"
                     </Border>
 
                     <!-- Section 4: Rules List -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
                         <StackPanel>
                             <!-- Header with count and actions -->
-                            <Grid Margin="0,0,0,8">
+                            <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Generated Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="RulesCountText" Grid.Column="2" Text="0 rules" FontSize="12" Foreground="#3FB950" VerticalAlignment="Center"/>
-                                <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="4"
-                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Padding="10,0" MinWidth="100"/>
-                                <Button x:Name="DeleteRulesBtn" Content="Delete Selected" Grid.Column="6"
+                                <Button x:Name="DeleteRulesBtn" Content="Delete Selected" Grid.Column="5"
                                         Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Background="#F85149" Padding="10,0" MinWidth="110"/>
                             </Grid>
 
                             <!-- Filter and Search -->
-                            <Grid Margin="0,0,0,8">
+                            <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="80"/>
                                     <ColumnDefinition Width="10"/>
@@ -4785,9 +4744,9 @@ $xamlString = @"
                     </Border>
 
                     <!-- Section 5: Output Log -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12">
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16">
                         <StackPanel>
-                            <TextBlock Text="Output Log" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,6"/>
+                            <TextBlock Text="Output Log" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                             <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
                                 <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
                                            FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
@@ -4844,6 +4803,11 @@ $xamlString = @"
                         </Grid>
                     </Border>
 
+                    <!-- Export Button -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Button x:Name="ExportEventsBtn" Content="Export Events to CSV" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" MinWidth="200" Height="34" FontSize="11" Padding="14,0"/>
+                    </Border>
+
                     <!-- Event Filters - Row 1: Filter Type Buttons -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
                         <Grid>
@@ -4870,67 +4834,50 @@ $xamlString = @"
 
                     <!-- Event Filters - Row 2: Date Range and Search -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <StackPanel>
-                            <!-- Date Range Row -->
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="125"/>
-                                    <ColumnDefinition Width="20"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="125"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="35"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="25"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="From:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                <DatePicker x:Name="EventsDateFrom" Grid.Column="2" Height="30" FontSize="11"
-                                           Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                           FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+                            <TextBlock Grid.Column="0" Text="From:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            <DatePicker x:Name="EventsDateFrom" Grid.Column="2" Height="30" FontSize="11"
+                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                       FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                                <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
-                                           Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                           FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
-                            </Grid>
+                            <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
+                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                       FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                            <!-- Search and Actions Row -->
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="180"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="8" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <TextBox x:Name="EventsFilterSearch" Grid.Column="10" Height="30" FontSize="11" Width="160"
+                                     Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                     Padding="8,4" Text="Search events..."/>
 
-                                    <TextBlock Grid.Column="0" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                    <TextBox x:Name="EventsFilterSearch" Grid.Column="2" Height="30" FontSize="11"
-                                             Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                             Padding="8,4" Text="Search events..."/>
+                            <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="13"
+                                    Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
 
-                                    <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="4"
-                                            Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
+                            <TextBlock x:Name="EventsFilterCount" Grid.Column="15" Text=""
+                                      FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="100"/>
 
-                                    <TextBlock x:Name="EventsFilterCount" Grid.Column="6" Text=""
-                                              FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="80"/>
-
-                                    <Button x:Name="ExportEventsBtn" Content="Export Events" Style="{StaticResource SecondaryButton}" Grid.Column="8" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
-
-                                    <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="10" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
-                            </Grid>
-                        </StackPanel>
+                            <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="17" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
+                        </Grid>
                     </Border>
 
                     <!-- Events Output -->
@@ -4949,28 +4896,49 @@ $xamlString = @"
                 <StackPanel x:Name="PanelDeployment" Visibility="Collapsed">
                     <TextBlock Text="Deployment" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
-                    <!-- Import Rules to GPO Section -->
+                    <!-- Deployment Buttons (disabled in workgroup mode) -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="CreateGP0Btn" Content="Create GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
+                        <Button x:Name="DisableGpoBtn" Content="Disable AppLocker GPO" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
+                    </Grid>
+
+                    <!-- Import/Export Rules Buttons -->
+                    <Grid Margin="0,0,0,15">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <Button x:Name="ExportRulesBtn" Content="Export Rules" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                        <Button x:Name="ImportRulesBtn" Content="Import Rules to GPO" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
+                    </Grid>
+
+                    <!-- Import to GPO Section -->
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="15" Margin="0,0,0,15">
                         <StackPanel>
                             <TextBlock Text="Import Rules to GPO" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
-                            <!-- Row 1: Target GPO, Mode, Import Button -->
-                            <Grid Margin="0,0,0,10">
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="250"/>
-                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="120"/>
-                                    <ColumnDefinition Width="15"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Text="Target GPO:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0"/>
-                                <ComboBox x:Name="TargetGpoCombo" Grid.Column="2" Width="250" Height="26" FontSize="11" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                <ComboBox x:Name="TargetGpoCombo" Grid.Column="2" Height="26" FontSize="11" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
                                     <ComboBoxItem Content="GA-AppLocker-DC"/>
                                     <ComboBoxItem Content="GA-AppLocker-Servers"/>
                                     <ComboBoxItem Content="GA-AppLocker-Workstations"/>
@@ -4980,19 +4948,6 @@ $xamlString = @"
                                     <ComboBoxItem Content="Merge (Add)" IsSelected="True" ToolTip="Add new rules, keep existing rules"/>
                                     <ComboBoxItem Content="Overwrite" ToolTip="Replace all existing rules"/>
                                 </ComboBox>
-                                <Button x:Name="ImportRulesBtn" Content="Import" Style="{StaticResource PrimaryButton}" Grid.Column="8" MinWidth="100" Height="26"/>
-                            </Grid>
-
-                            <!-- Row 2: Load Rules and Toggle Audit/Enforce Buttons -->
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-
-                                <Button x:Name="LoadRulesBtn" Content="Load Rules..." Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
-                                <Button x:Name="DeploymentAuditToggleBtn" Content="Toggle Audit/Enforce" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -5007,7 +4962,7 @@ $xamlString = @"
                     </Border>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="150" MaxHeight="300">
+                            CornerRadius="8" Padding="15" MinHeight="200">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock FontFamily="Consolas" FontSize="12" Foreground="#8B949E">
                                 <Run Text="Deployment Workflow:" Foreground="#E6EDF3"/>
@@ -5592,7 +5547,7 @@ $xamlString = @"
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="160"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Remove protection from AppLocker OUs (allows deletion)" FontSize="11" Foreground="#F85149" VerticalAlignment="Center"/>
                                 <Button x:Name="RemoveOUProtectionBtn" Content="Remove OU Protection" Style="{StaticResource SecondaryButton}" Grid.Column="1" MinHeight="26"/>
@@ -5792,400 +5747,132 @@ $xamlString = @"
                         <Border Background="#21262D" CornerRadius="8" Padding="20">
                             <StackPanel>
                                 <TextBlock Text="License" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
-                                <TextBlock Text="(c) 2026 GA-ASI. Internal use only." FontSize="11" Foreground="#6E7681"/>
+                                <TextBlock Text="Â© 2026 GA-ASI. Internal use only." FontSize="11" Foreground="#6E7681"/>
                                 <TextBlock Text="Use in accordance with organizational security policies." FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- Template Manager Panel - Phase 5 (Tabbed Interface) -->
+                <!-- Rule Templates Panel - Phase 5 -->
                 <StackPanel x:Name="PanelTemplates" Visibility="Collapsed">
-                    <TextBlock Text="Template Manager" FontSize="24" FontWeight="Bold" Foreground="#58A6FF" Margin="0,0,0,16"/>
+                    <TextBlock Text="Rule Templates" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
-                    <!-- Tab Control for Templates -->
-                    <TabControl x:Name="TemplateTabControl" Background="Transparent" BorderThickness="0">
-                        <TabControl.Resources>
-                            <Style TargetType="TabItem">
-                                <Setter Property="Template">
-                                    <Setter.Value>
-                                        <ControlTemplate TargetType="TabItem">
-                                            <Border x:Name="TabBorder" Background="#21262D" BorderBrush="#30363D" BorderThickness="1,1,1,0"
-                                                    CornerRadius="6,6,0,0" Padding="16,8" Margin="0,0,4,0">
-                                                <ContentPresenter x:Name="ContentSite" ContentSource="Header" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                                            </Border>
-                                            <ControlTemplate.Triggers>
-                                                <Trigger Property="IsSelected" Value="True">
-                                                    <Setter TargetName="TabBorder" Property="Background" Value="#30363D"/>
-                                                    <Setter TargetName="TabBorder" Property="BorderBrush" Value="#58A6FF"/>
-                                                </Trigger>
-                                                <Trigger Property="IsMouseOver" Value="True">
-                                                    <Setter TargetName="TabBorder" Property="Background" Value="#2D333B"/>
-                                                </Trigger>
-                                            </ControlTemplate.Triggers>
-                                        </ControlTemplate>
-                                    </Setter.Value>
-                                </Setter>
-                                <Setter Property="Foreground" Value="#E6EDF3"/>
-                                <Setter Property="FontSize" Value="13"/>
-                                <Setter Property="FontWeight" Value="SemiBold"/>
-                            </Style>
-                        </TabControl.Resources>
+                    <!-- Toolbar -->
+                    <Border Background="#21262D" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="200"/>
+                                    <ColumnDefinition Width="150"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="TemplateSearch" Grid.Column="0" Background="#0D1117" Foreground="#E6EDF3"
+                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,6" FontSize="12"
+                                         Text="Search templates..."/>
+                                <ComboBox x:Name="TemplateCategoryFilter" Grid.Column="1" Background="#0D1117" Foreground="#E6EDF3"
+                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,4" FontSize="12" Margin="8,0,0,0">
+                                    <ComboBoxItem Content="All Categories" IsSelected="True"/>
+                                    <ComboBoxItem Content="Security Baselines"/>
+                                    <ComboBoxItem Content="Productivity"/>
+                                    <ComboBoxItem Content="Development"/>
+                                    <ComboBoxItem Content="Utilities"/>
+                                    <ComboBoxItem Content="Custom"/>
+                                </ComboBox>
+                            </Grid>
+                            <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
+                                <Button x:Name="ExportTemplateBtn" Content="Export Template" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="RefreshTemplatesBtn" Content="Refresh" Style="{StaticResource SecondaryButton}"/>
+                            </WrapPanel>
+                        </Grid>
+                    </Border>
 
-                        <!-- Browse Templates Tab -->
-                        <TabItem Header="Browse Templates">
-                            <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,1,1" Padding="16">
+                    <!-- Main Content -->
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="300"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Template List -->
+                        <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="12" Margin="0,0,12,0">
+                            <StackPanel>
+                                <TextBlock Text="Available Templates" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                <ListBox x:Name="TemplatesList" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
+                                         Height="450" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <StackPanel Margin="8">
+                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                                <TextBlock Text="{Binding Category}" FontSize="11" Foreground="#8B949E" Margin="0,2,0,0"/>
+                                                <TextBlock Text="{Binding RuleCount}" FontSize="10" Foreground="#6E7681" Margin="0,2,0,0"/>
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Template Preview -->
+                        <Border Grid.Column="1" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                                CornerRadius="6" Padding="20">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
                                 <StackPanel>
-                                    <!-- Toolbar -->
-                                    <Border Background="#21262D" CornerRadius="6" Padding="12" Margin="0,0,0,12">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <Grid Grid.Column="0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="200"/>
-                                                    <ColumnDefinition Width="150"/>
-                                                </Grid.ColumnDefinitions>
-                                                <TextBox x:Name="TemplateSearch" Grid.Column="0" Background="#0D1117" Foreground="#E6EDF3"
-                                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,6" FontSize="12"
-                                                         Text="Search templates..."/>
-                                                <ComboBox x:Name="TemplateCategoryFilter" Grid.Column="1" Background="#0D1117" Foreground="#E6EDF3"
-                                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,4" FontSize="12" Margin="8,0,0,0">
-                                                    <ComboBoxItem Content="All Categories" IsSelected="True"/>
-                                                    <ComboBoxItem Content="Security Baselines"/>
-                                                    <ComboBoxItem Content="Productivity"/>
-                                                    <ComboBoxItem Content="Development"/>
-                                                    <ComboBoxItem Content="Utilities"/>
-                                                    <ComboBoxItem Content="Custom"/>
-                                                </ComboBox>
-                                            </Grid>
-                                            <WrapPanel Grid.Column="1" HorizontalAlignment="Right">
-                                                <Button x:Name="ExportTemplateBtn" Content="Export Template" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
-                                                <Button x:Name="RefreshTemplatesBtn" Content="Refresh" Style="{StaticResource SecondaryButton}"/>
-                                            </WrapPanel>
-                                        </Grid>
+                                    <TextBlock x:Name="TemplateName" Text="Select a template to preview" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                    <TextBlock x:Name="TemplateCategory" Text="" FontSize="12" Foreground="#8957E5" Margin="0,0,0,8"/>
+                                    <TextBlock x:Name="TemplateDescription" Text="" FontSize="12" Foreground="#8B949E" TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+                                    <!-- Rules Summary -->
+                                    <Border Background="#0D1117" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                                        <StackPanel>
+                                            <TextBlock Text="Rules Summary" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                            <TextBlock x:Name="TemplateRulesSummary" Text="No template selected" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                        </StackPanel>
                                     </Border>
 
-                                    <!-- Main Content -->
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="300"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
+                                    <!-- Included Applications -->
+                                    <Border Background="#0D1117" CornerRadius="6" Padding="16" Margin="0,0,0,16">
+                                        <StackPanel>
+                                            <TextBlock Text="Included Applications" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                            <TextBlock x:Name="TemplateApplications" Text="No template selected" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                    </Border>
 
-                                        <!-- Template List -->
-                                        <Border Grid.Column="0" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                                CornerRadius="6" Padding="12" Margin="0,0,12,0">
-                                            <StackPanel>
-                                                <TextBlock Text="Available Templates" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                                <ListBox x:Name="TemplatesList" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                                                         Height="350" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                                    <ListBox.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <StackPanel Margin="8">
-                                                                <TextBlock Text="{Binding Name}" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3"/>
-                                                                <TextBlock Text="{Binding Category}" FontSize="11" Foreground="#8B949E" Margin="0,2,0,0"/>
-                                                                <TextBlock Text="{Binding RuleCount}" FontSize="10" Foreground="#6E7681" Margin="0,2,0,0"/>
-                                                            </StackPanel>
-                                                        </DataTemplate>
-                                                    </ListBox.ItemTemplate>
-                                                </ListBox>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Template Preview -->
-                                        <Border Grid.Column="1" Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
-                                                CornerRadius="6" Padding="20">
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                                <StackPanel>
-                                                    <TextBlock x:Name="TemplateName" Text="Select a template to preview" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                                    <TextBlock x:Name="TemplateCategory" Text="" FontSize="12" Foreground="#8957E5" Margin="0,0,0,8"/>
-                                                    <TextBlock x:Name="TemplateDescription" Text="" FontSize="12" Foreground="#8B949E" TextWrapping="Wrap" Margin="0,0,0,16"/>
-
-                                                    <!-- Rules Summary -->
-                                                    <Border Background="#0D1117" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                                        <StackPanel>
-                                                            <TextBlock Text="Rules Summary" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                                            <TextBlock x:Name="TemplateRulesSummary" Text="No template selected" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <!-- Included Applications -->
-                                                    <Border Background="#0D1117" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                                        <StackPanel>
-                                                            <TextBlock Text="Included Applications" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                                            <TextBlock x:Name="TemplateApplications" Text="No template selected" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
-                                                        </StackPanel>
-                                                    </Border>
-
-                                                    <!-- Action Buttons -->
-                                                    <WrapPanel Margin="0,16,0,0">
-                                                        <Button x:Name="ApplyTemplateBtn" Content="Apply Template" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0" IsEnabled="False"/>
-                                                        <Button x:Name="EditTemplateBtn" Content="Edit Template" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0" IsEnabled="False"/>
-                                                        <Button x:Name="DeleteTemplateBtn" Content="Delete" Style="{StaticResource SecondaryButton}" Foreground="#F85149" IsEnabled="False"/>
-                                                    </WrapPanel>
-                                                </StackPanel>
-                                            </ScrollViewer>
-                                        </Border>
-                                    </Grid>
+                                    <!-- Action Buttons -->
+                                    <WrapPanel Margin="0,16,0,0">
+                                        <Button x:Name="ApplyTemplateBtn" Content="Apply Template" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0" IsEnabled="False"/>
+                                        <Button x:Name="EditTemplateBtn" Content="Edit Template" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0" IsEnabled="False"/>
+                                        <Button x:Name="DeleteTemplateBtn" Content="Delete" Style="{StaticResource SecondaryButton}" Foreground="#F85149" IsEnabled="False"/>
+                                    </WrapPanel>
                                 </StackPanel>
-                            </Border>
-                        </TabItem>
-
-                        <!-- Create Template Tab -->
-                        <TabItem Header="Create Template">
-                            <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,1,1" Padding="16">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <StackPanel MaxWidth="800">
-                                        <TextBlock Text="Create New Template" FontSize="16" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,16"/>
-
-                                        <!-- Template Info -->
-                                        <Border Background="#21262D" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                            <StackPanel>
-                                                <TextBlock Text="Template Information" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-
-                                                <TextBlock Text="Template Name" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="NewTemplateName" Background="#0D1117" Foreground="#E6EDF3"
-                                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,6" FontSize="12" Margin="0,0,0,12"/>
-
-                                                <TextBlock Text="Category" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                                <ComboBox x:Name="NewTemplateCategory" Background="#0D1117" Foreground="#E6EDF3"
-                                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,4" FontSize="12" Margin="0,0,0,12">
-                                                    <ComboBoxItem Content="Security Baselines" IsSelected="True"/>
-                                                    <ComboBoxItem Content="Productivity"/>
-                                                    <ComboBoxItem Content="Development"/>
-                                                    <ComboBoxItem Content="Utilities"/>
-                                                    <ComboBoxItem Content="Custom"/>
-                                                </ComboBox>
-
-                                                <TextBlock Text="Description" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="NewTemplateDescription" Background="#0D1117" Foreground="#E6EDF3"
-                                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,6" FontSize="12"
-                                                         TextWrapping="Wrap" AcceptsReturn="True" Height="80" VerticalScrollBarVisibility="Auto"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Rules Source -->
-                                        <Border Background="#21262D" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                            <StackPanel>
-                                                <TextBlock Text="Rules Source" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                                <TextBlock Text="Select rules to include in this template" FontSize="12" Foreground="#8B949E" Margin="0,0,0,12"/>
-
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                                    <RadioButton x:Name="TemplateSourceCurrent" Content="Use current rules from Rules panel"
-                                                                 Foreground="#E6EDF3" FontSize="12" IsChecked="True" GroupName="TemplateSource"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-                                                    <RadioButton x:Name="TemplateSourceSelected" Content="Use selected artifacts from Artifacts panel"
-                                                                 Foreground="#E6EDF3" FontSize="12" GroupName="TemplateSource"/>
-                                                </StackPanel>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <RadioButton x:Name="TemplateSourceEmpty" Content="Create empty template (add rules later)"
-                                                                 Foreground="#E6EDF3" FontSize="12" GroupName="TemplateSource"/>
-                                                </StackPanel>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Template Options -->
-                                        <Border Background="#21262D" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                            <StackPanel>
-                                                <TextBlock Text="Template Options" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-
-                                                <CheckBox x:Name="TemplateIncludePublisher" Content="Include Publisher rules"
-                                                          Foreground="#E6EDF3" FontSize="12" IsChecked="True" Margin="0,0,0,8"/>
-                                                <CheckBox x:Name="TemplateIncludeHash" Content="Include Hash rules"
-                                                          Foreground="#E6EDF3" FontSize="12" IsChecked="True" Margin="0,0,0,8"/>
-                                                <CheckBox x:Name="TemplateIncludePath" Content="Include Path rules"
-                                                          Foreground="#E6EDF3" FontSize="12" IsChecked="True" Margin="0,0,0,8"/>
-                                                <CheckBox x:Name="TemplateIncludeDeny" Content="Include Deny rules"
-                                                          Foreground="#E6EDF3" FontSize="12" IsChecked="True"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Action Buttons -->
-                                        <WrapPanel>
-                                            <Button x:Name="CreateNewTemplateBtn" Content="Create Template" Style="{StaticResource PrimaryButton}" Margin="0,0,12,0"/>
-                                            <Button x:Name="ClearTemplateFormBtn" Content="Clear Form" Style="{StaticResource SecondaryButton}"/>
-                                        </WrapPanel>
-                                    </StackPanel>
-                                </ScrollViewer>
-                            </Border>
-                        </TabItem>
-
-                        <!-- Import Template Tab -->
-                        <TabItem Header="Import Template">
-                            <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="0,0,1,1" Padding="16">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <StackPanel MaxWidth="800">
-                                        <TextBlock Text="Import Template" FontSize="16" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,16"/>
-
-                                        <!-- Import from File -->
-                                        <Border Background="#21262D" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                            <StackPanel>
-                                                <TextBlock Text="Import from File" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                                <TextBlock Text="Import a template from a JSON or XML file" FontSize="12" Foreground="#8B949E" Margin="0,0,0,12"/>
-
-                                                <Grid Margin="0,0,0,12">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBox x:Name="ImportTemplateFilePath" Grid.Column="0" Background="#0D1117" Foreground="#E6EDF3"
-                                                             BorderBrush="#30363D" BorderThickness="1" Padding="8,6" FontSize="12"
-                                                             Text="Select a file..." IsReadOnly="True"/>
-                                                    <Button x:Name="BrowseTemplateFileBtn" Grid.Column="1" Content="Browse..."
-                                                            Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"/>
-                                                </Grid>
-
-                                                <Button x:Name="ImportTemplateFromFileBtn" Content="Import from File" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Import from AppLocker Policy -->
-                                        <Border Background="#21262D" CornerRadius="6" Padding="16" Margin="0,0,0,16">
-                                            <StackPanel>
-                                                <TextBlock Text="Import from AppLocker Policy XML" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                                <TextBlock Text="Extract rules from an existing AppLocker policy XML file and create a template" FontSize="12" Foreground="#8B949E" Margin="0,0,0,12"/>
-
-                                                <Grid Margin="0,0,0,12">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <TextBox x:Name="ImportPolicyFilePath" Grid.Column="0" Background="#0D1117" Foreground="#E6EDF3"
-                                                             BorderBrush="#30363D" BorderThickness="1" Padding="8,6" FontSize="12"
-                                                             Text="Select an AppLocker policy XML file..." IsReadOnly="True"/>
-                                                    <Button x:Name="BrowsePolicyFileBtn" Grid.Column="1" Content="Browse..."
-                                                            Style="{StaticResource SecondaryButton}" Margin="8,0,0,0"/>
-                                                </Grid>
-
-                                                <TextBlock Text="Template Name for Imported Policy" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                                <TextBox x:Name="ImportedPolicyTemplateName" Background="#0D1117" Foreground="#E6EDF3"
-                                                         BorderBrush="#30363D" BorderThickness="1" Padding="8,6" FontSize="12" Margin="0,0,0,12"/>
-
-                                                <Button x:Name="ImportPolicyAsTemplateBtn" Content="Import Policy as Template" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left"/>
-                                            </StackPanel>
-                                        </Border>
-
-                                        <!-- Recent Imports -->
-                                        <Border Background="#21262D" CornerRadius="6" Padding="16">
-                                            <StackPanel>
-                                                <TextBlock Text="Recent Imports" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                                <ListBox x:Name="RecentImportsList" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                                                         Height="150" ScrollViewer.VerticalScrollBarVisibility="Auto">
-                                                    <ListBox.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <StackPanel Margin="8,4">
-                                                                <TextBlock Text="{Binding Name}" FontSize="12" Foreground="#E6EDF3"/>
-                                                                <TextBlock Text="{Binding ImportDate}" FontSize="10" Foreground="#6E7681"/>
-                                                            </StackPanel>
-                                                        </DataTemplate>
-                                                    </ListBox.ItemTemplate>
-                                                </ListBox>
-                                            </StackPanel>
-                                        </Border>
-                                    </StackPanel>
-                                </ScrollViewer>
-                            </Border>
-                        </TabItem>
-                    </TabControl>
+                            </ScrollViewer>
+                        </Border>
+                    </Grid>
                 </StackPanel>
 
                 <!-- Help Panel -->
                 <ScrollViewer x:Name="PanelHelp" Visibility="Collapsed" VerticalScrollBarVisibility="Auto">
                     <StackPanel>
-                        <TextBlock Text="Help &amp; Documentation" FontSize="24" FontWeight="Bold" Foreground="#58A6FF" Margin="0,0,0,16"/>
-
-                        <!-- Quick Start Guide -->
-                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,16">
-                            <StackPanel>
-                                <TextBlock Text="Quick Start Guide" FontSize="16" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Grid.Column="0" Background="#0D1117" CornerRadius="6" Padding="12" Margin="0,0,8,0">
-                                        <StackPanel>
-                                            <TextBlock Text="1. Setup" FontSize="14" FontWeight="SemiBold" Foreground="#3FB950" Margin="0,0,0,4"/>
-                                            <TextBlock Text="WinRM Setup → AppLocker Setup → Group Management" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Column="1" Background="#0D1117" CornerRadius="6" Padding="12" Margin="0,0,8,0">
-                                        <StackPanel>
-                                            <TextBlock Text="2. Scan" FontSize="14" FontWeight="SemiBold" Foreground="#58A6FF" Margin="0,0,0,4"/>
-                                            <TextBlock Text="AD Discovery → Artifact Collection (scan computers)" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Column="2" Background="#0D1117" CornerRadius="6" Padding="12" Margin="0,0,8,0">
-                                        <StackPanel>
-                                            <TextBlock Text="3. Rules" FontSize="14" FontWeight="SemiBold" Foreground="#D29922" Margin="0,0,0,4"/>
-                                            <TextBlock Text="Rule Generator → Template Manager → Configure rules" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Grid.Column="3" Background="#0D1117" CornerRadius="6" Padding="12">
-                                        <StackPanel>
-                                            <TextBlock Text="4. Deploy" FontSize="14" FontWeight="SemiBold" Foreground="#A371F7" Margin="0,0,0,4"/>
-                                            <TextBlock Text="Deployment → Create GPO → Export Rules → Monitor Events" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                    </Border>
-                                </Grid>
-                            </StackPanel>
+                        <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
+                            <WrapPanel>
+                                <Button x:Name="HelpBtnWorkflow" Content="Workflow" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnWhatsNew" Content="What's New in v1.2.5" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnPolicyGuide" Content="Policy Guide" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnRules" Content="Rule Best Practices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="HelpBtnTroubleshooting" Content="Troubleshooting" Style="{StaticResource SecondaryButton}"/>
+                            </WrapPanel>
                         </Border>
 
-                        <!-- Help Topic Buttons -->
-                        <Border Background="#21262D" CornerRadius="8" Padding="16" Margin="0,0,0,12">
+                        <Border Background="#21262D" CornerRadius="8" Padding="20">
                             <StackPanel>
-                                <TextBlock Text="Documentation Topics" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                <WrapPanel>
-                                    <Button x:Name="HelpBtnWorkflow" Content="Deployment Workflow" Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"/>
-                                    <Button x:Name="HelpBtnWhatsNew" Content="What's New in v1.2.6" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
-                                    <Button x:Name="HelpBtnPolicyGuide" Content="Policy Build Guide" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
-                                    <Button x:Name="HelpBtnRules" Content="Rule Best Practices" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
-                                    <Button x:Name="HelpBtnTroubleshooting" Content="Troubleshooting" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
-                                    <Button x:Name="HelpBtnKeyboardShortcuts" Content="Keyboard Shortcuts" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8"/>
-                                </WrapPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Help Content Area -->
-                        <Border Background="#21262D" CornerRadius="8" Padding="20" MinHeight="400">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" MaxHeight="500">
-                                <StackPanel>
-                                    <TextBlock x:Name="HelpTitle" Text="Help - Deployment Workflow" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
-                                    <TextBlock x:Name="HelpText" TextWrapping="Wrap" FontSize="12" Foreground="#8B949E" FontFamily="Consolas">
-                                        <Run Text="Select a topic above to view help documentation."/>
-                                    </TextBlock>
-                                </StackPanel>
-                            </ScrollViewer>
-                        </Border>
-
-                        <!-- Common Links -->
-                        <Border Background="#21262D" CornerRadius="8" Padding="16" Margin="0,12,0,0">
-                            <StackPanel>
-                                <TextBlock Text="Quick Links" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
-                                <WrapPanel>
-                                    <TextBlock FontSize="12" Margin="0,0,16,0">
-                                        <Run Text="Logs: " Foreground="#8B949E"/>
-                                        <Run Text="C:\GA-AppLocker\Logs\" Foreground="#58A6FF"/>
-                                    </TextBlock>
-                                    <TextBlock FontSize="12" Margin="0,0,16,0">
-                                        <Run Text="Rules: " Foreground="#8B949E"/>
-                                        <Run Text="C:\GA-AppLocker\Rules\" Foreground="#58A6FF"/>
-                                    </TextBlock>
-                                    <TextBlock FontSize="12" Margin="0,0,16,0">
-                                        <Run Text="Events: " Foreground="#8B949E"/>
-                                        <Run Text="C:\GA-AppLocker\Events\" Foreground="#58A6FF"/>
-                                    </TextBlock>
-                                    <TextBlock FontSize="12">
-                                        <Run Text="Templates: " Foreground="#8B949E"/>
-                                        <Run Text="C:\GA-AppLocker\Templates\" Foreground="#58A6FF"/>
-                                    </TextBlock>
-                                </WrapPanel>
+                                <TextBlock x:Name="HelpTitle" Text="Help - Workflow" FontSize="18" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
+                                <TextBlock x:Name="HelpText" TextWrapping="Wrap" FontSize="12" Foreground="#8B949E">
+                                    <Run Text="Select a topic above to view help documentation."/>
+                                </TextBlock>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -6359,50 +6046,6 @@ if ($null -eq $ExportTemplateBtn) { Write-Log "WARNING: Control 'ExportTemplateB
 $RefreshTemplatesBtn = $window.FindName("RefreshTemplatesBtn")
 if ($null -eq $RefreshTemplatesBtn) { Write-Log "WARNING: Control 'RefreshTemplatesBtn' not found in XAML" -Level "WARNING" }
 
-# Template Manager Tab Controls
-$TemplateTabControl = $window.FindName("TemplateTabControl")
-if ($null -eq $TemplateTabControl) { Write-Log "WARNING: Control 'TemplateTabControl' not found in XAML" -Level "WARNING" }
-$NewTemplateName = $window.FindName("NewTemplateName")
-if ($null -eq $NewTemplateName) { Write-Log "WARNING: Control 'NewTemplateName' not found in XAML" -Level "WARNING" }
-$NewTemplateCategory = $window.FindName("NewTemplateCategory")
-if ($null -eq $NewTemplateCategory) { Write-Log "WARNING: Control 'NewTemplateCategory' not found in XAML" -Level "WARNING" }
-$NewTemplateDescription = $window.FindName("NewTemplateDescription")
-if ($null -eq $NewTemplateDescription) { Write-Log "WARNING: Control 'NewTemplateDescription' not found in XAML" -Level "WARNING" }
-$TemplateSourceCurrent = $window.FindName("TemplateSourceCurrent")
-if ($null -eq $TemplateSourceCurrent) { Write-Log "WARNING: Control 'TemplateSourceCurrent' not found in XAML" -Level "WARNING" }
-$TemplateSourceSelected = $window.FindName("TemplateSourceSelected")
-if ($null -eq $TemplateSourceSelected) { Write-Log "WARNING: Control 'TemplateSourceSelected' not found in XAML" -Level "WARNING" }
-$TemplateSourceEmpty = $window.FindName("TemplateSourceEmpty")
-if ($null -eq $TemplateSourceEmpty) { Write-Log "WARNING: Control 'TemplateSourceEmpty' not found in XAML" -Level "WARNING" }
-$TemplateIncludePublisher = $window.FindName("TemplateIncludePublisher")
-if ($null -eq $TemplateIncludePublisher) { Write-Log "WARNING: Control 'TemplateIncludePublisher' not found in XAML" -Level "WARNING" }
-$TemplateIncludeHash = $window.FindName("TemplateIncludeHash")
-if ($null -eq $TemplateIncludeHash) { Write-Log "WARNING: Control 'TemplateIncludeHash' not found in XAML" -Level "WARNING" }
-$TemplateIncludePath = $window.FindName("TemplateIncludePath")
-if ($null -eq $TemplateIncludePath) { Write-Log "WARNING: Control 'TemplateIncludePath' not found in XAML" -Level "WARNING" }
-$TemplateIncludeDeny = $window.FindName("TemplateIncludeDeny")
-if ($null -eq $TemplateIncludeDeny) { Write-Log "WARNING: Control 'TemplateIncludeDeny' not found in XAML" -Level "WARNING" }
-$CreateNewTemplateBtn = $window.FindName("CreateNewTemplateBtn")
-if ($null -eq $CreateNewTemplateBtn) { Write-Log "WARNING: Control 'CreateNewTemplateBtn' not found in XAML" -Level "WARNING" }
-$ClearTemplateFormBtn = $window.FindName("ClearTemplateFormBtn")
-if ($null -eq $ClearTemplateFormBtn) { Write-Log "WARNING: Control 'ClearTemplateFormBtn' not found in XAML" -Level "WARNING" }
-$ImportTemplateFilePath = $window.FindName("ImportTemplateFilePath")
-if ($null -eq $ImportTemplateFilePath) { Write-Log "WARNING: Control 'ImportTemplateFilePath' not found in XAML" -Level "WARNING" }
-$BrowseTemplateFileBtn = $window.FindName("BrowseTemplateFileBtn")
-if ($null -eq $BrowseTemplateFileBtn) { Write-Log "WARNING: Control 'BrowseTemplateFileBtn' not found in XAML" -Level "WARNING" }
-$ImportTemplateFromFileBtn = $window.FindName("ImportTemplateFromFileBtn")
-if ($null -eq $ImportTemplateFromFileBtn) { Write-Log "WARNING: Control 'ImportTemplateFromFileBtn' not found in XAML" -Level "WARNING" }
-$ImportPolicyFilePath = $window.FindName("ImportPolicyFilePath")
-if ($null -eq $ImportPolicyFilePath) { Write-Log "WARNING: Control 'ImportPolicyFilePath' not found in XAML" -Level "WARNING" }
-$BrowsePolicyFileBtn = $window.FindName("BrowsePolicyFileBtn")
-if ($null -eq $BrowsePolicyFileBtn) { Write-Log "WARNING: Control 'BrowsePolicyFileBtn' not found in XAML" -Level "WARNING" }
-$ImportedPolicyTemplateName = $window.FindName("ImportedPolicyTemplateName")
-if ($null -eq $ImportedPolicyTemplateName) { Write-Log "WARNING: Control 'ImportedPolicyTemplateName' not found in XAML" -Level "WARNING" }
-$ImportPolicyAsTemplateBtn = $window.FindName("ImportPolicyAsTemplateBtn")
-if ($null -eq $ImportPolicyAsTemplateBtn) { Write-Log "WARNING: Control 'ImportPolicyAsTemplateBtn' not found in XAML" -Level "WARNING" }
-$RecentImportsList = $window.FindName("RecentImportsList")
-if ($null -eq $RecentImportsList) { Write-Log "WARNING: Control 'RecentImportsList' not found in XAML" -Level "WARNING" }
-
 # Dashboard controls
 $HealthScore = $window.FindName("HealthScore")
 if ($null -eq $HealthScore) { Write-Log "WARNING: Control 'HealthScore' not found in XAML" -Level "WARNING" }
@@ -6476,7 +6119,8 @@ if ($null -eq $LinkGPOsBtn) { Write-Log "WARNING: Control 'LinkGPOsBtn' not foun
 # Other controls
 $MaxFilesText = $window.FindName("MaxFilesText")
 if ($null -eq $MaxFilesText) { Write-Log "WARNING: Control 'MaxFilesText' not found in XAML" -Level "WARNING" }
-# ScanDirectoriesBtn removed - consolidated into ScanLocalArtifactsBtn
+$ScanDirectoriesBtn = $window.FindName("ScanDirectoriesBtn")
+if ($null -eq $ScanDirectoriesBtn) { Write-Log "WARNING: Control 'ScanDirectoriesBtn' not found in XAML" -Level "WARNING" }
 $DirectoryList = $window.FindName("DirectoryList")
 if ($null -eq $DirectoryList) { Write-Log "WARNING: Control 'DirectoryList' not found in XAML" -Level "WARNING" }
 $ArtifactsList = $window.FindName("ArtifactsList")
@@ -6484,10 +6128,18 @@ if ($null -eq $ArtifactsList) { Write-Log "WARNING: Control 'ArtifactsList' not 
 # Artifact Local Scan controls
 $ScanLocalArtifactsBtn = $window.FindName("ScanLocalArtifactsBtn")
 if ($null -eq $ScanLocalArtifactsBtn) { Write-Log "WARNING: Control 'ScanLocalArtifactsBtn' not found in XAML" -Level "WARNING" }
-$RuleTypeCombo = $window.FindName("RuleTypeCombo")
-if ($null -eq $RuleTypeCombo) { Write-Log "WARNING: Control 'RuleTypeCombo' not found in XAML" -Level "WARNING" }
-$ActionToggle = $window.FindName("ActionToggle")
-if ($null -eq $ActionToggle) { Write-Log "WARNING: Control 'ActionToggle' not found in XAML" -Level "WARNING" }
+$RuleTypeAuto = $window.FindName("RuleTypeAuto")
+if ($null -eq $RuleTypeAuto) { Write-Log "WARNING: Control 'RuleTypeAuto' not found in XAML" -Level "WARNING" }
+$RuleTypePublisher = $window.FindName("RuleTypePublisher")
+if ($null -eq $RuleTypePublisher) { Write-Log "WARNING: Control 'RuleTypePublisher' not found in XAML" -Level "WARNING" }
+$RuleTypeHash = $window.FindName("RuleTypeHash")
+if ($null -eq $RuleTypeHash) { Write-Log "WARNING: Control 'RuleTypeHash' not found in XAML" -Level "WARNING" }
+$RuleTypePath = $window.FindName("RuleTypePath")
+if ($null -eq $RuleTypePath) { Write-Log "WARNING: Control 'RuleTypePath' not found in XAML" -Level "WARNING" }
+$RuleActionAllow = $window.FindName("RuleActionAllow")
+if ($null -eq $RuleActionAllow) { Write-Log "WARNING: Control 'RuleActionAllow' not found in XAML" -Level "WARNING" }
+$RuleActionDeny = $window.FindName("RuleActionDeny")
+if ($null -eq $RuleActionDeny) { Write-Log "WARNING: Control 'RuleActionDeny' not found in XAML" -Level "WARNING" }
 $RuleGroupCombo = $window.FindName("RuleGroupCombo")
 if ($null -eq $RuleGroupCombo) { Write-Log "WARNING: Control 'RuleGroupCombo' not found in XAML" -Level "WARNING" }
 $CustomSidPanel = $window.FindName("CustomSidPanel")
@@ -6641,9 +6293,10 @@ $ComplianceClearFilterBtn = $window.FindName("ComplianceClearFilterBtn")
 if ($null -eq $ComplianceClearFilterBtn) { Write-Log "WARNING: Control 'ComplianceClearFilterBtn' not found in XAML" -Level "WARNING" }
 $ComplianceFilterCount = $window.FindName("ComplianceFilterCount")
 if ($null -eq $ComplianceFilterCount) { Write-Log "WARNING: Control 'ComplianceFilterCount' not found in XAML" -Level "WARNING" }
-# Removed buttons (no longer in UI):
-# $CreateGP0Btn = $window.FindName("CreateGP0Btn")
-# $DisableGpoBtn = $window.FindName("DisableGpoBtn")
+$CreateGP0Btn = $window.FindName("CreateGP0Btn")
+if ($null -eq $CreateGP0Btn) { Write-Log "WARNING: Control 'CreateGP0Btn' not found in XAML" -Level "WARNING" }
+$DisableGpoBtn = $window.FindName("DisableGpoBtn")
+if ($null -eq $DisableGpoBtn) { Write-Log "WARNING: Control 'DisableGpoBtn' not found in XAML" -Level "WARNING" }
 $DeploymentStatus = $window.FindName("DeploymentStatus")
 if ($null -eq $DeploymentStatus) { Write-Log "WARNING: Control 'DeploymentStatus' not found in XAML" -Level "WARNING" }
 $GenerateEvidenceBtn = $window.FindName("GenerateEvidenceBtn")
@@ -6736,8 +6389,6 @@ $HelpBtnRules = $window.FindName("HelpBtnRules")
 if ($null -eq $HelpBtnRules) { Write-Log "WARNING: Control 'HelpBtnRules' not found in XAML" -Level "WARNING" }
 $HelpBtnTroubleshooting = $window.FindName("HelpBtnTroubleshooting")
 if ($null -eq $HelpBtnTroubleshooting) { Write-Log "WARNING: Control 'HelpBtnTroubleshooting' not found in XAML" -Level "WARNING" }
-$HelpBtnKeyboardShortcuts = $window.FindName("HelpBtnKeyboardShortcuts")
-if ($null -eq $HelpBtnKeyboardShortcuts) { Write-Log "WARNING: Control 'HelpBtnKeyboardShortcuts' not found in XAML" -Level "WARNING" }
 
 # Gap Analysis controls (Scan buttons removed - use Import only)
 $ImportBaselineBtn = $window.FindName("ImportBaselineBtn")
@@ -6759,41 +6410,15 @@ if ($null -eq $GapVersionCount) { Write-Log "WARNING: Control 'GapVersionCount' 
 $ExportGapAnalysisBtn = $window.FindName("ExportGapAnalysisBtn")
 if ($null -eq $ExportGapAnalysisBtn) { Write-Log "WARNING: Control 'ExportGapAnalysisBtn' not found in XAML" -Level "WARNING" }
 
-# Load/Import Rules controls (Deployment panel)
-$LoadRulesBtn = $window.FindName("LoadRulesBtn")
-if ($null -eq $LoadRulesBtn) { Write-Log "WARNING: Control 'LoadRulesBtn' not found in XAML" -Level "WARNING" }
+# Export/Import Rules controls
+$ExportRulesBtn = $window.FindName("ExportRulesBtn")
+if ($null -eq $ExportRulesBtn) { Write-Log "WARNING: Control 'ExportRulesBtn' not found in XAML" -Level "WARNING" }
 $ImportRulesBtn = $window.FindName("ImportRulesBtn")
 if ($null -eq $ImportRulesBtn) { Write-Log "WARNING: Control 'ImportRulesBtn' not found in XAML" -Level "WARNING" }
-$DeploymentAuditToggleBtn = $window.FindName("DeploymentAuditToggleBtn")
-if ($null -eq $DeploymentAuditToggleBtn) { Write-Log "WARNING: Control 'DeploymentAuditToggleBtn' not found in XAML" -Level "WARNING" }
 $TargetGpoCombo = $window.FindName("TargetGpoCombo")
 if ($null -eq $TargetGpoCombo) { Write-Log "WARNING: Control 'TargetGpoCombo' not found in XAML" -Level "WARNING" }
 $ImportModeCombo = $window.FindName("ImportModeCombo")
 if ($null -eq $ImportModeCombo) { Write-Log "WARNING: Control 'ImportModeCombo' not found in XAML" -Level "WARNING" }
-
-# Additional controls for dashboard and status
-$GaugeScore = $window.FindName("GaugeScore")
-if ($null -eq $GaugeScore) { Write-Log "WARNING: Control 'GaugeScore' not found in XAML" -Level "WARNING" }
-$GaugeLabel = $window.FindName("GaugeLabel")
-if ($null -eq $GaugeLabel) { Write-Log "WARNING: Control 'GaugeLabel' not found in XAML" -Level "WARNING" }
-$LabelWorkstations = $window.FindName("LabelWorkstations")
-if ($null -eq $LabelWorkstations) { Write-Log "WARNING: Control 'LabelWorkstations' not found in XAML" -Level "WARNING" }
-$LabelServers = $window.FindName("LabelServers")
-if ($null -eq $LabelServers) { Write-Log "WARNING: Control 'LabelServers' not found in XAML" -Level "WARNING" }
-$LabelDCs = $window.FindName("LabelDCs")
-if ($null -eq $LabelDCs) { Write-Log "WARNING: Control 'LabelDCs' not found in XAML" -Level "WARNING" }
-$MiniStatusMode = $window.FindName("MiniStatusMode")
-if ($null -eq $MiniStatusMode) { Write-Log "WARNING: Control 'MiniStatusMode' not found in XAML" -Level "WARNING" }
-$MiniStatusPhase = $window.FindName("MiniStatusPhase")
-if ($null -eq $MiniStatusPhase) { Write-Log "WARNING: Control 'MiniStatusPhase' not found in XAML" -Level "WARNING" }
-$MiniStatusConnected = $window.FindName("MiniStatusConnected")
-if ($null -eq $MiniStatusConnected) { Write-Log "WARNING: Control 'MiniStatusConnected' not found in XAML" -Level "WARNING" }
-$HeaderLogo = $window.FindName("HeaderLogo")
-if ($null -eq $HeaderLogo) { Write-Log "WARNING: Control 'HeaderLogo' not found in XAML" -Level "WARNING" }
-$EventMonitorPanel = $window.FindName("EventMonitorPanel")
-if ($null -eq $EventMonitorPanel) { Write-Log "WARNING: Control 'EventMonitorPanel' not found in XAML" -Level "WARNING" }
-$ArtifactPanel = $window.FindName("ArtifactPanel")
-if ($null -eq $ArtifactPanel) { Write-Log "WARNING: Control 'ArtifactPanel' not found in XAML" -Level "WARNING" }
 
 # Global variables
 $script:CollectedArtifacts = @()
@@ -6807,7 +6432,6 @@ $script:GeneratedRules = @()
 $script:DiscoveredComputers = @()
 $script:CollectedEvents = @()
 $script:ComplianceComputers = @()
-$script:LoadedRulesXmlPath = $null  # Path to loaded rules XML file for deployment
 
 # Phase 4: Filter state variables - store original data for filtering
 $script:OriginalRules = @()  # Store unfiltered rules
@@ -7532,10 +7156,6 @@ function Deduplicate-Rules {
     <#
     .SYNOPSIS
         Deduplicate generated rules by selected criteria
-        IMPORTANT: Preserves rules assigned to different AD groups
-        A rule is only considered a duplicate if it has BOTH:
-        1. The same publisher/hash/path (based on criteria selected)
-        2. The same assigned AD group (userOrGroupSid)
     #>
     if (-not $script:GeneratedRules -or $script:GeneratedRules.Count -eq 0) {
         [System.Windows.MessageBox]::Show("No rules to deduplicate.", "Deduplicate", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
@@ -7544,7 +7164,7 @@ function Deduplicate-Rules {
 
     # Show deduplication options
     $result = [System.Windows.MessageBox]::Show(
-        "Deduplicate by which criteria?`n`nIMPORTANT: Rules assigned to different groups will be preserved.`n`nYes = Publisher (Recommended)`nNo = File Hash`nCancel = Path",
+        "Deduplicate by which criteria?`n`nYes = Publisher (Recommended)`nNo = File Hash`nCancel = Path",
         "Deduplicate Rules",
         [System.Windows.MessageBoxButton]::YesNoCancel,
         [System.Windows.MessageBoxImage]::Question
@@ -7560,20 +7180,15 @@ function Deduplicate-Rules {
     $seen = @{}
 
     foreach ($rule in $script:GeneratedRules) {
-        # Get the group SID for this rule
-        $groupSid = if ($rule.userOrGroupSid) { $rule.userOrGroupSid } else { "S-1-1-0" }
-
-        # Build key combining criteria and group to preserve rules for different groups
         $key = switch ($criteria) {
             "Publisher" {
-                if ($rule.Publisher) { "$($rule.Publisher)|$groupSid" }
-                elseif ($rule.Name) { "$($rule.Name)|$groupSid" }
-                else { "$($rule.FilePath)|$groupSid" }
+                if ($rule.Publisher) { $rule.Publisher }
+                elseif ($rule.Name) { $rule.Name }
+                else { $rule.FilePath }
             }
             "Hash" {
-                if ($rule.hash) { "$($rule.hash)|$groupSid" }
-                elseif ($rule.FileHash) { "$($rule.FileHash)|$groupSid" }
-                else { "$($rule.fileName)$($rule.path)|$groupSid" }
+                if ($rule.FileHash) { $rule.FileHash }
+                else { "$($rule.Name)$($rule.FilePath)" }
             }
         }
 
@@ -7593,9 +7208,8 @@ function Deduplicate-Rules {
     Apply-RuleTypeFormatting
 
     $RulesOutput.Text += "Deduplicated by $criteria`: Removed $removed duplicate rules.`n"
-    $RulesOutput.Text += "Note: Rules assigned to different groups were preserved.`n"
 
-    Write-AuditLog -Action "RULES_DEDUPLICATED" -Target $criteria -Result 'SUCCESS' -Details "Removed $removed duplicate rules (rules for different groups preserved)"
+    Write-AuditLog -Action "RULES_DEDUPLICATED" -Target $criteria -Result 'SUCCESS' -Details "Removed $removed duplicate rules"
 }
 
 function Export-SelectedRules {
@@ -7634,13 +7248,13 @@ function Format-RuleTypeDisplay {
         Format rule type with color indicator for display
     .DESCRIPTION
         Adds visual indicators for different rule types:
-        - Publisher: Blue indicator
-        - Hash: Purple indicator
-        - Path: Green indicator
+        - Publisher: Blue icon ðŸ¢
+        - Hash: Purple icon ðŸ”
+        - Path: Green icon ðŸ“
     .PARAMETER Rule
         The rule object
     .OUTPUTS
-        Formatted type string with color indicator
+        Formatted type string with emoji indicator
     #>
     param(
         [Parameter(Mandatory = $true)]
@@ -9139,115 +8753,130 @@ ESCALATION PATH:
         }
         "WhatsNew" {
             return @"
-=============================================================================
-                    WHAT'S NEW IN v1.2.6
-=============================================================================
+=== WHAT'S NEW IN v1.2.5 ===
 
-NEW FEATURES:
+QUALITY-OF-LIFE FEATURES:
 
-[1] Template Manager (Unified Tabbed Interface)
-   - Browse Templates: Search, filter, preview existing templates
-   - Create Template: Build templates from current rules or artifacts
-   - Import Template: Import from JSON files or AppLocker policy XML
-   - Single "Template Manager" button replaces three separate menus
-   - Location: Sidebar -> Template Manager
+[1] Search/Filter (Rule Generator Panel)
+   - Filter artifacts by publisher, path, or filename
+   - Filter generated rules by any property
+   - Real-time filtering as you type
+   - Location: Top of Rule Generator panel
 
-[2] Enhanced Help & Documentation Panel
-   - Visual Quick Start Guide with 4-step workflow
-   - Organized documentation topics with styled buttons
-   - New Keyboard Shortcuts reference
-   - Quick Links section for common file locations
-   - Scrollable content area for long documents
+[2] One-Click Audit Toggle (Deployment Panel)
+   - Instantly switch between Audit and Enforce modes
+   - Updates all rule collections at once
+   - Confirmation dialog before mode change
+   - Location: Deployment panel, "Toggle Audit/Enforce" button
 
-[3] Comprehensive Test Coverage
-   - New Integration Tests (60+ tests)
-   - New E2E Workflow Tests (40+ tests)
-   - New Rule Generator Unit Tests (50+ tests)
-   - Tests cover artifact scanning, rule generation, policy lifecycle
+[3] Rule Preview Panel (Rule Generator Panel)
+   - Preview XML rules before generation
+   - Shows exact XML that will be exported
+   - Helps verify rule structure
+   - Location: Rule Generator panel, "Preview Rules" button
 
-[4] Session Context Logging
-   - Automatic session logging for continuity
-   - Context files track changes across sessions
-   - Changelog maintained in .context/CHANGELOG.md
+[4] Mini Status Bar (Top Navigation Bar)
+   - Real-time domain status (joined/workgroup)
+   - Artifact count indicator
+   - Sync status for data refresh
+   - Location: Top bar, right side
 
-CRITICAL BUG FIXES:
+[5] Bulk Action Confirmation
+   - Confirmation dialogs before destructive operations
+   - Prevents accidental rule clear
+   - Prevents accidental GPO deletion
+   - Shows count of affected items
 
-[1] New-PathRule Function Added
-   - Path rule generation was completely missing
-   - Now properly generates FilePathRule XML
-   - Extracts directory from file path automatically
+[6] Quick Date Presets (Events Panel)
+   - Last Hour: Events from the last 60 minutes
+   - Today: Events from today
+   - Last 7 Days: Events from past week
+   - Last 30 Days: Events from past month
+   - Location: Events panel, quick date buttons
 
-[2] GPO Import Parameter Fixed
-   - Changed -PolicyXml to -PolicyXmlPath
-   - Now saves XML to temp file before import
-   - Fixes "parameter set cannot be resolved" errors
+BUG FIXES:
 
-[3] Convert-RulesToAppLockerXml Implemented
-   - Was placeholder returning empty template
-   - Now properly generates full AppLocker policy XML
-   - Groups rules by collection type (Exe, Script, Msi)
+[1] UTF-16 Encoding Fix
+   - AppLocker XML policies now use proper UTF-16 encoding
+   - Previous UTF-8 encoding caused import failures
+   - All exported policies now compatible with AppLocker
 
-[4] Property Name Mismatches Fixed
-   - publisherName/publisher now handled consistently
-   - FileHash/hash now checked properly for deduplication
-   - Artifact scanning normalizes property names
+[2] Regex Pattern Improvements
+   - Directory safety classification now uses robust regex escaping
+   - Prevents false positives in path matching
+   - More reliable unsafe path detection
 
-[5] Admin Elevation Check Added
-   - New-WinRMGpo now checks for admin rights
-   - Returns clear error message if not elevated
-   - Prevents cryptic Active Directory errors
+[3] System.Web Assembly Loading
+   - Added assembly loading for HTML encoding security
+   - Prevents encoding errors in compliance reports
 
-[6] Null Safety Improvements
-   - 15+ null checks added to Show-Panel function
-   - Update-StatusBar wrapped in try-catch
-   - Prevents runtime errors from missing controls
-
-UI IMPROVEMENTS:
-
-[1] Scrollable Panels
-   - Deployment Workflow box: MaxHeight=300 with scroll
-   - Discovered Artifacts: MaxHeight=350 with scroll
-   - Available Templates: Reduced to 350px height
-
-[2] Button Reorganization
-   - Export Events button moved next to Refresh Events
-   - Template navigation consolidated to single button
-
-[3] WIP Panels Marked
-   - Compliance Reports: Greyed out as WIP
-   - SIEM Integration: Greyed out as WIP
-   - Policy Simulator: Greyed out as WIP
-
-[4] Header Color Consistency
-   - All panel headers now use blue (#58A6FF)
-   - Matches overall dashboard theme
+[4] Emoji Character Removal
+   - Removed emoji characters for PowerShell compatibility
+   - Replaced with ASCII equivalents
+   - Prevents syntax errors in script parsing
 
 ARCHITECTURE IMPROVEMENTS:
 
-[1] Artifact Property Normalization
-   - Handles both lowercase and PascalCase formats
-   - Automatic conversion during artifact loading
-   - Ensures compatibility across all modules
+[1] Standardized Artifact Data Model
+   - Common artifact structure across all modules
+   - Properties: name, path, publisher, hash, version, size, modifiedDate, fileType
+   - Automatic property name mapping between formats
 
-[2] Rule Deduplication Logic
-   - Fixed to check both 'hash' and 'FileHash' properties
-   - Proper deduplication by publisher + SID combination
-   - Prevents duplicate rules in generated output
+[2] Artifact Conversion Functions
+   - Convert-AppLockerArtifact: Maps between naming conventions
+   - Handles Module2 (lowercase), GUI (PascalCase), CSV import formats
+   - Ensures interoperability between modules
 
-PREVIOUS VERSION (v1.2.5) FEATURES:
+[3] Rule Validation Before Export
+   - Test-AppLockerRules: Validates all required properties exist
+   - Pre-export validation catches missing data
+   - Returns success, errors, warnings
 
-- Search/Filter for artifacts and rules
-- One-Click Audit Toggle
-- Rule Preview Panel
-- Mini Status Bar
-- Bulk Action Confirmation
-- Quick Date Presets for events
-- UTF-16 Encoding for XML exports
-- Standardized Artifact Data Model
+[4] Unit Tests for Artifact Interoperability
+   - 22 new tests in GA-AppLocker.Artifact.Tests.ps1
+   - Tests artifact creation, conversion, validation
+   - Tests property name mappings
+   - 20 passing, 2 skipped
+
+DOCUMENTATION UPDATES:
+
+[1] ARTIFACT-DATA-MODEL.md
+   - Complete documentation of artifact data structure
+   - Property name mapping tables
+   - Usage examples and best practices
+
+[2] Updated README.md
+   - v1.2.5 release notes
+   - New features and bug fixes documented
+
+[3] Updated CLAUDE.md
+   - Technical documentation for new functions
+   - GUI feature descriptions
+
+HOW TO USE NEW FEATURES:
+
+Search/Filter:
+   1. Go to Rule Generator panel
+   2. Type in the Search box to filter artifacts or rules
+   3. Results update in real-time
+
+Audit Toggle:
+   1. Go to Deployment panel
+   2. Click "Toggle Audit/Enforce"
+   3. Confirm the mode change
+
+Rule Preview:
+   1. Generate rules in Rule Generator panel
+   2. Click "Preview Rules" button
+   3. Review XML before export
+
+Quick Date Presets:
+   1. Go to Events panel
+   2. Click quick date button (Today, 7 Days, etc.)
+   3. Events automatically filter by selected range
 
 For detailed technical documentation, see:
    - docs/ARTIFACT-DATA-MODEL.md - Artifact and rule data structures
-   - .context/CHANGELOG.md - Development changelog
    - claude.md - Developer reference
    - README.md - Project overview
 "@
@@ -9493,102 +9122,6 @@ Allow who may run trusted code, deny where code can never run,
 and never enforce what you didn't audit.
 "@
         }
-        "KeyboardShortcuts" {
-            return @"
-=============================================================================
-                    KEYBOARD SHORTCUTS & NAVIGATION
-=============================================================================
-
-GENERAL NAVIGATION
----------------------------------------------------------------------------
-
-Panel Navigation:
-- Click sidebar buttons to switch between panels
-- Panels auto-load on navigation (e.g., Dashboard loads stats)
-
-Data Operations:
-- All operations provide visual feedback in status bar
-- Long operations show progress indicators
-- Results appear in data grids with sort/filter support
-
-BUTTON SHORTCUTS (Where Available)
----------------------------------------------------------------------------
-
-Rule Generator:
-- Generate Rules: Creates rules from loaded artifacts
-- Clear Rules: Removes all generated rules (confirms first)
-- Export Rules: Saves to C:\GA-AppLocker\Rules\
-- Preview Rules: Shows XML before export
-
-Deployment:
-- Create GPO: Opens GPO creation dialog
-- Toggle Audit/Enforce: Switches enforcement mode
-- Export/Import: Policy file operations
-
-Events:
-- Scan Local: Collects events from local system
-- Refresh: Reloads event data
-- Export Events: Saves to CSV
-- Quick Date Filters: Last Hour, Today, 7 Days, 30 Days
-
-SEARCH & FILTER
----------------------------------------------------------------------------
-
-Artifact/Rule Grids:
-- Type in search boxes to filter in real-time
-- Filters apply to all visible columns
-- Clear search to show all items
-
-Event Monitor:
-- Use dropdown filters for event types (8002, 8003, 8004)
-- Date filters narrow time range
-- Computer filter for multi-system environments
-
-DATA GRIDS
----------------------------------------------------------------------------
-
-Column Features:
-- Click headers to sort ascending/descending
-- Drag column borders to resize
-- Some grids support multi-select
-
-Selection:
-- Single-click: Select item
-- Ctrl+Click: Add/remove from selection
-- Row shows details in preview pane
-
-DIALOG WINDOWS
----------------------------------------------------------------------------
-
-Confirmation Dialogs:
-- Yes/No: Confirms destructive operations
-- OK: Acknowledges information
-- Cancel: Aborts operation
-
-File Dialogs:
-- Browse: Opens file picker
-- Supports CSV, XML, JSON formats
-- Default paths: C:\GA-AppLocker\
-
-TIPS FOR EFFICIENCY
----------------------------------------------------------------------------
-
-1. Use Quick Start Guide on Help page for workflow order
-2. AD Discovery -> Artifact Collection is typical flow
-3. Generate rules in batches by publisher
-4. Always preview before deploying
-5. Monitor events after any policy change
-6. Use templates for repeatable rule sets
-
-ACCESSIBILITY
----------------------------------------------------------------------------
-
-- All buttons have descriptive text
-- Color coding indicates status (green=good, red=warning)
-- Text scales with system settings
-- Scrollable panels for overflow content
-"@
-        }
     }
 }
 
@@ -9777,56 +9310,21 @@ function Import-SoftwareList {
 function Convert-RulesToAppLockerXml {
     param([array]$Rules)
 
-    # Create XML document with proper structure
-    [xml]$xmlDoc = @"
+    $xml = @"
 <AppLockerPolicy Version="1">
   <RuleCollection Type="Executable" EnforcementMode="AuditOnly" />
   <RuleCollection Type="Script" EnforcementMode="AuditOnly" />
-  <RuleCollection Type="WindowsInstaller" EnforcementMode="AuditOnly" />
+  <RuleCollection Type="WindowsInstallerFile" EnforcementMode="AuditOnly" />
   <RuleCollection Type="Dll" EnforcementMode="AuditOnly" />
   <RuleCollection Type="Appx" EnforcementMode="AuditOnly" />
 </AppLockerPolicy>
 "@
 
-    # Get rule collection nodes
-    $exeNode = $xmlDoc.SelectSingleNode("//RuleCollection[@Type='Executable']")
-    $scriptNode = $xmlDoc.SelectSingleNode("//RuleCollection[@Type='Script']")
-    $msiNode = $xmlDoc.SelectSingleNode("//RuleCollection[@Type='WindowsInstaller']")
-    $dllNode = $xmlDoc.SelectSingleNode("//RuleCollection[@Type='Dll']")
+    # Note: For full rule conversion, would need to parse $script:GeneratedRules
+    # and create proper AppLocker XML structure
+    # This is a placeholder for the export functionality
 
-    # Process each rule and add to appropriate collection
-    foreach ($rule in $Rules) {
-        if (-not $rule -or -not $rule.xml) { continue }
-
-        try {
-            # Create document fragment from rule XML
-            $fragment = $xmlDoc.CreateDocumentFragment()
-            $fragment.InnerXml = $rule.xml
-
-            # Determine which collection to add to based on rule type and file extension
-            $ruleType = if ($rule.type) { $rule.type } else { "Publisher" }
-            $fileName = if ($rule.fileName) { $rule.fileName } elseif ($rule.path) { Split-Path -Leaf $rule.path } else { "" }
-            $ext = if ($fileName) { [System.IO.Path]::GetExtension($fileName).ToLower() } else { ".exe" }
-
-            # Add to appropriate collection based on file type
-            switch ($ext) {
-                ".ps1" { [void]$scriptNode.AppendChild($fragment) }
-                ".bat" { [void]$scriptNode.AppendChild($fragment) }
-                ".cmd" { [void]$scriptNode.AppendChild($fragment) }
-                ".vbs" { [void]$scriptNode.AppendChild($fragment) }
-                ".js"  { [void]$scriptNode.AppendChild($fragment) }
-                ".msi" { [void]$msiNode.AppendChild($fragment) }
-                ".msp" { [void]$msiNode.AppendChild($fragment) }
-                ".dll" { [void]$dllNode.AppendChild($fragment) }
-                default { [void]$exeNode.AppendChild($fragment) }
-            }
-        }
-        catch {
-            Write-Log "Error adding rule to XML: $($_.Exception.Message)" -Level "WARN"
-        }
-    }
-
-    return $xmlDoc.OuterXml
+    return $xml
 }
 
 <#
@@ -9960,31 +9458,31 @@ function Show-Panel {
     }
 
     switch ($PanelName) {
-        "Dashboard" { if ($null -ne $PanelDashboard) { $PanelDashboard.Visibility = [System.Windows.Visibility]::Visible } }
-        "Discovery" { if ($null -ne $PanelDiscovery) { $PanelDiscovery.Visibility = [System.Windows.Visibility]::Visible } }
-        "Artifacts" { if ($null -ne $PanelArtifacts) { $PanelArtifacts.Visibility = [System.Windows.Visibility]::Visible } }
+        "Dashboard" { $PanelDashboard.Visibility = [System.Windows.Visibility]::Visible }
+        "Discovery" { $PanelDiscovery.Visibility = [System.Windows.Visibility]::Visible }
+        "Artifacts" { $PanelArtifacts.Visibility = [System.Windows.Visibility]::Visible }
         "Rules" {
             if ($null -ne $PanelRules) {
-                $PanelRules.Visibility = [System.Windows.Visibility]::Visible
+            $PanelRules.Visibility = [System.Windows.Visibility]::Visible
             }
             Update-Badges
         }
-        "Deployment" { if ($null -ne $PanelDeployment) { $PanelDeployment.Visibility = [System.Windows.Visibility]::Visible } }
-        "Events" { if ($null -ne $PanelEvents) { $PanelEvents.Visibility = [System.Windows.Visibility]::Visible } }
-        "Compliance" { if ($null -ne $PanelCompliance) { $PanelCompliance.Visibility = [System.Windows.Visibility]::Visible } }
-        "Reports" { if ($null -ne $PanelReports) { $PanelReports.Visibility = [System.Windows.Visibility]::Visible } }
-        "WinRM" { if ($null -ne $PanelWinRM) { $PanelWinRM.Visibility = [System.Windows.Visibility]::Visible } }
-        "GroupMgmt" { if ($null -ne $PanelGroupMgmt) { $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Visible } }
-        "AppLockerSetup" { if ($null -ne $PanelAppLockerSetup) { $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible } }
-        "GapAnalysis" { if ($null -ne $PanelGapAnalysis) { $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Visible } }
+        "Deployment" { $PanelDeployment.Visibility = [System.Windows.Visibility]::Visible }
+        "Events" { $PanelEvents.Visibility = [System.Windows.Visibility]::Visible }
+        "Compliance" { $PanelCompliance.Visibility = [System.Windows.Visibility]::Visible }
+        "Reports" { $PanelReports.Visibility = [System.Windows.Visibility]::Visible }
+        "WinRM" { $PanelWinRM.Visibility = [System.Windows.Visibility]::Visible }
+        "GroupMgmt" { $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Visible }
+        "AppLockerSetup" { $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible }
+        "GapAnalysis" { $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Visible }
         "Templates" {
             if ($null -ne $PanelTemplates) {
-                $PanelTemplates.Visibility = [System.Windows.Visibility]::Visible
+            $PanelTemplates.Visibility = [System.Windows.Visibility]::Visible
             }
             Load-TemplatesList
         }
-        "Help" { if ($null -ne $PanelHelp) { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible } }
-        "About" { if ($null -ne $PanelAbout) { $PanelAbout.Visibility = [System.Windows.Visibility]::Visible } }
+        "Help" { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible }
+        "About" { $PanelAbout.Visibility = [System.Windows.Visibility]::Visible }
     }
 }
 
@@ -10120,251 +9618,6 @@ $NavImportTemplate.Add_Click({
 })
 }
 
-# Template Manager Tab Event Handlers
-if ($null -ne $CreateNewTemplateBtn) {
-$CreateNewTemplateBtn.Add_Click({
-    Write-Log "Create New Template button clicked"
-    try {
-        # Validate template name
-        if ([string]::IsNullOrWhiteSpace($NewTemplateName.Text)) {
-            [System.Windows.MessageBox]::Show("Please enter a template name.", "Validation Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-            return
-        }
-
-        # Get category
-        $category = if ($NewTemplateCategory.SelectedItem) { $NewTemplateCategory.SelectedItem.Content } else { "Custom" }
-
-        # Determine rules source
-        $rules = @()
-        if ($TemplateSourceCurrent.IsChecked) {
-            # Use current rules from the Rules panel
-            if ($null -ne $script:Rules -and $script:Rules.Count -gt 0) {
-                $rules = $script:Rules
-            }
-        } elseif ($TemplateSourceSelected.IsChecked) {
-            # Use selected artifacts to generate rules
-            if ($null -ne $script:SelectedArtifacts -and $script:SelectedArtifacts.Count -gt 0) {
-                $ruleResult = New-RulesFromArtifacts -Artifacts $script:SelectedArtifacts -RuleType "Automated" -Action "Allow" -UserOrGroupSid "S-1-1-0"
-                if ($ruleResult.success) {
-                    $rules = $ruleResult.rules
-                }
-            }
-        }
-        # TemplateSourceEmpty - keep $rules empty
-
-        # Filter rules based on options
-        if ($rules.Count -gt 0) {
-            $filteredRules = @()
-            foreach ($rule in $rules) {
-                $include = $false
-                if ($TemplateIncludePublisher.IsChecked -and $rule.type -eq "Publisher") { $include = $true }
-                if ($TemplateIncludeHash.IsChecked -and $rule.type -eq "Hash") { $include = $true }
-                if ($TemplateIncludePath.IsChecked -and $rule.type -eq "Path") { $include = $true }
-                if (-not $TemplateIncludeDeny.IsChecked -and $rule.action -eq "Deny") { $include = $false }
-                if ($include) { $filteredRules += $rule }
-            }
-            $rules = $filteredRules
-        }
-
-        # Create template object
-        $template = @{
-            Name = $NewTemplateName.Text.Trim()
-            Category = $category
-            Description = $NewTemplateDescription.Text
-            RuleCount = "$($rules.Count) rules"
-            Rules = $rules
-            CreatedDate = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-        }
-
-        # Add to templates list
-        if ($null -eq $script:Templates) { $script:Templates = @() }
-        $script:Templates += $template
-
-        # Refresh templates list
-        if ($null -ne $TemplatesList) {
-            $TemplatesList.ItemsSource = $null
-            $TemplatesList.ItemsSource = $script:Templates
-        }
-
-        [System.Windows.MessageBox]::Show("Template '$($template.Name)' created successfully with $($rules.Count) rules.", "Template Created", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        Write-Log "Created template: $($template.Name) with $($rules.Count) rules"
-
-        # Switch to Browse tab to show the new template
-        if ($null -ne $TemplateTabControl) { $TemplateTabControl.SelectedIndex = 0 }
-    } catch {
-        Write-Log "Error creating template: $($_.Exception.Message)" -Level "ERROR"
-        [System.Windows.MessageBox]::Show("Error creating template: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-    }
-})
-}
-
-if ($null -ne $ClearTemplateFormBtn) {
-$ClearTemplateFormBtn.Add_Click({
-    Write-Log "Clear Template Form button clicked"
-    if ($null -ne $NewTemplateName) { $NewTemplateName.Text = "" }
-    if ($null -ne $NewTemplateDescription) { $NewTemplateDescription.Text = "" }
-    if ($null -ne $NewTemplateCategory) { $NewTemplateCategory.SelectedIndex = 0 }
-    if ($null -ne $TemplateSourceCurrent) { $TemplateSourceCurrent.IsChecked = $true }
-    if ($null -ne $TemplateIncludePublisher) { $TemplateIncludePublisher.IsChecked = $true }
-    if ($null -ne $TemplateIncludeHash) { $TemplateIncludeHash.IsChecked = $true }
-    if ($null -ne $TemplateIncludePath) { $TemplateIncludePath.IsChecked = $true }
-    if ($null -ne $TemplateIncludeDeny) { $TemplateIncludeDeny.IsChecked = $true }
-})
-}
-
-if ($null -ne $BrowseTemplateFileBtn) {
-$BrowseTemplateFileBtn.Add_Click({
-    Write-Log "Browse Template File button clicked"
-    $dialog = New-Object Microsoft.Win32.OpenFileDialog
-    $dialog.Filter = "Template Files (*.json;*.xml)|*.json;*.xml|JSON Files (*.json)|*.json|XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
-    $dialog.Title = "Select Template File"
-    if ($dialog.ShowDialog()) {
-        if ($null -ne $ImportTemplateFilePath) { $ImportTemplateFilePath.Text = $dialog.FileName }
-    }
-})
-}
-
-if ($null -ne $ImportTemplateFromFileBtn) {
-$ImportTemplateFromFileBtn.Add_Click({
-    Write-Log "Import Template From File button clicked"
-    try {
-        $filePath = $ImportTemplateFilePath.Text
-        if ([string]::IsNullOrWhiteSpace($filePath) -or $filePath -eq "Select a file...") {
-            [System.Windows.MessageBox]::Show("Please select a template file first.", "No File Selected", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-            return
-        }
-
-        if (-not (Test-Path $filePath)) {
-            [System.Windows.MessageBox]::Show("File not found: $filePath", "File Not Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-            return
-        }
-
-        # Import based on file extension
-        $ext = [System.IO.Path]::GetExtension($filePath).ToLower()
-        $template = $null
-
-        if ($ext -eq ".json") {
-            $content = Get-Content $filePath -Raw | ConvertFrom-Json
-            $template = @{
-                Name = if ($content.Name) { $content.Name } else { [System.IO.Path]::GetFileNameWithoutExtension($filePath) }
-                Category = if ($content.Category) { $content.Category } else { "Custom" }
-                Description = if ($content.Description) { $content.Description } else { "" }
-                Rules = if ($content.Rules) { $content.Rules } else { @() }
-                RuleCount = "$(@($content.Rules).Count) rules"
-                ImportedDate = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-            }
-        } else {
-            [System.Windows.MessageBox]::Show("Unsupported file format. Please use JSON format.", "Unsupported Format", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-            return
-        }
-
-        if ($null -ne $template) {
-            if ($null -eq $script:Templates) { $script:Templates = @() }
-            $script:Templates += $template
-
-            if ($null -ne $TemplatesList) {
-                $TemplatesList.ItemsSource = $null
-                $TemplatesList.ItemsSource = $script:Templates
-            }
-
-            [System.Windows.MessageBox]::Show("Template '$($template.Name)' imported successfully.", "Import Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-            Write-Log "Imported template: $($template.Name)"
-
-            if ($null -ne $TemplateTabControl) { $TemplateTabControl.SelectedIndex = 0 }
-        }
-    } catch {
-        Write-Log "Error importing template: $($_.Exception.Message)" -Level "ERROR"
-        [System.Windows.MessageBox]::Show("Error importing template: $($_.Exception.Message)", "Import Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-    }
-})
-}
-
-if ($null -ne $BrowsePolicyFileBtn) {
-$BrowsePolicyFileBtn.Add_Click({
-    Write-Log "Browse Policy File button clicked"
-    $dialog = New-Object Microsoft.Win32.OpenFileDialog
-    $dialog.Filter = "AppLocker Policy Files (*.xml)|*.xml|All Files (*.*)|*.*"
-    $dialog.Title = "Select AppLocker Policy XML File"
-    if ($dialog.ShowDialog()) {
-        if ($null -ne $ImportPolicyFilePath) { $ImportPolicyFilePath.Text = $dialog.FileName }
-    }
-})
-}
-
-if ($null -ne $ImportPolicyAsTemplateBtn) {
-$ImportPolicyAsTemplateBtn.Add_Click({
-    Write-Log "Import Policy As Template button clicked"
-    try {
-        $filePath = $ImportPolicyFilePath.Text
-        if ([string]::IsNullOrWhiteSpace($filePath) -or $filePath -eq "Select an AppLocker policy XML file...") {
-            [System.Windows.MessageBox]::Show("Please select an AppLocker policy XML file first.", "No File Selected", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-            return
-        }
-
-        if (-not (Test-Path $filePath)) {
-            [System.Windows.MessageBox]::Show("File not found: $filePath", "File Not Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-            return
-        }
-
-        $templateName = $ImportedPolicyTemplateName.Text
-        if ([string]::IsNullOrWhiteSpace($templateName)) {
-            $templateName = [System.IO.Path]::GetFileNameWithoutExtension($filePath)
-        }
-
-        # Parse AppLocker policy XML
-        [xml]$policyXml = Get-Content $filePath
-        $rules = @()
-
-        # Extract rules from each RuleCollection
-        foreach ($ruleCollection in $policyXml.AppLockerPolicy.RuleCollection) {
-            foreach ($rule in $ruleCollection.ChildNodes) {
-                if ($rule.Name -and $rule.Name -ne "#comment") {
-                    $ruleObj = @{
-                        id = $rule.Id
-                        name = $rule.Name
-                        action = $rule.Action
-                        sid = $rule.UserOrGroupSid
-                        type = switch -Wildcard ($rule.LocalName) {
-                            "*Publisher*" { "Publisher" }
-                            "*Hash*" { "Hash" }
-                            "*Path*" { "Path" }
-                            default { "Unknown" }
-                        }
-                        xml = $rule.OuterXml
-                    }
-                    $rules += $ruleObj
-                }
-            }
-        }
-
-        $template = @{
-            Name = $templateName
-            Category = "Imported Policy"
-            Description = "Imported from: $([System.IO.Path]::GetFileName($filePath))"
-            Rules = $rules
-            RuleCount = "$($rules.Count) rules"
-            ImportedDate = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
-        }
-
-        if ($null -eq $script:Templates) { $script:Templates = @() }
-        $script:Templates += $template
-
-        if ($null -ne $TemplatesList) {
-            $TemplatesList.ItemsSource = $null
-            $TemplatesList.ItemsSource = $script:Templates
-        }
-
-        [System.Windows.MessageBox]::Show("Policy imported as template '$templateName' with $($rules.Count) rules.", "Import Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        Write-Log "Imported policy as template: $templateName with $($rules.Count) rules"
-
-        if ($null -ne $TemplateTabControl) { $TemplateTabControl.SelectedIndex = 0 }
-    } catch {
-        Write-Log "Error importing policy: $($_.Exception.Message)" -Level "ERROR"
-        [System.Windows.MessageBox]::Show("Error importing policy: $($_.Exception.Message)", "Import Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-    }
-})
-}
-
 # Phase 4: Workspace Save/Load Event Handlers
 if ($null -ne $NavSaveWorkspace) {
 $NavSaveWorkspace.Add_Click({
@@ -10406,12 +9659,12 @@ function Refresh-Data {
     [System.Windows.Forms.Application]::DoEvents()
 
     # Get time filter
-    $timeFilter = if ($DashboardTimeFilter.SelectedItem) { $DashboardTimeFilter.SelectedItem.Content } else { "Last 7 Days" }
+    $timeFilter = $DashboardTimeFilter.SelectedItem.Content
     $daysBack = if ($timeFilter -eq "Last 7 Days") { 7 } else { 30 }
     $cutoffDate = (Get-Date).AddDays(-$daysBack)
 
     # Get system filter
-    $systemFilter = if ($DashboardSystemFilter.SelectedItem) { $DashboardSystemFilter.SelectedItem.Content } else { "All Systems" }
+    $systemFilter = $DashboardSystemFilter.SelectedItem.Content
 
     # Get policy health from local system
     $summary = Get-DashboardSummary
@@ -10444,7 +9697,7 @@ function Refresh-Data {
         }
 
         # Update system filter dropdown
-        $currentSelection = if ($DashboardSystemFilter.SelectedItem) { $DashboardSystemFilter.SelectedItem.Content } else { "All Systems" }
+        $currentSelection = $DashboardSystemFilter.SelectedItem.Content
         $DashboardSystemFilter.Items.Clear()
         $allItem = New-Object System.Windows.Controls.ComboBoxItem
         $allItem.Content = "All Systems"
@@ -11207,11 +10460,9 @@ $LinkGPOsBtn.Add_Click({
 })
 }
 
-# Artifacts events - Scan Local Artifacts button - scans localhost directories
-if ($null -ne $ScanLocalArtifactsBtn) {
-$ScanLocalArtifactsBtn.Add_Click({
-    Write-Log "Starting local artifact scan (localhost directories)"
-
+# Artifacts events
+if ($null -ne $ScanDirectoriesBtn) {
+$ScanDirectoriesBtn.Add_Click({
     # Get selected directories
     $selectedItems = $DirectoryList.SelectedItems
     if ($selectedItems.Count -eq 0) {
@@ -11219,34 +10470,25 @@ $ScanLocalArtifactsBtn.Add_Click({
         return
     }
 
-    # Parse directory selections - handle the "C:\ (Entire C Drive)" option
-    $directories = $selectedItems | ForEach-Object {
-        $content = $_.Content.ToString()
-        if ($content -match "^C:\\\s*\(") {
-            "C:\"  # Extract just C:\ from the full label
-        } else {
-            $content
-        }
-    }
+    $directories = $selectedItems | ForEach-Object { $_.Content.ToString() }
     $maxFiles = [int]$MaxFilesText.Text
 
-    Write-Log "Starting local scan of $($directories.Count) directories with max files: $maxFiles"
+    Write-Log "Starting scan of $($directories.Count) directories with max files: $maxFiles"
     $ArtifactsList.Items.Clear()
     $RulesOutput.Text = "Starting scan...`n`nDirectories:`n$($directories -join "`n")`n`nThis runs in the background - UI will remain responsive."
-    $ScanDirectoriesBtn.IsEnabled = $false
-    if ($null -ne $ScanLocalArtifactsBtn) { $ScanLocalArtifactsBtn.IsEnabled = $false }
+    $ScanLocalBtn.IsEnabled = $false
 
     # Create a background Runspace for async scanning
     $syncHash = [hashtable]::Synchronized(@{})
     $syncHash.ArtifactsList = $ArtifactsList
     $syncHash.RulesOutput = $RulesOutput
     $syncHash.ScanDirectoriesBtn = $ScanDirectoriesBtn
-    $syncHash.ScanLocalArtifactsBtn = $ScanLocalArtifactsBtn
     $syncHash.Window = $window
     $syncHash.CollectedArtifacts = [System.Collections.ArrayList]::new()
     $syncHash.Directories = $directories
     $syncHash.MaxFiles = $maxFiles
     $syncHash.ArtifactCountBadge = $ArtifactCountBadge
+    $syncHash.EventCountBadge = $EventCountBadge
 
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = "STA"
@@ -11258,24 +10500,74 @@ $ScanLocalArtifactsBtn.Add_Click({
     $powerShell.AddScript({
         param($syncHash)
 
+        # Import required modules
+        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
+            Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
+        } else {
+            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+            if (Test-Path $script:ModulePath) {
+                Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
+            } else {
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("ERROR: Module path not found for Module2-RemoteScan")
+                })
+                return
+            }
+        }
+        Import-Module "C:\GA-AppLocker_FINAL\src\GA-AppLocker.psm1" -ErrorAction Stop
+
         $directories = $syncHash.Directories
         $maxFiles = $syncHash.MaxFiles
         $allArtifacts = [System.Collections.ArrayList]::new()
-        $extensions = @(".exe", ".msi", ".bat", ".cmd", ".ps1", ".dll", ".vbs", ".js")
-        $totalFilesScanned = 0
+
+        # Update UI - starting
+        $syncHash.Window.Dispatcher.Invoke([action]{
+            $syncHash.ArtifactsList.Items.Clear()
+            $syncHash.ArtifactsList.Items.Add("=== ARTIFACT COLLECTION ===")
+            $syncHash.ArtifactsList.Items.Add("")
+            $syncHash.ArtifactsList.Items.Add("Collecting from $($directories.Count) directories:")
+            foreach ($dir in $directories) {
+                $syncHash.ArtifactsList.Items.Add("  - $dir")
+            }
+            $syncHash.ArtifactsList.Items.Add("")
+            $syncHash.ArtifactsList.Items.Add("=== WHAT'S COLLECTED ===")
+            $syncHash.ArtifactsList.Items.Add("  * File name, full path, size")
+            $syncHash.ArtifactsList.Items.Add("  * Publisher/Signer (if signed)")
+            $syncHash.ArtifactsList.Items.Add("  * SHA256 hash (for unsigned files)")
+            $syncHash.ArtifactsList.Items.Add("  * File version and modified date")
+            $syncHash.ArtifactsList.Items.Add("  * File type (EXE, DLL, MSI, Script)")
+            $syncHash.ArtifactsList.Items.Add("")
+            $syncHash.ArtifactsList.Items.Add("[*] Scanning... (UI remains responsive)")
+        })
 
         try {
             # Scan each directory
             foreach ($dir in $directories) {
-                # Handle wildcard paths like C:\Users\*\Downloads
-                $actualPaths = @()
-                if ($dir -match '\*') {
-                    $parentPath = Split-Path $dir -Parent
-                    $childPattern = Split-Path $dir -Leaf
-                    if (Test-Path $parentPath) {
-                        $actualPaths = Get-ChildItem -Path $parentPath -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-                            Join-Path $_.FullName $childPattern
-                        } | Where-Object { Test-Path $_ }
+                if (-not (Test-Path $dir)) {
+                    $syncHash.Window.Dispatcher.Invoke([action]{
+                        $syncHash.ArtifactsList.Items.Add("[!] Directory not found: $dir")
+                    })
+                    continue
+                }
+
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("[*] Scanning: $dir...")
+                })
+
+                # Get executable artifacts from directory
+                $artifacts = Get-ExecutableArtifacts -Path $dir -MaxFiles $maxFiles -Recurse
+
+                foreach ($art in $artifacts) {
+                    # Normalize to standard artifact format
+                    $normalized = @{
+                        name = if ($art.FileName) { $art.FileName } else { (Split-Path $art.Path -Leaf) }
+                        path = $art.Path
+                        publisher = if ($art.Publisher) { $art.Publisher } else { "Unknown" }
+                        hash = if ($art.Hash) { $art.Hash } else { "" }
+                        version = if ($art.Version) { $art.Version } else { "" }
+                        size = if ($art.Size) { $art.Size } else { 0 }
+                        modifiedDate = if ($art.ModifiedDate) { $art.ModifiedDate } else { (Get-Date) }
+                        fileType = if ($art.FileType) { $art.FileType } else { "Unknown" }
                     }
                     $null = $allArtifacts.Add($normalized)
                     $null = $syncHash.CollectedArtifacts.Add($normalized)
@@ -11307,7 +10599,6 @@ $ScanLocalArtifactsBtn.Add_Click({
 
                 $syncHash.RulesOutput.Text = "Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`n`nGo to Rule Generator to create rules from these artifacts."
                 $syncHash.ScanDirectoriesBtn.IsEnabled = $true
-                if ($null -ne $syncHash.ScanLocalArtifactsBtn) { $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true }
             })
 
             # Export artifacts to CSV automatically
@@ -11360,7 +10651,6 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("ERROR: $errorMsg")
                 $syncHash.RulesOutput.Text = "Scan failed: $errorMsg"
                 $syncHash.ScanDirectoriesBtn.IsEnabled = $true
-                if ($null -ne $syncHash.ScanLocalArtifactsBtn) { $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true }
             })
             Write-Log "Scan failed: $errorMsg" -Level "ERROR"
         }
@@ -11385,24 +10675,21 @@ $ScanLocalArtifactsBtn.Add_Click({
         return
     }
 
-                foreach ($actualDir in $actualPaths) {
-                    if (-not (Test-Path $actualDir)) {
-                        $syncHash.Window.Dispatcher.Invoke([action]{
-                            $syncHash.ArtifactsList.Items.Add("[!] Directory not found: $actualDir")
-                        })
-                        continue
-                    }
+    $directories = $selectedItems | ForEach-Object { $_.Content.ToString() }
+    $maxFiles = [int]$MaxFilesText.Text
 
     Write-Log "Starting local scan of $($directories.Count) directories with max files: $maxFiles"
     $ArtifactsList.Items.Clear()
     $RulesOutput.Text = "Starting local scan...`n`nDirectories:`n$($directories -join "`n")`n`nThis runs in the background - UI will remain responsive."
     $ScanLocalArtifactsBtn.IsEnabled = $false
+    $ScanDirectoriesBtn.IsEnabled = $false
 
     # Create a background Runspace for async scanning
     $syncHash = [hashtable]::Synchronized(@{})
     $syncHash.ArtifactsList = $ArtifactsList
     $syncHash.RulesOutput = $RulesOutput
     $syncHash.ScanLocalArtifactsBtn = $ScanLocalArtifactsBtn
+    $syncHash.ScanDirectoriesBtn = $ScanDirectoriesBtn
     $syncHash.Window = $window
     $syncHash.CollectedArtifacts = [System.Collections.ArrayList]::new()
     $syncHash.Directories = $directories
@@ -11410,69 +10697,57 @@ $ScanLocalArtifactsBtn.Add_Click({
     $syncHash.ArtifactCountBadge = $ArtifactCountBadge
     $syncHash.EventCountBadge = $EventCountBadge
 
-                        foreach ($file in $files) {
-                            try {
-                                $versionInfo = $file.VersionInfo
+    $runspace = [runspacefactory]::CreateRunspace()
+    $runspace.ApartmentState = "STA"
+    $runspace.ThreadOptions = "ReuseThread"
+    $runspace.Open()
 
-                                # Get publisher from digital signature (like remote scanning)
-                                $sig = Get-AuthenticodeSignature $file.FullName -ErrorAction SilentlyContinue
-                                if ($sig.SignerCertificate) {
-                                    $publisher = $sig.SignerCertificate.Subject -replace 'CN=|,.*$',''
-                                } elseif ($versionInfo.CompanyName) {
-                                    $publisher = $versionInfo.CompanyName
-                                } else {
-                                    $publisher = "Unknown"
-                                }
+    $powerShell = [PowerShell]::Create()
+    $powerShell.Runspace = $runspace
+    $powerShell.AddScript({
+        param($syncHash)
 
-                                # Determine file type
-                                $fileType = switch ($file.Extension.ToLower()) {
-                                    ".exe" { "EXE" }
-                                    ".dll" { "DLL" }
-                                    ".msi" { "MSI" }
-                                    ".ps1" { "Script" }
-                                    ".bat" { "Script" }
-                                    ".cmd" { "Script" }
-                                    ".vbs" { "Script" }
-                                    ".js"  { "Script" }
-                                    default { "Unknown" }
-                                }
+        # Import required modules
+        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
+            Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
+        } else {
+            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+            if (Test-Path $script:ModulePath) {
+                Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
+            } else {
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("ERROR: Module path not found for Module2-RemoteScan")
+                })
+                return
+            }
+        }
 
-                                # Calculate hash for unsigned files
-                                $fileHash = ""
-                                if (-not $sig.SignerCertificate) {
-                                    try {
-                                        $fileHash = (Get-FileHash -Path $file.FullName -Algorithm SHA256 -ErrorAction SilentlyContinue).Hash
-                                    } catch { }
-                                }
+        $directories = $syncHash.Directories
+        $maxFiles = $syncHash.MaxFiles
+        $allArtifacts = [System.Collections.ArrayList]::new()
 
-                                $artifact = @{
-                                    name = $file.Name
-                                    path = $file.FullName
-                                    publisher = $publisher
-                                    hash = $fileHash
-                                    version = if ($versionInfo.FileVersion) { $versionInfo.FileVersion } else { "" }
-                                    size = $file.Length
-                                    modifiedDate = $file.LastWriteTime
-                                    fileType = $fileType
-                                    isSigned = [bool]$sig.SignerCertificate
-                                }
-                                $dirArtifacts += $artifact
-                                [void]$allArtifacts.Add($artifact)
-                                [void]$syncHash.CollectedArtifacts.Add($artifact)
-                                $totalFilesScanned++
+        # Update UI - starting
+        $syncHash.Window.Dispatcher.Invoke([action]{
+            $syncHash.ArtifactsList.Items.Clear()
+            $syncHash.ArtifactsList.Items.Add("=== LOCAL ARTIFACT SCAN ===")
+            $syncHash.ArtifactsList.Items.Add("")
+            $syncHash.ArtifactsList.Items.Add("Collecting from $($directories.Count) directories:")
+            foreach ($dir in $directories) {
+                $syncHash.ArtifactsList.Items.Add("  - $dir")
+            }
+            $syncHash.ArtifactsList.Items.Add("")
+            $syncHash.ArtifactsList.Items.Add("[*] Scanning localhost... (UI remains responsive)")
+        })
 
-                                if ($totalFilesScanned -ge $maxFiles) { break }
-                            } catch { continue }
-                        }
-                    } catch {
-                        $syncHash.Window.Dispatcher.Invoke([action]{
-                            $syncHash.ArtifactsList.Items.Add("    [!] Error scanning: $($_.Exception.Message)")
-                        })
-                    }
-
+        try {
+            # Scan each directory
+            foreach ($dir in $directories) {
+                if (-not (Test-Path $dir)) {
                     $syncHash.Window.Dispatcher.Invoke([action]{
-                        $syncHash.ArtifactsList.Items.Add("    Found: $($dirArtifacts.Count) files")
+                        $syncHash.ArtifactsList.Items.Add("[!] Directory not found: $dir")
                     })
+                    continue
+                }
 
                 $syncHash.Window.Dispatcher.Invoke([action]{
                     $syncHash.ArtifactsList.Items.Add("[*] Scanning: $dir...")
@@ -11482,20 +10757,23 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $artifacts = Get-ExecutableArtifacts -Path $dir -MaxFiles $maxFiles -Recurse
 
                 foreach ($art in $artifacts) {
-                    # Normalize to standard artifact format (handle both lowercase and uppercase property names)
+                    # Normalize to standard artifact format
                     $normalized = @{
-                        name = if ($art.name) { $art.name } elseif ($art.FileName) { $art.FileName } else { (Split-Path $art.path -Leaf) }
-                        path = if ($art.path) { $art.path } elseif ($art.Path) { $art.Path } else { "" }
-                        publisher = if ($art.publisher) { $art.publisher } elseif ($art.Publisher) { $art.Publisher } else { "Unknown" }
-                        hash = if ($art.hash) { $art.hash } elseif ($art.Hash) { $art.Hash } else { "" }
-                        version = if ($art.version) { $art.version } elseif ($art.Version) { $art.Version } else { "" }
-                        size = if ($art.size) { $art.size } elseif ($art.Size) { $art.Size } else { 0 }
-                        modifiedDate = if ($art.modifiedDate) { $art.modifiedDate } elseif ($art.ModifiedDate) { $art.ModifiedDate } else { (Get-Date) }
-                        fileType = if ($art.peType) { $art.peType } elseif ($art.fileType) { $art.fileType } elseif ($art.FileType) { $art.FileType } else { "EXE" }
-                        isSigned = if ($null -ne $art.isSigned) { $art.isSigned } else { $false }
+                        name = if ($art.FileName) { $art.FileName } else { (Split-Path $art.Path -Leaf) }
+                        path = $art.Path
+                        publisher = if ($art.Publisher) { $art.Publisher } else { "Unknown" }
+                        hash = if ($art.Hash) { $art.Hash } else { "" }
+                        version = if ($art.Version) { $art.Version } else { "" }
+                        size = if ($art.Size) { $art.Size } else { 0 }
+                        modifiedDate = if ($art.ModifiedDate) { $art.ModifiedDate } else { (Get-Date) }
+                        fileType = if ($art.FileType) { $art.FileType } else { "EXE" }
                     }
+                    [void]$allArtifacts.Add($normalized)
                 }
-                if ($totalFilesScanned -ge $maxFiles) { break }
+
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("    Found: $($artifacts.Count) files")
+                })
             }
 
             # Update UI - complete
@@ -11504,72 +10782,70 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("=== SCAN COMPLETE ===")
                 $syncHash.ArtifactsList.Items.Add("Total artifacts: $($allArtifacts.Count)")
 
-                if ($allArtifacts.Count -gt 0) {
-                    # Top publishers
-                    $byPublisher = $allArtifacts | Group-Object -Property publisher | Sort-Object Count -Descending | Select-Object -First 10
-                    $syncHash.ArtifactsList.Items.Add("")
-                    $syncHash.ArtifactsList.Items.Add("=== TOP PUBLISHERS ===")
-                    foreach ($pub in $byPublisher) {
-                        $syncHash.ArtifactsList.Items.Add("  $($pub.Name): $($pub.Count)")
-                    }
+                # Top publishers
+                $byPublisher = $allArtifacts | Group-Object -Property publisher | Sort-Object Count -Descending | Select-Object -First 10
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.ArtifactsList.Items.Add("=== TOP PUBLISHERS ===")
+                foreach ($pub in $byPublisher) {
+                    $syncHash.ArtifactsList.Items.Add("  $($pub.Name): $($pub.Count)")
+                }
 
-                    # By file type
-                    $byType = $allArtifacts | Group-Object -Property fileType | Sort-Object Count -Descending
-                    $syncHash.ArtifactsList.Items.Add("")
-                    $syncHash.ArtifactsList.Items.Add("=== FILE TYPES ===")
-                    foreach ($type in $byType) {
-                        $syncHash.ArtifactsList.Items.Add("  $($type.Name): $($type.Count)")
-                    }
+                # By file type
+                $byType = $allArtifacts | Group-Object -Property fileType | Sort-Object Count -Descending
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.ArtifactsList.Items.Add("=== FILE TYPES ===")
+                foreach ($type in $byType) {
+                    $syncHash.ArtifactsList.Items.Add("  $($type.Name): $($type.Count)")
                 }
 
                 $syncHash.RulesOutput.Text = "Local scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`n`nGo to Rule Generator to create rules from these artifacts."
                 $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
+                $syncHash.ScanDirectoriesBtn.IsEnabled = $true
             })
 
-            # Export artifacts to CSV automatically if any found
-            if ($allArtifacts.Count -gt 0) {
-                $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-                $csvPath = "C:\GA-AppLocker\Scans\LocalScan_$timestamp.csv"
+            # Export artifacts to CSV automatically
+            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+            $csvPath = "C:\GA-AppLocker\Scans\LocalScan_$timestamp.csv"
 
-                $syncHash.Window.Dispatcher.Invoke([action]{
-                    $syncHash.ArtifactsList.Items.Add("")
-                    $syncHash.ArtifactsList.Items.Add("Saving to: $csvPath...")
-                })
+            $syncHash.Window.Dispatcher.Invoke([action]{
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.ArtifactsList.Items.Add("Saving to: $csvPath...")
+            })
 
-                # Ensure Scans folder exists
-                $scansFolder = "C:\GA-AppLocker\Scans"
-                if (-not (Test-Path $scansFolder)) {
-                    New-Item -ItemType Directory -Path $scansFolder -Force | Out-Null
-                }
-
-                # Convert artifacts to CSV format and save
-                $csvData = $allArtifacts | ForEach-Object {
-                    [PSCustomObject]@{
-                        Name = $_.name
-                        Path = $_.path
-                        Publisher = $_.publisher
-                        Hash = $_.hash
-                        Version = $_.version
-                        Size = $_.size
-                        ModifiedDate = $_.modifiedDate
-                        FileType = $_.fileType
-                    }
-                }
-
-                $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-
-                $syncHash.Window.Dispatcher.Invoke([action]{
-                    $syncHash.ArtifactsList.Items.Add("[OK] Saved: $csvPath")
-                    $syncHash.ArtifactsList.Items.Add("")
-                    $syncHash.RulesOutput.Text += "`n`nArtifacts exported to: $csvPath"
-
-                    # Update badge in Rule Generator
-                    if ($null -ne $syncHash.ArtifactCountBadge) {
-                        $syncHash.ArtifactCountBadge.Text = "$($allArtifacts.Count)"
-                    }
-                })
+            # Ensure Scans folder exists
+            $scansFolder = "C:\GA-AppLocker\Scans"
+            if (-not (Test-Path $scansFolder)) {
+                New-Item -ItemType Directory -Path $scansFolder -Force | Out-Null
             }
 
+            # Convert artifacts to CSV format and save
+            $csvData = $allArtifacts | ForEach-Object {
+                [PSCustomObject]@{
+                    Name = $_.name
+                    Path = $_.path
+                    Publisher = $_.publisher
+                    Hash = $_.hash
+                    Version = $_.version
+                    Size = $_.size
+                    ModifiedDate = $_.modifiedDate
+                    FileType = $_.fileType
+                }
+            }
+
+            $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+
+            $syncHash.Window.Dispatcher.Invoke([action]{
+                $syncHash.ArtifactsList.Items.Add("[OK] Saved: $csvPath")
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.RulesOutput.Text += "`n`nArtifacts exported to: $csvPath"
+
+                # Update badges in Rule Generator
+                $syncHash.ArtifactCountBadge.Text = "$($allArtifacts.Count)"
+                $syncHash.ArtifactCountBadge.Foreground = "#3FB950"
+                $syncHash.ArtifactCountBadge.Background = "#1F6FEB"
+            })
+
+            Write-Log "Local scan complete: $($allArtifacts.Count) artifacts collected, saved to: $csvPath"
         } catch {
             $errorMsg = $_.Exception.Message
             $syncHash.Window.Dispatcher.Invoke([action]{
@@ -11577,9 +10853,11 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("ERROR: $errorMsg")
                 $syncHash.RulesOutput.Text = "Local scan failed: $errorMsg"
                 $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
+                $syncHash.ScanDirectoriesBtn.IsEnabled = $true
             })
+            Write-Log "Local scan failed: $errorMsg" -Level "ERROR"
         }
-    }).AddArgument($syncHash) | Out-Null
+    }).AddParameter($syncHash) | Out-Null
 
     $handle = $powerShell.BeginInvoke()
 
@@ -12123,13 +11401,13 @@ $DuplicateRulesBtn.Add_Click({
     foreach ($item in $selectedItems) {
         $rule = $item.Rule
 
-        # Create a deep copy of the rule (use consistent property names)
+        # Create a deep copy of the rule
         $newRule = [PSCustomObject]@{
             id = "{" + (New-Guid).ToString() + "}"
             type = $rule.type
             action = $rule.action
             userOrGroupSid = $targetSid
-            publisher = if ($rule.publisher) { $rule.publisher } elseif ($rule.publisherName) { $rule.publisherName } else { $null }
+            publisherName = if ($rule.publisherName) { $rule.publisherName } else { $null }
             fileName = if ($rule.fileName) { $rule.fileName } else { $null }
             path = if ($rule.path) { $rule.path } else { $null }
             hash = if ($rule.hash) { $rule.hash } else { $null }
@@ -12975,13 +12253,14 @@ function Show-GroupSelectionDialog {
     $groupCombo.VerticalAlignment = "Top"
     $groupCombo.Height = 30
 
-    # Add group options (matching Initialize-AppLockerGroups.ps1)
+    # Add group options
     $groups = @(
-        "AppLocker-Admin",
-        "AppLocker-Installers",
+        "AppLocker-Admins",
+        "AppLocker-PowerUsers",
         "AppLocker-StandardUsers",
-        "AppLocker-Dev",
-        "AppLocker-Audit",
+        "AppLocker-RestrictedUsers",
+        "AppLocker-Installers",
+        "AppLocker-Developers",
         "Everyone"
     )
 
@@ -12995,12 +12274,8 @@ function Show-GroupSelectionDialog {
     $groupCombo.Margin = 0
     $groupCombo.VerticalAlignment = "Top"
     [System.Windows.Controls.Grid]::SetRow($groupCombo, 1)
-    $rowDef1 = New-Object System.Windows.Controls.RowDefinition
-    $rowDef1.Height = [System.Windows.GridLength]::new(10)
-    $grid.RowDefinitions.Add($rowDef1)
-    $rowDef2 = New-Object System.Windows.Controls.RowDefinition
-    $rowDef2.Height = [System.Windows.GridLength]::new(35)
-    $grid.RowDefinitions.Add($rowDef2)
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Property Height = [System.Windows.GridLength]::new(10)))
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Property Height = [System.Windows.GridLength]::new(35)))
     [void]$grid.Children.Add($groupCombo)
 
     # Buttons
@@ -13010,9 +12285,7 @@ function Show-GroupSelectionDialog {
     $buttonPanel.Margin = 0
     $buttonPanel.VerticalAlignment = "Top"
     [System.Windows.Controls.Grid]::SetRow($buttonPanel, 2)
-    $rowDef3 = New-Object System.Windows.Controls.RowDefinition
-    $rowDef3.Height = [System.Windows.GridLength]::new(40)
-    $grid.RowDefinitions.Add($rowDef3)
+    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Property Height = [System.Windows.GridLength]::new(40)))
     [void]$grid.Children.Add($buttonPanel)
 
     $okButton = New-Object System.Windows.Controls.Button
@@ -13266,13 +12539,13 @@ function Invoke-BulkDuplicateToGroup {
             try {
                 $rule = $item.Rule
 
-                # Create a deep copy of the rule (use consistent property names)
+                # Create a deep copy of the rule
                 $newRule = [PSCustomObject]@{
                     id = "{" + (New-Guid).ToString() + "}"
                     type = $rule.type
                     action = $rule.action
                     userOrGroupSid = $targetSid
-                    publisher = if ($rule.publisher) { $rule.publisher } elseif ($rule.publisherName) { $rule.publisherName } else { $null }
+                    publisherName = if ($rule.publisherName) { $rule.publisherName } else { $null }
                     fileName = if ($rule.fileName) { $rule.fileName } else { $null }
                     path = if ($rule.path) { $rule.path } else { $null }
                     hash = if ($rule.hash) { $rule.hash } else { $null }
@@ -13404,7 +12677,7 @@ $DefaultDenyRulesBtn.Add_Click({
     Write-Log "Adding default deny rules for bypass locations"
 
     $sid = Get-SelectedSid
-    $groupName = if ($RuleGroupCombo.SelectedItem) { $RuleGroupCombo.SelectedItem.Content } else { "Everyone" }
+    $groupName = $RuleGroupCombo.SelectedItem.Content
 
     $RulesOutput.Text = "=== GENERATING DEFAULT DENY RULES ===`n`n"
     $RulesOutput.Text += "These rules block execution from common bypass locations.`n"
@@ -13592,9 +12865,9 @@ function Filter-RulesDataGrid {
         $ruleSid = if ($rule.userOrGroupSid) { $rule.userOrGroupSid } else { "S-1-1-0" }
         $groupName = Resolve-SidToGroupName -Sid $ruleSid
 
-        # Build name based on type (check both property name formats for compatibility)
+        # Build name based on type
         $name = switch ($ruleType) {
-            "Publisher" { if ($rule.publisher) { $rule.publisher } elseif ($rule.publisherName) { $rule.publisherName } else { "Unknown Publisher" } }
+            "Publisher" { if ($rule.publisherName) { $rule.publisherName } else { "Unknown Publisher" } }
             "Hash" { if ($rule.fileName) { $rule.fileName } else { if ($rule.hash) { $rule.hash.Substring(0, 16) + "..." } else { "Unknown" } } }
             "Path" { if ($rule.path) { $rule.path } else { "Unknown Path" } }
             default { "Unknown" }
@@ -13884,16 +13157,6 @@ function Get-SelectedSid {
     }
 }
 
-# ActionToggle button - toggle between Allow and Deny
-if ($null -ne $ActionToggle) {
-$ActionToggle.Add_Checked({
-    $ActionToggle.Content = "Deny"
-})
-$ActionToggle.Add_Unchecked({
-    $ActionToggle.Content = "Allow"
-})
-}
-
 if ($null -ne $GenerateRulesBtn) {
 $GenerateRulesBtn.Add_Click({
     if ($script:CollectedArtifacts.Count -eq 0) {
@@ -13901,16 +13164,14 @@ $GenerateRulesBtn.Add_Click({
         return
     }
 
-    # Determine rule type selection from ComboBox
-    $selectedTypeItem = if ($RuleTypeCombo.SelectedItem) { $RuleTypeCombo.SelectedItem.Content } else { "Auto (Recommended)" }
-    $ruleType = if ($selectedTypeItem -like "*Auto*") { "Automated" }
-                elseif ($selectedTypeItem -eq "Publisher") { "Publisher" }
-                elseif ($selectedTypeItem -eq "Hash") { "Hash" }
+    # Determine rule type selection
+    $ruleType = if ($RuleTypeAuto.IsChecked) { "Automated" }
+                elseif ($RuleTypePublisher.IsChecked) { "Publisher" }
+                elseif ($RuleTypeHash.IsChecked) { "Hash" }
                 else { "Path" }
 
-    # Determine action from ToggleButton (unchecked = Allow, checked = Deny)
-    $action = if ($ActionToggle.IsChecked) { "Deny" } else { "Allow" }
-    $selectedGroup = if ($RuleGroupCombo.SelectedItem) { $RuleGroupCombo.SelectedItem.Content } else { "Everyone" }
+    $action = if ($RuleActionAllow.IsChecked) { "Allow" } else { "Deny" }
+    $selectedGroup = $RuleGroupCombo.SelectedItem.Content
 
     # QoL: Bulk Action Confirmation
     $confirmMsg = "[!] You are about to:`n`n"
@@ -14839,85 +14100,6 @@ $DisableGpoBtn.Add_Click({
 })
 }
 
-# Deployment Audit Toggle Button (Deployment panel)
-if ($null -ne $DeploymentAuditToggleBtn) {
-$DeploymentAuditToggleBtn.Add_Click({
-    Write-Log "Deployment audit toggle clicked"
-
-    # Check if rules are loaded
-    if (-not $script:LoadedRulesXmlPath -or -not (Test-Path $script:LoadedRulesXmlPath)) {
-        [System.Windows.MessageBox]::Show("No rules loaded. Please load rules first using the 'Load Rules...' button.", "No Rules", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-        return
-    }
-
-    try {
-        # Read the loaded XML
-        [xml]$xmlDoc = Get-Content -Path $script:LoadedRulesXmlPath -Encoding Unicode -ErrorAction Stop
-
-        # Detect current mode
-        $currentMode = "Unknown"
-        $auditCount = 0
-        $enforceCount = 0
-
-        foreach ($ruleCollection in $xmlDoc.AppLockerPolicy.RuleCollection) {
-            $enforcementMode = $ruleCollection.EnforcementMode
-            if ($enforcementMode -eq "AuditOnly") {
-                $auditCount++
-            } elseif ($enforcementMode -eq "Enabled") {
-                $enforceCount++
-            }
-        }
-
-        if ($auditCount -gt 0 -and $enforceCount -eq 0) {
-            $currentMode = "Audit"
-            $newMode = "Enforce"
-        } elseif ($enforceCount -gt 0 -and $auditCount -eq 0) {
-            $currentMode = "Enforce"
-            $newMode = "Audit"
-        } else {
-            $currentMode = "Mixed"
-            $newMode = "Audit"
-        }
-
-        # Confirm mode change
-        $confirmMsg = "Current mode: $currentMode`n`nThis will change all rule collections to $newMode mode.`n`nContinue?"
-        $result = [System.Windows.MessageBox]::Show($confirmMsg, "Confirm Mode Change", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
-
-        if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
-            Write-Log "Audit toggle cancelled by user"
-            return
-        }
-
-        # Toggle mode
-        $targetMode = if ($newMode -eq "Audit") { "AuditOnly" } else { "Enabled" }
-
-        foreach ($ruleCollection in $xmlDoc.AppLockerPolicy.RuleCollection) {
-            $ruleCollection.EnforcementMode = $targetMode
-        }
-
-        # Save the modified XML
-        $xws = [System.Xml.XmlWriterSettings]::new()
-        $xws.Encoding = [System.Text.Encoding]::Unicode
-        $xws.Indent = $true
-        $xw = [System.Xml.XmlWriter]::Create($script:LoadedRulesXmlPath, $xws)
-        $xmlDoc.Save($xw)
-        $xw.Close()
-
-        [System.Windows.MessageBox]::Show("Rules mode changed to: $newMode`n`nFile: $([System.IO.Path]::GetFileName($script:LoadedRulesXmlPath))`n`nYou can now import these rules to a GPO.", "Mode Changed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        Write-Log "Rules mode changed to $newMode: $script:LoadedRulesXmlPath"
-
-        # Update deployment status
-        if ($null -ne $DeploymentStatus) {
-            $DeploymentStatus.Text = "Mode changed to $newMode for: $([System.IO.Path]::GetFileName($script:LoadedRulesXmlPath))`nReady to import to GPO."
-        }
-
-    } catch {
-        [System.Windows.MessageBox]::Show("Failed to toggle audit mode:`n`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-        Write-Log "Failed to toggle audit mode: $($_.Exception.Message)" -Level "ERROR"
-    }
-})
-}
-
 # WinRM events
 if ($null -ne $CreateWinRMGpoBtn) {
 $CreateWinRMGpoBtn.Add_Click({
@@ -15557,13 +14739,6 @@ $HelpBtnTroubleshooting.Add_Click({
 })
 }
 
-if ($null -ne $HelpBtnKeyboardShortcuts) {
-$HelpBtnKeyboardShortcuts.Add_Click({
-    $HelpTitle.Text = "Help - Keyboard Shortcuts"
-    $HelpText.Text = Get-HelpContent "KeyboardShortcuts"
-})
-}
-
 # Gap Analysis events
 if ($null -ne $ImportBaselineBtn) {
 $ImportBaselineBtn.Add_Click({
@@ -15675,52 +14850,65 @@ $ExportGapAnalysisBtn.Add_Click({
 })
 }
 
-# Load Rules event (for Deployment panel)
-if ($null -ne $LoadRulesBtn) {
-$LoadRulesBtn.Add_Click({
-    Write-Log "Load rules button clicked"
+# Export/Import Rules events
+if ($null -ne $ExportRulesBtn) {
+$ExportRulesBtn.Add_Click({
+    Write-Log "Export rules button clicked"
 
-    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
-    $openDialog.Title = "Load AppLocker Rules"
-    $openDialog.InitialDirectory = "C:\GA-AppLocker\Rules"
-    $openDialog.Multiselect = $false
+    if ($script:GeneratedRules.Count -eq 0) {
+        [System.Windows.MessageBox]::Show("No generated rules to export. Please generate rules first using the Rule Generator tab.", "No Rules", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+        return
+    }
 
-    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        try {
-            Write-Log "Loading rules from: $($openDialog.FileName)"
+    # Validate rules before export
+    $validation = Test-AppLockerRules -Rules $script:GeneratedRules
 
-            # Read and validate XML
-            [xml]$xmlDoc = Get-Content -Path $openDialog.FileName -Encoding Unicode -ErrorAction Stop
-
-            # Validate it's an AppLocker policy XML
-            if ($null -eq $xmlDoc.AppLockerPolicy) {
-                [System.Windows.MessageBox]::Show("Invalid AppLocker policy file. The XML file must contain an AppLockerPolicy root element.", "Invalid File", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-                Write-Log "Invalid AppLocker policy file: $($openDialog.FileName)" -Level "ERROR"
-                return
-            }
-
-            # Store the loaded XML path for import
-            $script:LoadedRulesXmlPath = $openDialog.FileName
-
-            # Count rules
-            $ruleCount = 0
-            foreach ($ruleCollection in $xmlDoc.AppLockerPolicy.RuleCollection) {
-                $ruleCount += $ruleCollection.ChildNodes.Count
-            }
-
-            [System.Windows.MessageBox]::Show("Rules loaded successfully from:`n$($openDialog.FileName)`n`nTotal rules: $ruleCount`n`nYou can now import these rules to a GPO using the Import button.", "Rules Loaded", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-            Write-Log "Rules loaded: $($openDialog.FileName) ($ruleCount rules)"
-
-            # Update deployment status
-            if ($null -ne $DeploymentStatus) {
-                $DeploymentStatus.Text = "Loaded $ruleCount rules from: $([System.IO.Path]::GetFileName($openDialog.FileName))`nReady to import to GPO."
-            }
-
-        } catch {
-            [System.Windows.MessageBox]::Show("Failed to load rules file:`n`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-            Write-Log "Failed to load rules: $($_.Exception.Message)" -Level "ERROR"
+    if (-not $validation.success) {
+        $errorMsg = "The following validation errors were found:`n`n"
+        $errorMsg += ($validation.errors | Select-Object -First 5) -join "`n"
+        if ($validation.errors.Count -gt 5) {
+            $errorMsg += "`n... and $($validation.errors.Count - 5) more errors"
         }
+        $errorMsg += "`n`nPlease fix these errors before exporting."
+
+        [System.Windows.MessageBox]::Show($errorMsg, "Validation Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        Write-Log "Rule validation failed: $($validation.errorCount) errors" -Level "ERROR"
+        return
+    }
+
+    if ($validation.warningCount -gt 0) {
+        $warningMsg = "Warnings:`n`n"
+        $warningMsg += ($validation.warnings -join "`n")
+        $warningMsg += "`n`nContinue with export?"
+
+        $result = [System.Windows.MessageBox]::Show($warningMsg, "Validation Warnings", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Warning)
+        if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
+            Write-Log "Export cancelled by user due to warnings"
+            return
+        }
+    }
+
+    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
+    $saveDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
+    $saveDialog.Title = "Export AppLocker Rules"
+    $saveDialog.FileName = "AppLocker-Rules_$(Get-Date -Format 'yyyy-MM-dd').xml"
+    $saveDialog.InitialDirectory = "C:\GA-AppLocker\Rules"
+
+    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        # Generate AppLocker XML from rules
+        $xmlContent = Convert-RulesToAppLockerXml -Rules $script:GeneratedRules
+
+        # AppLocker policies MUST be UTF-16 encoded
+        $xmlDoc = [xml]$xmlContent
+        $xws = [System.Xml.XmlWriterSettings]::new()
+        $xws.Encoding = [System.Text.Encoding]::Unicode
+        $xws.Indent = $true
+        $xw = [System.Xml.XmlWriter]::Create($saveDialog.FileName, $xws)
+        $xmlDoc.Save($xw)
+        $xw.Close()
+
+        [System.Windows.MessageBox]::Show("Rules exported to: $($saveDialog.FileName)`n`n$($validation.validCount) rules exported.`n`nYou can now import this XML into a GPO using Group Policy Management.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        Write-Log "Rules exported: $($saveDialog.FileName) ($($validation.validCount) rules)"
     }
 })
 }
@@ -15769,18 +14957,7 @@ $ImportRulesBtn.Add_Click({
     Write-Log "Importing rules to GPO: $targetGpoName (Mode: $(if ($isMergeMode) { 'Merge' } else { 'Overwrite' }))"
 
     try {
-        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
-            Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-        } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
-            if (Test-Path $script:ModulePath) {
-                Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-            } else {
-                Write-Log "ERROR: Module path not found for Module4-PolicyLab" -Level "ERROR"
-                $DeploymentStatus.Text = "ERROR: Module path not found for Module4-PolicyLab"
-                return
-            }
-        }
+        Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
         Import-Module GroupPolicy -ErrorAction Stop
 
         # Load new rules from XML file
@@ -15851,19 +15028,8 @@ $ImportRulesBtn.Add_Click({
                     }
                 }
 
-                # Apply merged policy to GPO (save to temp file first as function expects path)
-                $tempXmlPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "AppLocker_Merge_$(Get-Random).xml")
-                try {
-                    $xws = [System.Xml.XmlWriterSettings]::new()
-                    $xws.Encoding = [System.Text.Encoding]::Unicode
-                    $xws.Indent = $true
-                    $xw = [System.Xml.XmlWriter]::Create($tempXmlPath, $xws)
-                    $mergedPolicy.Save($xw)
-                    $xw.Close()
-                    Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXmlPath $tempXmlPath -ErrorAction Stop | Out-Null
-                } finally {
-                    if (Test-Path $tempXmlPath) { Remove-Item $tempXmlPath -Force -ErrorAction SilentlyContinue }
-                }
+                # Apply merged policy to GPO
+                Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXml $mergedPolicy.OuterXml -ErrorAction Stop | Out-Null
 
                 $resultMessage = "=== IMPORT COMPLETE (MERGE MODE) ===`n`n"
                 $resultMessage += "Target GPO: $targetGpoName`n"
@@ -15875,8 +15041,8 @@ $ImportRulesBtn.Add_Click({
                 $resultMessage += "Merge mode adds new rules while preserving existing rules."
             }
             else {
-                # No existing policy - just import new rules (use source file directly since it's already a valid path)
-                Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXmlPath $xmlFilePath -ErrorAction Stop | Out-Null
+                # No existing policy - just import new rules
+                Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXml $newPolicyXml.OuterXml -ErrorAction Stop | Out-Null
                 $rulesAdded = ($newPolicyXml.AppLockerPolicy.RuleCollection.ChildNodes | Measure-Object).Count
 
                 $resultMessage = "=== IMPORT COMPLETE ===`n`n"
@@ -15897,8 +15063,8 @@ $ImportRulesBtn.Add_Click({
                 $rulesOverwritten = ($existingPolicy.AppLockerPolicy.RuleCollection.ChildNodes | Measure-Object).Count
             }
 
-            # Apply new policy (overwrites existing) - use source file directly
-            Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXmlPath $xmlFilePath -ErrorAction Stop | Out-Null
+            # Apply new policy (overwrites existing)
+            Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXml $newPolicyXml.OuterXml -ErrorAction Stop | Out-Null
             $rulesAdded = ($newPolicyXml.AppLockerPolicy.RuleCollection.ChildNodes | Measure-Object).Count
 
             $resultMessage = "=== IMPORT COMPLETE (OVERWRITE MODE) ===`n`n"
@@ -15928,102 +15094,83 @@ $ImportRulesBtn.Add_Click({
 
 # Other events
 function Update-StatusBar {
+    # Update main status text
+    if ($script:IsWorkgroup) {
+        $StatusText.Text = "WORKGROUP MODE - Local scanning available"
+    } elseif (-not $script:HasRSAT) {
+        $StatusText.Text = "$($script:DomainInfo.dnsRoot) - RSAT required for GPO features"
+    } else {
+        $StatusText.Text = "$($script:DomainInfo.dnsRoot) - Full features available"
+    }
+
+    # Phase 3: Enhanced Context Indicators
+    # Domain/Workgroup indicator
+    if ($script:IsWorkgroup) {
+        $MiniStatusDomain.Text = "WORKGROUP"
+        $MiniStatusDomain.Foreground = "#8B949E"
+    } else {
+        $MiniStatusDomain.Text = "$($script:DomainInfo.netBIOSName)"
+        $MiniStatusDomain.Foreground = "#3FB950"
+    }
+
+    # Mode indicator (Audit vs Enforce)
     try {
-        # Update main status text
-        if ($null -ne $StatusText) {
-            if ($script:IsWorkgroup) {
-                $StatusText.Text = "WORKGROUP MODE - Local scanning available"
-            } elseif (-not $script:HasRSAT) {
-                $StatusText.Text = "$($script:DomainInfo.dnsRoot) - RSAT required for GPO features"
-            } else {
-                $StatusText.Text = "$($script:DomainInfo.dnsRoot) - Full features available"
-            }
-        }
-
-        # Phase 3: Enhanced Context Indicators
-        # Domain/Workgroup indicator
-        if ($null -ne $MiniStatusDomain) {
-            if ($script:IsWorkgroup) {
-                $MiniStatusDomain.Text = "WORKGROUP"
-                $MiniStatusDomain.Foreground = "#8B949E"
-            } else {
-                $MiniStatusDomain.Text = "$($script:DomainInfo.netBIOSName)"
-                $MiniStatusDomain.Foreground = "#3FB950"
-            }
-        }
-
-        # Mode indicator (Audit vs Enforce)
-        if ($null -ne $MiniStatusMode) {
-            try {
-                $policy = Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue
-                $hasEnforce = $false
-                if ($policy) {
-                    foreach ($collection in $policy.RuleCollections) {
-                        if ($collection.EnforcementMode -eq "Enabled") {
-                            $hasEnforce = $true
-                            break
-                        }
-                    }
-                }
-
-                if ($hasEnforce) {
-                    $MiniStatusMode.Text = "ENFORCE"
-                    $MiniStatusMode.Foreground = "#F85149"
-                } else {
-                    $MiniStatusMode.Text = "AUDIT"
-                    $MiniStatusMode.Foreground = "#3FB950"
+        $policy = Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue
+        $hasEnforce = $false
+        if ($policy) {
+            foreach ($collection in $policy.RuleCollections) {
+                if ($collection.EnforcementMode -eq "Enabled") {
+                    $hasEnforce = $true
+                    break
                 }
             }
-            catch {
-                $MiniStatusMode.Text = "UNKNOWN"
-                $MiniStatusMode.Foreground = "#8B949E"
-            }
         }
 
-        # Phase indicator (from GPO quick assignment)
-        if ($null -ne $MiniStatusPhase) {
-            $currentPhase = $script:CurrentDeploymentPhase
-            if ($currentPhase) {
-                $MiniStatusPhase.Text = "P$currentPhase"
-            } else {
-                $MiniStatusPhase.Text = ""
-            }
-        }
-
-        # Connected systems count
-        if ($null -ne $MiniStatusConnected) {
-            if ($script:DiscoveredSystems) {
-                $onlineCount = @($script:DiscoveredSystems | Where-Object { $_.status -eq "Online" }).Count
-                $MiniStatusConnected.Text = "$onlineCount online"
-            } else {
-                $MiniStatusConnected.Text = "0 systems"
-            }
-        }
-
-        # Artifacts count
-        if ($null -ne $MiniStatusArtifacts) {
-            $artifactCount = $script:CollectedArtifacts.Count
-            $MiniStatusArtifacts.Text = "$artifactCount artifacts"
-        }
-
-        # Last sync time
-        if ($null -ne $MiniStatusSync) {
-            if ($script:LastSyncTime) {
-                $timeDiff = (Get-Date) - $script:LastSyncTime
-                if ($timeDiff.TotalMinutes -lt 1) {
-                    $MiniStatusSync.Text = "Just now"
-                } elseif ($timeDiff.TotalMinutes -lt 60) {
-                    $MiniStatusSync.Text = "$([int]$timeDiff.TotalMinutes)m ago"
-                } else {
-                    $MiniStatusSync.Text = "$([int]$timeDiff.TotalHours)h ago"
-                }
-            } else {
-                $MiniStatusSync.Text = "Ready"
-            }
+        if ($hasEnforce) {
+            $MiniStatusMode.Text = "ENFORCE"
+            $MiniStatusMode.Foreground = "#F85149"
+        } else {
+            $MiniStatusMode.Text = "AUDIT"
+            $MiniStatusMode.Foreground = "#3FB950"
         }
     }
     catch {
-        Write-Log "Error updating status bar: $($_.Exception.Message)" -Level "ERROR"
+        $MiniStatusMode.Text = "UNKNOWN"
+        $MiniStatusMode.Foreground = "#8B949E"
+    }
+
+    # Phase indicator (from GPO quick assignment)
+    $currentPhase = $script:CurrentDeploymentPhase
+    if ($currentPhase) {
+        $MiniStatusPhase.Text = "P$currentPhase"
+    } else {
+        $MiniStatusPhase.Text = ""
+    }
+
+    # Connected systems count
+    if ($script:DiscoveredSystems) {
+        $onlineCount = @($script:DiscoveredSystems | Where-Object { $_.status -eq "Online" }).Count
+        $MiniStatusConnected.Text = "$onlineCount online"
+    } else {
+        $MiniStatusConnected.Text = "0 systems"
+    }
+
+    # Artifacts count
+    $artifactCount = $script:CollectedArtifacts.Count
+    $MiniStatusArtifacts.Text = "$artifactCount artifacts"
+
+    # Last sync time
+    if ($script:LastSyncTime) {
+        $timeDiff = (Get-Date) - $script:LastSyncTime
+        if ($timeDiff.TotalMinutes -lt 1) {
+            $MiniStatusSync.Text = "Just now"
+        } elseif ($timeDiff.TotalMinutes -lt 60) {
+            $MiniStatusSync.Text = "$([int]$timeDiff.TotalMinutes)m ago"
+        } else {
+            $MiniStatusSync.Text = "$([int]$timeDiff.TotalHours)h ago"
+        }
+    } else {
+        $MiniStatusSync.Text = "Ready"
     }
 }
 
@@ -16655,7 +15802,7 @@ function New-CustomTemplate {
                     <StackPanel>
                         <TextBlock Text="Template Rules (JSON format)" FontSize="12" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                         <TextBox Name="TemplateRulesInput" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1" Padding="8" FontSize="11" Height="150" TextWrapping="Wrap" AcceptsReturn="True" FontFamily="Consolas"/>
-                        <TextBlock Text='Example: [{"Name":"My App","Type":"Path","Path":"C:\Program Files\MyApp.exe"}]'  FontSize="10" Foreground="#6E7681" Margin="0,4,0,0"/>
+                        <TextBlock Text="Example: [{`"Name`":`"My App`",`"Type`":`"Path`",`"Path`":`"C:\\Program Files\\MyApp.exe`}]" FontSize="10" Foreground="#6E7681" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -16692,7 +15839,7 @@ function New-CustomTemplate {
         $CreateTemplateBtn.Add_Click({
             $name = $TemplateNameInput.Text.Trim()
             $desc = $TemplateDescInput.Text.Trim()
-            $category = if ($TemplateCategoryInput.SelectedItem) { $TemplateCategoryInput.SelectedItem.Content } else { "Custom" }
+            $category = $TemplateCategoryInput.SelectedItem.Content
             $rulesJson = $TemplateRulesInput.Text.Trim()
 
             if ([string]::IsNullOrEmpty($name)) {
@@ -16775,15 +15922,14 @@ function Invoke-RuleWizard {
 
         <!-- Step Content Panels -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Name="WizardContent">
-            <Grid>
-                <StackPanel Name="Step1Panel">
-                    <TextBlock Text="Select the type of rule you want to create:" FontSize="13" Foreground="#8B949E" Margin="0,0,0,12"/>
-                    <RadioButton Name="PublisherRuleRadio" Content="Publisher Rule (recommended)" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8" IsChecked="True"/>
-                    <TextBlock Text="Rules based on digital signature. Most flexible option." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
-                    <RadioButton Name="PathRuleRadio" Content="Path Rule" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8"/>
-                    <TextBlock Text="Rules based on file path. Less flexible but simple." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
-                    <RadioButton Name="HashRuleRadio" Content="Hash Rule" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8"/>
-                    <TextBlock Text="Rules based on file hash. Most secure but breaks on updates." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
+            <StackPanel Name="Step1Panel">
+                <TextBlock Text="Select the type of rule you want to create:" FontSize="13" Foreground="#8B949E" Margin="0,0,0,12"/>
+                <RadioButton Name="PublisherRuleRadio" Content="Publisher Rule (recommended)" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8" IsChecked="True"/>
+                <TextBlock Text="Rules based on digital signature. Most flexible option." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
+                <RadioButton Name="PathRuleRadio" Content="Path Rule" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8"/>
+                <TextBlock Text="Rules based on file path. Less flexible but simple." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
+                <RadioButton Name="HashRuleRadio" Content="Hash Rule" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8"/>
+                <TextBlock Text="Rules based on file hash. Most secure but breaks on updates." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
             </StackPanel>
 
             <StackPanel Name="Step2Panel" Visibility="Collapsed">
@@ -16845,8 +15991,8 @@ function Invoke-RuleWizard {
                     </StackPanel>
                 </Border>
             </StackPanel>
-            </Grid>
         </ScrollViewer>
+
         <!-- Navigation Buttons -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Name="WizardBackBtn" Content="Back" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0" IsEnabled="False"/>
@@ -16963,7 +16109,7 @@ function Invoke-RuleWizard {
                 $ReviewRuleType.Text = "Rule Type: $ruleType"
                 $ReviewApplications.Text = "Applications: $($selectedApps.Count) selected"
                 $ReviewAction.Text = "Action: $(if ($AllowActionRadio.IsChecked) { 'Allow' } else { 'Deny' })"
-                $ReviewUserGroup.Text = "User Group: $(if ($UserGroupCombo.SelectedItem) { $UserGroupCombo.SelectedItem.Content } else { 'Everyone' })"
+                $ReviewUserGroup.Text = "User Group: $($UserGroupCombo.SelectedItem.Content)"
                 $ReviewExceptions.Text = "Exceptions: $(if ($UseExceptionsCheck.IsChecked) { 'Enabled' } else { 'None' })"
             }
         }
