@@ -1,6 +1,6 @@
 name: Build PS Only (No EXE/BAT)
 
-# PowerShell-only build - no .exe or .bat files
+# PowerShell-only build using modular architecture
 # Use this if your workplace blocks executables
 
 on:
@@ -15,7 +15,7 @@ env:
 
 jobs:
   build:
-    name: Build GA-AppLocker (PS Only)
+    name: Build GA-AppLocker (PS Only - Modular)
     runs-on: windows-latest
     timeout-minutes: 5
 
@@ -27,49 +27,99 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType Directory -Path ./output -Force | Out-Null
 
-      - name: Copy main GUI script
+      - name: Copy modular architecture
         shell: pwsh
         run: |
           Write-Host "====================================" -ForegroundColor Cyan
           Write-Host "  GA-AppLocker PS-Only Build" -ForegroundColor Cyan
+          Write-Host "  Using Modular Architecture" -ForegroundColor Cyan
           Write-Host "====================================" -ForegroundColor Cyan
 
-          $guiScript = "./build/GA-AppLocker-GUI-WPF.ps1"
-          if (-not (Test-Path $guiScript)) {
-            Write-Host "##[error]GUI script not found: $guiScript" -ForegroundColor Red
+          # Verify modular entry point exists
+          $entryPoint = "./src/GUI/Main/GA-AppLocker-GUI.ps1"
+          if (-not (Test-Path $entryPoint)) {
+            Write-Host "##[error]Modular entry point not found: $entryPoint" -ForegroundColor Red
             exit 1
           }
+          Write-Host "Found modular entry point: $entryPoint" -ForegroundColor Green
 
-          Write-Host "Found GUI script: $guiScript" -ForegroundColor Green
-          Copy-Item -Path $guiScript -Destination "./output/GA-AppLocker-GUI.ps1" -Force
-          Write-Host "Copied to output/GA-AppLocker-GUI.ps1" -ForegroundColor Green
+          # Copy entire src folder (contains modular GUI architecture)
+          Copy-Item -Path "./src" -Destination "./output/src" -Recurse -Force
+          Write-Host "Copied src/ modular architecture" -ForegroundColor Green
 
-      - name: Copy source modules
+          # Copy lib folder
+          if (Test-Path "./src/lib") {
+            Write-Host "  - lib/Common.psm1 (shared library)" -ForegroundColor White
+          }
+
+          # Copy config
+          if (Test-Path "./src/Config.psm1") {
+            Write-Host "  - Config.psm1 (configuration)" -ForegroundColor White
+          }
+
+          # List GUI modules
+          $guiModules = Get-ChildItem -Path "./src/GUI" -Directory
+          foreach ($dir in $guiModules) {
+            $fileCount = (Get-ChildItem -Path $dir.FullName -Filter "*.ps1" -Recurse).Count
+            Write-Host "  - GUI/$($dir.Name)/ ($fileCount files)" -ForegroundColor White
+          }
+
+      - name: Create launcher script
         shell: pwsh
         run: |
-          if (Test-Path "./src") {
-            Copy-Item -Path "./src" -Destination "./output/modules" -Recurse -Force
-            Write-Host "Copied src modules" -ForegroundColor Green
-          }
+          # Create a simple launcher that calls the modular entry point
+          $launcher = @'
+# GA-AppLocker Launcher
+# This script launches the modular GUI application
+
+$ErrorActionPreference = "Stop"
+
+# Get the directory where this script is located
+$ScriptDir = $PSScriptRoot
+
+# Path to the modular entry point
+$EntryPoint = Join-Path $ScriptDir "src\GUI\Main\GA-AppLocker-GUI.ps1"
+
+if (-not (Test-Path $EntryPoint)) {
+    Write-Host "ERROR: Entry point not found: $EntryPoint" -ForegroundColor Red
+    Write-Host "Make sure the src folder is in the same directory as this script." -ForegroundColor Yellow
+    Read-Host "Press Enter to exit"
+    exit 1
+}
+
+# Launch the application
+& $EntryPoint
+'@
+          $launcher | Out-File -FilePath "./output/Launch-GA-AppLocker.ps1" -Encoding UTF8
+          Write-Host "Created Launch-GA-AppLocker.ps1 launcher" -ForegroundColor Green
 
       - name: Create run instructions
         shell: pwsh
         run: |
           $content = @(
-            "GA-AppLocker Toolkit - How to Run"
+            "GA-AppLocker Toolkit - How to Run (Modular Version)"
+            "===================================================="
             ""
-            "Copy and paste one of these commands into PowerShell:"
+            "This build uses the modular architecture for better maintainability."
             ""
-            "OPTION 1: Run with Windows PowerShell"
-            "powershell -NoProfile -ExecutionPolicy Bypass -File `"GA-AppLocker-GUI.ps1`""
+            "STEP 1: Extract to C:\GA-AppLocker (or your preferred location)"
             ""
-            "OPTION 2: Run with PowerShell 7 (better performance)"
-            "pwsh -NoProfile -ExecutionPolicy Bypass -File `"GA-AppLocker-GUI.ps1`""
+            "STEP 2: Open PowerShell as Administrator"
+            ""
+            "STEP 3: Run one of these commands:"
+            ""
+            "  cd C:\GA-AppLocker"
+            "  powershell -NoProfile -ExecutionPolicy Bypass -File Launch-GA-AppLocker.ps1"
+            ""
+            "  OR directly run the entry point:"
+            ""
+            "  powershell -NoProfile -ExecutionPolicy Bypass -File src\GUI\Main\GA-AppLocker-GUI.ps1"
             ""
             "NOTES"
+            "-----"
             "- Run as Administrator for full functionality"
-            "- To run as admin: Right-click PowerShell > Run as administrator > paste command"
-            "- Make sure you are in the output folder before running"
+            "- The modular version loads 39 component files on startup"
+            "- First launch may take a few seconds while modules load"
           ) -join "`r`n"
           $content | Out-File -FilePath "./output/RUN-COMMAND.txt" -Encoding UTF8
           Write-Host "Created RUN-COMMAND.txt" -ForegroundColor Green
@@ -94,10 +144,17 @@ jobs:
         run: |
           Write-Host "====================================" -ForegroundColor Green
           Write-Host "  PS-ONLY BUILD COMPLETED" -ForegroundColor Green
+          Write-Host "  Modular Architecture" -ForegroundColor Green
           Write-Host "====================================" -ForegroundColor Green
+          Write-Host ""
           Write-Host "Artifact: GA-AppLocker-PS-Only" -ForegroundColor Cyan
+          Write-Host ""
           Write-Host "Contents:" -ForegroundColor Cyan
-          Write-Host "  - GA-AppLocker-GUI.ps1" -ForegroundColor White
-          Write-Host "  - RUN-COMMAND.txt" -ForegroundColor White
-          Write-Host "  - modules/ (source)" -ForegroundColor White
+          Write-Host "  - Launch-GA-AppLocker.ps1 (launcher)" -ForegroundColor White
+          Write-Host "  - RUN-COMMAND.txt (instructions)" -ForegroundColor White
           Write-Host "  - README.md" -ForegroundColor White
+          Write-Host "  - src/ (modular architecture)" -ForegroundColor White
+          Write-Host "    - GUI/ (39 component files)" -ForegroundColor Gray
+          Write-Host "    - lib/ (shared library)" -ForegroundColor Gray
+          Write-Host "    - modules/ (7 feature modules)" -ForegroundColor Gray
+          Write-Host "    - Config.psm1" -ForegroundColor Gray
