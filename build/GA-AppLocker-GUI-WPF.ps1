@@ -4512,422 +4512,247 @@ $xamlString = @"
 
                 <!-- Rules Panel -->
                 <StackPanel x:Name="PanelRules" Visibility="Collapsed">
-                    <TextBlock Text="Rule Generator" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-
-                    <!-- Rule Options Row -->
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="20"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <!-- Rule Type -->
-                        <TextBlock Text="Type:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <StackPanel Orientation="Horizontal" Grid.Column="1">
-                            <RadioButton x:Name="RuleTypeAuto" Content="Auto" IsChecked="True"
-                                         Foreground="#58A6FF" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"
-                                         ToolTip="Publisher for signed, Hash for unsigned"/>
-                            <RadioButton x:Name="RuleTypePublisher" Content="Publisher"
-                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="RuleTypeHash" Content="Hash"
-                                         Foreground="#E6EDF3" FontSize="11" Margin="0,0,8,0" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="RuleTypePath" Content="Path"
-                                         Foreground="#E6EDF3" FontSize="11" VerticalContentAlignment="Center"/>
-                        </StackPanel>
-
-                        <!-- Action -->
-                        <TextBlock Text="Action:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="3" Margin="0,0,8,0"/>
-                        <StackPanel Orientation="Horizontal" Grid.Column="4">
-                            <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
-                                         Foreground="#3FB950" FontSize="11" Margin="0,0,10,0" VerticalContentAlignment="Center"/>
-                            <RadioButton x:Name="RuleActionDeny" Content="Deny"
-                                         Foreground="#F85149" FontSize="11" VerticalContentAlignment="Center"/>
-                        </StackPanel>
-
-                        <!-- AD Group -->
-                        <TextBlock Text="Apply To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="6" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="RuleGroupCombo" Grid.Column="7" Height="26" MinWidth="200"
-                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
-                            <ComboBox.ItemContainerStyle>
-                                <Style TargetType="ComboBoxItem">
-                                    <Setter Property="Background" Value="#21262D"/>
-                                    <Setter Property="Foreground" Value="#E6EDF3"/>
-                                    <Setter Property="Padding" Value="8,4"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsHighlighted" Value="True">
-                                            <Setter Property="Background" Value="#30363D"/>
-                                            <Setter Property="Foreground" Value="#FFFFFF"/>
-                                        </Trigger>
-                                        <Trigger Property="IsSelected" Value="True">
-                                            <Setter Property="Background" Value="#388BFD"/>
-                                            <Setter Property="Foreground" Value="#FFFFFF"/>
-                                        </Trigger>
-                                        <MultiTrigger>
-                                            <MultiTrigger.Conditions>
-                                                <Condition Property="IsSelected" Value="True"/>
-                                                <Condition Property="Selector.IsSelectionActive" Value="False"/>
-                                            </MultiTrigger.Conditions>
-                                            <Setter Property="Background" Value="#30363D"/>
-                                            <Setter Property="Foreground" Value="#E6EDF3"/>
-                                        </MultiTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ComboBox.ItemContainerStyle>
-                            <ComboBoxItem Content="AppLocker-Admins" IsSelected="True" Tag="AppLocker-Admins"/>
-                            <ComboBoxItem Content="AppLocker-StandardUsers" Tag="AppLocker-StandardUsers"/>
-                            <ComboBoxItem Content="AppLocker-Service-Accounts" Tag="AppLocker-Service-Accounts"/>
-                            <ComboBoxItem Content="AppLocker-Installers" Tag="AppLocker-Installers"/>
-                        </ComboBox>
-                    </Grid>
-
-                    <!-- Custom SID Input (hidden by default) -->
-                    <Grid x:Name="CustomSidPanel" Margin="0,0,0,10" Visibility="Collapsed">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        <TextBlock Text="Custom SID:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox x:Name="CustomSidText" Grid.Column="1" Height="26"
-                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                 BorderThickness="1" FontSize="11" Padding="5"
-                                 Text="S-1-5-21-..."/>
-                    </Grid>
-
-                    <!-- Quick Import - Seamless Data Integration -->
-                    <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal">
-                                <TextBlock Text="Quick Import:" FontSize="12" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Margin="0,0,15,0"/>
-                                <Button x:Name="LoadCollectedArtifactsBtn" Content="Load Artifacts"
-                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Margin="0,0,8,0"
-                                        ToolTip="Load artifacts from Artifact Collection panel"/>
-                                <TextBlock x:Name="ArtifactCountBadge" Text="0" FontSize="10" FontWeight="Bold"
-                                           Foreground="#6E7681" Background="#21262D" Padding="6,3" Margin="0,0,20,0"
-                                           VerticalAlignment="Center" ToolTip="Artifacts available from collection"/>
-                                <Button x:Name="LoadCollectedEventsBtn" Content="Load Events"
-                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Margin="0,0,8,0"
-                                        ToolTip="Load events from Event Monitor panel"/>
-                                <TextBlock x:Name="EventCountBadge" Text="0" FontSize="10" FontWeight="Bold"
-                                           Foreground="#6E7681" Background="#21262D" Padding="6,3"
-                                           VerticalAlignment="Center" ToolTip="Events available from monitoring"/>
-                            </StackPanel>
-                            <TextBlock Grid.Column="1" Text="Pull data directly from Artifacts or Events panels - no CSV export needed" FontSize="10" Foreground="#6E7681" VerticalAlignment="Center" TextAlignment="Right" HorizontalAlignment="Right"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- Data Management - Deduplicate and Export -->
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-
-                        <TextBlock Grid.Column="0" Text="Deduplicate:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <ComboBox x:Name="DedupeTypeCombo" Grid.Column="2" Height="26" Width="120"
-                                  Background="#21262D" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
-                            <ComboBoxItem Content="By Publisher" IsSelected="True" Tag="Publisher"/>
-                            <ComboBoxItem Content="By Hash" Tag="Hash"/>
-                            <ComboBoxItem Content="By Path" Tag="Path"/>
-                        </ComboBox>
-                        <Button x:Name="DedupeBtn" Content="Deduplicate" Grid.Column="4"
-                                Style="{StaticResource SecondaryButton}" Height="28" FontSize="11"
-                                ToolTip="Remove duplicate artifacts based on selected field"/>
-
-                        <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="7"
-                                Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" MinWidth="100"
-                                ToolTip="Export current artifact list to CSV"/>
-                    </Grid>
-
-                    <!-- Action Buttons -->
-                    <Grid Margin="0,0,0,10">
+                    <!-- Header -->
+                    <Grid Margin="0,0,0,15">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Button x:Name="ImportArtifactsBtn" Content="Import Artifact"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
-                        <Button x:Name="ImportFolderBtn" Content="Import Folder"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
-                        <Button x:Name="MergeRulesBtn" Content="Merge Rules"
-                                Style="{StaticResource SecondaryButton}" Grid.Column="4"/>
-                        <Button x:Name="GenerateRulesBtn" Content="Generate Rules"
-                                Style="{StaticResource PrimaryButton}" Grid.Column="6"/>
-                    </Grid>
-
-                    <!-- QoL: Audit Mode Toggle and Search Row -->
-                    <Grid Margin="0,0,0,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-
-                        <!-- One-Click Audit Toggle -->
-                        <Button x:Name="AuditToggleBtn" Content="[!] AUDIT MODE" Grid.Column="0"
+                        <TextBlock Grid.Column="0" Text="Rule Generator" FontSize="22" FontWeight="Bold" Foreground="#E6EDF3"/>
+                        <Button x:Name="AuditToggleBtn" Content="[!] AUDIT MODE" Grid.Column="1"
                                 Background="#F0883E" Foreground="#FFFFFF" FontSize="11" FontWeight="Bold"
-                                BorderThickness="0" Padding="12,6"
+                                BorderThickness="0" Padding="16,6" Height="32"
                                 ToolTip="Toggle all rules between Audit and Enforce mode"/>
-
-                        <!-- Search/Filter Box -->
-                        <TextBox x:Name="RulesSearchBox" Grid.Column="2" Height="28"
-                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                 BorderThickness="1" FontSize="11" Padding="8,5"
-                                 Text="Filter rules/artifacts..."/>
-
-                        <!-- Clear Filter Button -->
-                        <Button x:Name="ClearFilterBtn" Content="X" Grid.Column="4" Width="32" Height="28"
-                                Background="#30363D" Foreground="#8B949E" FontSize="14"
-                                BorderThickness="0"
-                                ToolTip="Clear filter"/>
                     </Grid>
 
-                    <!-- Default Deny Rules Button -->
-                    <Button x:Name="DefaultDenyRulesBtn" Content="Add Default Deny Rules (Block Bypass Locations)"
-                            Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,10"
-                            ToolTip="Adds deny rules for TEMP, Downloads, AppData and other bypass locations"/>
+                    <!-- Section 1: Configuration -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="Auto"/>
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                    <!-- Browser Deny Rules Button -->
-                    <Button x:Name="CreateBrowserDenyBtn" Content="Add Admin Browser Deny Rules"
-                            Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Margin="0,0,0,10"
-                            ToolTip="Adds deny rules for common browsers in AppLocker-Admin group"/>
+                                <!-- Rule Type -->
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,0,8"/>
+                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
+                                    <RadioButton x:Name="RuleTypeAuto" Content="Auto (Recommended)" IsChecked="True"
+                                                 Foreground="#58A6FF" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypePublisher" Content="Publisher"
+                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypeHash" Content="Hash"
+                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
+                                    <RadioButton x:Name="RuleTypePath" Content="Path"
+                                                 Foreground="#E6EDF3" FontSize="12"/>
+                                </StackPanel>
 
-                    <!-- QoL: Quick Rule Preview Panel -->
-                    <Border x:Name="RulePreviewPanel" Background="#161B22" BorderBrush="#F0883E" BorderThickness="1"
-                            CornerRadius="6" Padding="12" Margin="0,0,0,10" Visibility="Collapsed">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Rule Preview" FontSize="12" FontWeight="Bold" Foreground="#F0883E" Margin="0,0,0,6"/>
-                                <TextBlock x:Name="RulePreviewText" FontFamily="Consolas" FontSize="10" Foreground="#E6EDF3"
-                                           TextWrapping="Wrap" MaxWidth="600"/>
-                            </StackPanel>
-                            <Button x:Name="ClosePreviewBtn" Content="X" Grid.Column="1"
-                                    Background="Transparent" Foreground="#8B949E" FontSize="16"
-                                    BorderThickness="0" Width="24" Height="24" Margin="4,0,0,0"/>
-                        </Grid>
+                                <!-- Action & Group -->
+                                <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
+                                    <StackPanel>
+                                        <TextBlock Text="Action:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
+                                                         Foreground="#3FB950" FontSize="12" Margin="0,0,20,0"/>
+                                            <RadioButton x:Name="RuleActionDeny" Content="Deny"
+                                                         Foreground="#F85149" FontSize="12"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                    <StackPanel Margin="30,0,0,0">
+                                        <TextBlock Text="Apply to Group:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
+                                        <ComboBox x:Name="RuleGroupCombo" Height="30" MinWidth="220"
+                                                  Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="12">
+                                            <ComboBoxItem Content="AppLocker-Admins" IsSelected="True"/>
+                                            <ComboBoxItem Content="AppLocker-StandardUsers"/>
+                                            <ComboBoxItem Content="AppLocker-Service-Accounts"/>
+                                            <ComboBoxItem Content="AppLocker-Installers"/>
+                                        </ComboBox>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
                     </Border>
 
-                    <!-- Rules Management - DataGrid for Granular Editing -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" Margin="0,0,0,10">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
+                    <!-- Section 2: Import Artifacts -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Import Artifacts" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
-                            <!-- Rules Toolbar -->
-                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <!-- Quick Import -->
+                            <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="6"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="6"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
-
-                                <TextBlock Grid.Column="0" Text="Generated Rules:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                <TextBlock x:Name="RulesCountText" Grid.Column="2" Text="0 rules" FontSize="11" Foreground="#3FB950" VerticalAlignment="Center" MinWidth="60"/>
-
-                                <Button x:Name="ChangeGroupBtn" Content="Change Group" Grid.Column="4"
-                                        Style="{StaticResource SecondaryButton}" Height="26" FontSize="10"
-                                        ToolTip="Change AD group for selected rules"/>
-                                <Button x:Name="DuplicateRulesBtn" Content="Duplicate To" Grid.Column="6"
-                                        Style="{StaticResource SecondaryButton}" Height="26" FontSize="10"
-                                        ToolTip="Duplicate selected rules to another group"/>
-                                <Button x:Name="DeleteRulesBtn" Content="Delete" Grid.Column="8"
-                                        Style="{StaticResource SecondaryButton}" Height="26" FontSize="10"
-                                        Background="#F85149" ToolTip="Delete selected rules"/>
-
-                                <TextBlock Grid.Column="9" Text="Ctrl+click to select multiple, Shift+click for range" FontSize="10" Foreground="#6E7681" VerticalAlignment="Center" TextAlignment="Right" HorizontalAlignment="Right"/>
+                                <TextBlock Grid.Column="0" Text="Quick Load:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <Button x:Name="LoadCollectedArtifactsBtn" Content="Load Artifacts" Grid.Column="2"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0"/>
+                                <TextBlock x:Name="ArtifactCountBadge" Text="0" Grid.Column="4" FontSize="11" FontWeight="Bold"
+                                           Foreground="#6E7681" Background="#30363D" Padding="8,4" MinWidth="30" TextAlignment="Center"
+                                           VerticalAlignment="Center"/>
+                                <Button x:Name="LoadCollectedEventsBtn" Content="Load Events" Grid.Column="6"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0"/>
+                                <TextBlock x:Name="EventCountBadge" Text="0" Grid.Column="8" FontSize="11" FontWeight="Bold"
+                                           Foreground="#6E7681" Background="#30363D" Padding="8,4" MinWidth="30" TextAlignment="Center"
+                                           VerticalAlignment="Center"/>
                             </Grid>
 
-                            <!-- Bulk Actions Panel -->
-                            <Border x:Name="BulkActionsPanel" Background="#161B22" BorderBrush="#30363D" BorderThickness="1"
-                                    CornerRadius="6" Padding="12" Margin="0,0,0,10">
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="Auto"/>
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Row 1: Change Group and Change Action -->
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Margin="0,0,8,8">
-                                        <TextBlock Text="Group:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="BulkGroupCombo" Width="130" Height="26" FontSize="11">
-                                            <ComboBoxItem Content="AppLocker-Admins"/>
-                                            <ComboBoxItem Content="AppLocker-PowerUsers"/>
-                                            <ComboBoxItem Content="AppLocker-StandardUsers"/>
-                                            <ComboBoxItem Content="AppLocker-RestrictedUsers"/>
-                                            <ComboBoxItem Content="AppLocker-Installers"/>
-                                            <ComboBoxItem Content="AppLocker-Developers"/>
-                                            <ComboBoxItem Content="Everyone"/>
-                                        </ComboBox>
-                                        <Button x:Name="ApplyGroupChangeBtn" Content="Apply" Style="{StaticResource PrimaryButton}"
-                                                Width="60" Height="26" FontSize="10" Margin="6,0,0,0"
-                                                ToolTip="Apply group change to selected rules"/>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,8,8">
-                                        <TextBlock Text="Action:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="BulkActionCombo" Width="100" Height="26" FontSize="11">
-                                            <ComboBoxItem Content="Allow" IsSelected="True"/>
-                                            <ComboBoxItem Content="Deny"/>
-                                        </ComboBox>
-                                        <Button x:Name="ApplyActionChangeBtn" Content="Apply" Style="{StaticResource PrimaryButton}"
-                                                Width="60" Height="26" FontSize="10" Margin="6,0,0,0"
-                                                ToolTip="Apply action change to selected rules"/>
-                                    </StackPanel>
-
-                                    <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Margin="0,0,0,8">
-                                        <TextBlock Text="Duplicate to:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,0"/>
-                                        <ComboBox x:Name="BulkDuplicateCombo" Width="130" Height="26" FontSize="11">
-                                            <ComboBoxItem Content="AppLocker-Admins"/>
-                                            <ComboBoxItem Content="AppLocker-PowerUsers"/>
-                                            <ComboBoxItem Content="AppLocker-StandardUsers"/>
-                                            <ComboBoxItem Content="AppLocker-RestrictedUsers"/>
-                                            <ComboBoxItem Content="AppLocker-Installers"/>
-                                            <ComboBoxItem Content="AppLocker-Developers"/>
-                                            <ComboBoxItem Content="Everyone"/>
-                                        </ComboBox>
-                                        <Button x:Name="ApplyDuplicateBtn" Content="Duplicate" Style="{StaticResource SecondaryButton}"
-                                                Width="70" Height="26" FontSize="10" Margin="6,0,0,0"
-                                                ToolTip="Duplicate selected rules to this group"/>
-                                    </StackPanel>
-
-                                    <!-- Row 2: Remove Selected and Info -->
-                                    <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
-                                        <Button x:Name="BulkRemoveBtn" Content="Remove Selected" Style="{StaticResource SecondaryButton}"
-                                                Width="120" Height="26" FontSize="10" Background="#F85149"
-                                                ToolTip="Remove all selected rules from the list"/>
-                                        <TextBlock x:Name="BulkSelectionInfo" Text="No rules selected" FontSize="10" Foreground="#6E7681"
-                                                   VerticalAlignment="Center" Margin="15,0,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-
-                            <!-- Rules Filter Bar -->
-                            <Grid Grid.Row="2" Margin="0,0,0,10">
+                            <!-- File Import -->
+                            <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="ImportArtifactsBtn" Content="Import File" Grid.Column="0"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0"/>
+                                <Button x:Name="ImportFolderBtn" Content="Import Folder" Grid.Column="2"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0"/>
+                                <Button x:Name="DedupeBtn" Content="Deduplicate" Grid.Column="4"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0" MinWidth="110"/>
+                                <ComboBox x:Name="DedupeTypeCombo" Grid.Column="6" Height="30" Width="130"
+                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="11">
+                                    <ComboBoxItem Content="By Publisher" IsSelected="True"/>
+                                    <ComboBoxItem Content="By Hash"/>
+                                    <ComboBoxItem Content="By Path"/>
+                                </ComboBox>
+                                <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="8"
+                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0" MinWidth="100"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Section 3: Generate Rules -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Generate Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="GenerateRulesBtn" Content="Generate Rules" Grid.Column="0"
+                                        Style="{StaticResource PrimaryButton}" Height="36" FontSize="12" FontWeight="SemiBold"/>
+                                <Button x:Name="DefaultDenyRulesBtn" Content="Default Deny Rules" Grid.Column="2"
+                                        Style="{StaticResource SecondaryButton}" Height="36" FontSize="11"/>
+                                <Button x:Name="CreateBrowserDenyBtn" Content="Browser Deny Rules" Grid.Column="4"
+                                        Style="{StaticResource SecondaryButton}" Height="36" FontSize="11"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Section 4: Rules List -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                        <StackPanel>
+                            <!-- Header with count and actions -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="Generated Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" VerticalAlignment="Center"/>
+                                <TextBlock x:Name="RulesCountText" Grid.Column="2" Text="0 rules" FontSize="12" Foreground="#3FB950" VerticalAlignment="Center"/>
+                                <Button x:Name="DeleteRulesBtn" Content="Delete Selected" Grid.Column="5"
+                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Background="#F85149" Padding="10,0" MinWidth="110"/>
+                            </Grid>
+
+                            <!-- Filter and Search -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="80"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="110"/>
+                                    <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="100"/>
-                                    <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="90"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="130"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-
-                                <TextBlock Grid.Column="0" Text="Filter:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center"/>
-
-                                <!-- Type Filter -->
-                                <ComboBox x:Name="RulesTypeFilter" Grid.Column="2" Height="24" FontSize="10"
-                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
-                                    <ComboBoxItem Content="All Types" Tag="" IsSelected="True"/>
-                                    <ComboBoxItem Content="Publisher" Tag="Publisher"/>
-                                    <ComboBoxItem Content="Hash" Tag="Hash"/>
-                                    <ComboBoxItem Content="Path" Tag="Path"/>
+                                <TextBlock Grid.Column="0" Text="Filter:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <ComboBox x:Name="RulesTypeFilter" Grid.Column="2" Height="28" FontSize="11"
+                                          Background="#161B22" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="All Types" IsSelected="True"/>
+                                    <ComboBoxItem Content="Publisher"/>
+                                    <ComboBoxItem Content="Hash"/>
+                                    <ComboBoxItem Content="Path"/>
                                 </ComboBox>
-
-                                <!-- Action Filter -->
-                                <ComboBox x:Name="RulesActionFilter" Grid.Column="4" Height="24" FontSize="10"
-                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
-                                    <ComboBoxItem Content="All Actions" Tag="" IsSelected="True"/>
-                                    <ComboBoxItem Content="Allow" Tag="Allow"/>
-                                    <ComboBoxItem Content="Deny" Tag="Deny"/>
+                                <ComboBox x:Name="RulesActionFilter" Grid.Column="4" Height="28" FontSize="11"
+                                          Background="#161B22" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="All Actions" IsSelected="True"/>
+                                    <ComboBoxItem Content="Allow"/>
+                                    <ComboBoxItem Content="Deny"/>
                                 </ComboBox>
-
-                                <!-- Group Filter -->
-                                <ComboBox x:Name="RulesGroupFilter" Grid.Column="6" Height="24" FontSize="10"
-                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
-                                    <ComboBoxItem Content="All Groups" Tag="" IsSelected="True"/>
+                                <ComboBox x:Name="RulesGroupFilter" Grid.Column="6" Height="28" FontSize="11"
+                                          Background="#161B22" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                    <ComboBoxItem Content="All Groups" IsSelected="True"/>
                                 </ComboBox>
-
-                                <!-- Search Box -->
-                                <TextBox x:Name="RulesFilterSearch" Grid.Column="8" Height="24" FontSize="10"
-                                         Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                         Padding="5,2" Text="Search..."/>
-
-                                <!-- Clear Filter Button -->
+                                <TextBox x:Name="RulesFilterSearch" Grid.Column="8" Height="28" FontSize="11"
+                                         Background="#161B22" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                         Padding="8,0" Text="Search rules..."/>
                                 <Button x:Name="RulesClearFilterBtn" Content="Clear" Grid.Column="10"
-                                        Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" MinWidth="55"/>
-
-                                <!-- Filter Count -->
-                                <TextBlock x:Name="RulesFilterCount" Grid.Column="12" Text=""
-                                          FontSize="10" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="90"/>
+                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" MinWidth="60" Padding="10,0"/>
                             </Grid>
 
-                            <!-- Rules DataGrid -->
-                            <DataGrid x:Name="RulesDataGrid" Grid.Row="3" Height="250"
+                            <!-- DataGrid -->
+                            <DataGrid x:Name="RulesDataGrid" Height="280"
                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
                                       GridLinesVisibility="Horizontal" HeadersVisibility="Column" AutoGenerateColumns="False"
                                       CanUserAddRows="False" CanUserDeleteRows="False" SelectionMode="Extended"
                                       FontSize="11" RowBackground="#0D1117" AlternatingRowBackground="#161B22">
                                 <DataGrid.Columns>
-                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="60" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="50" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="Name/Value" Binding="{Binding Name}" Width="250" IsReadOnly="True"/>
-                                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="150"/>
-                                    <DataGridTextColumn Header="SID" Binding="{Binding SID}" Width="120" Visibility="Hidden"/>
+                                    <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="70" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Action" Binding="{Binding Action}" Width="60" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Name / Value" Binding="{Binding Name}" Width="280" IsReadOnly="True"/>
+                                    <DataGridTextColumn Header="Group" Binding="{Binding Group}" Width="170" IsReadOnly="True"/>
                                 </DataGrid.Columns>
                             </DataGrid>
-                        </Grid>
+
+                            <!-- Filter count -->
+                            <TextBlock x:Name="RulesFilterCount" Text="" Margin="0,8,0,0"
+                                      FontSize="11" Foreground="#58A6FF" HorizontalAlignment="Right"/>
+                        </StackPanel>
                     </Border>
 
-                    <!-- Rules Output (Log) -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="6" Padding="10" MinHeight="150" MaxHeight="250">
-                        <ScrollViewer VerticalScrollBarVisibility="Auto">
-                            <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
-                                       FontFamily="Consolas" FontSize="10" Foreground="#3FB950"
-                                       TextWrapping="Wrap"/>
-                        </ScrollViewer>
+                    <!-- Section 5: Output Log -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16">
+                        <StackPanel>
+                            <TextBlock Text="Output Log" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                            <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
+                                <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
+                                           FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
+                                           TextWrapping="Wrap"/>
+                            </ScrollViewer>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
 
