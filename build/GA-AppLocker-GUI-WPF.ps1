@@ -891,7 +891,7 @@ function New-AppLockerGpo {
                     $serversOU = Get-ADOrganizationalUnit -Filter "Name -eq 'Servers'" -ErrorAction SilentlyContinue | Select-Object -First 1
                     if ($serversOU) {
                         $TargetOU = $serversOU.DistinguishedName
-                        Write-Log "Auto-targeting Servers OU for $GpoName: $TargetOU"
+                        Write-Log "Auto-targeting Servers OU for ${GpoName} -> $TargetOU"
                     } else {
                         $TargetOU = $domainDN
                         Write-Log "No Servers OU found, targeting domain root for $GpoName"
@@ -902,13 +902,13 @@ function New-AppLockerGpo {
                     $workstationsOU = Get-ADOrganizationalUnit -Filter "Name -eq 'Workstations'" -ErrorAction SilentlyContinue | Select-Object -First 1
                     if ($workstationsOU) {
                         $TargetOU = $workstationsOU.DistinguishedName
-                        Write-Log "Auto-targeting Workstations OU for $GpoName: $TargetOU"
+                        Write-Log "Auto-targeting Workstations OU for ${GpoName} -> $TargetOU"
                     } else {
                         # Check for Computers OU
                         $computersOU = Get-ADOrganizationalUnit -Filter "Name -eq 'Computers'" -ErrorAction SilentlyContinue | Select-Object -First 1
                         if ($computersOU) {
                             $TargetOU = $computersOU.DistinguishedName
-                            Write-Log "Auto-targeting Computers OU for $GpoName: $TargetOU"
+                            Write-Log "Auto-targeting Computers OU for ${GpoName} -> $TargetOU"
                         } else {
                             $TargetOU = $domainDN
                             Write-Log "No Workstations/Computers OU found, targeting domain root for $GpoName"
