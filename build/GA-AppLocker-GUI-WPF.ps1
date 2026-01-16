@@ -1061,8 +1061,8 @@ function New-WinRMGpo {
         # Allow Negotiate authentication
         Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowNegotiate" -Type DWord -Value 1 -ErrorAction Stop
 
-        # Allow CredSSP authentication
-        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowCredSSP" -Type DWord -Value 1 -ErrorAction Stop
+        # Disable CredSSP authentication (security risk)
+        Set-GPRegistryValue -Name $GpoName -Key "HKLM\Software\Policies\Microsoft\Windows\WinRM\Service" -ValueName "AllowCredSSP" -Type DWord -Value 0 -ErrorAction Stop
 
         Write-Log "WinRM Service policies configured"
 
@@ -10718,39 +10718,45 @@ $ScanLocalArtifactsBtn.Add_Click({
     $powerShell.AddScript({
         param($syncHash)
 
-        # Import required modules
-        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
-            Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
-        } else {
-            $script:ModulePath = "C:\GA-AppLocker\src\modules"
-            if (Test-Path $script:ModulePath) {
-                Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
+        try {
+            # Update UI - starting
+            $syncHash.Window.Dispatcher.Invoke([action]{
+                $syncHash.ArtifactsList.Items.Clear()
+                $syncHash.ArtifactsList.Items.Add("=== LOCAL ARTIFACT SCAN ===")
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.ArtifactsList.Items.Add("[*] Loading scan module...")
+            })
+
+            # Import required modules - use fixed path
+            $modulePath = "C:\GA-AppLocker\src\modules\Module2-RemoteScan.psm1"
+            if (Test-Path $modulePath) {
+                Import-Module $modulePath -Force -ErrorAction Stop
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("[OK] Module loaded")
+                })
             } else {
                 $syncHash.Window.Dispatcher.Invoke([action]{
-                    $syncHash.ArtifactsList.Items.Add("ERROR: Module path not found for Module2-RemoteScan")
+                    $syncHash.ArtifactsList.Items.Add("ERROR: Module not found: $modulePath")
+                    $syncHash.ArtifactsList.Items.Add("")
+                    $syncHash.ArtifactsList.Items.Add("Please ensure GA-AppLocker is installed at C:\GA-AppLocker")
+                    $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
                 })
                 return
             }
-        }
 
-        $directories = $syncHash.Directories
-        $maxFiles = $syncHash.MaxFiles
-        $allArtifacts = [System.Collections.ArrayList]::new()
+            $directories = $syncHash.Directories
+            $maxFiles = $syncHash.MaxFiles
+            $allArtifacts = [System.Collections.ArrayList]::new()
 
-        # Update UI - starting
-        $syncHash.Window.Dispatcher.Invoke([action]{
-            $syncHash.ArtifactsList.Items.Clear()
-            $syncHash.ArtifactsList.Items.Add("=== LOCAL ARTIFACT SCAN ===")
-            $syncHash.ArtifactsList.Items.Add("")
-            $syncHash.ArtifactsList.Items.Add("Collecting from $($directories.Count) directories:")
-            foreach ($dir in $directories) {
-                $syncHash.ArtifactsList.Items.Add("  - $dir")
-            }
-            $syncHash.ArtifactsList.Items.Add("")
-            $syncHash.ArtifactsList.Items.Add("[*] Scanning localhost... (UI remains responsive)")
-        })
-
-        try {
+            # Update UI - show directories
+            $syncHash.Window.Dispatcher.Invoke([action]{
+                $syncHash.ArtifactsList.Items.Add("")
+                $syncHash.ArtifactsList.Items.Add("Scanning $($directories.Count) directories:")
+                foreach ($dir in $directories) {
+                    $syncHash.ArtifactsList.Items.Add("  - $dir")
+                }
+                $syncHash.ArtifactsList.Items.Add("")
+            })
             # Scan each directory
             foreach ($dir in $directories) {
                 if (-not (Test-Path $dir)) {
