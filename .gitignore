@@ -7,6 +7,9 @@ output/
 !PSScriptAnalyzerSettings.psd1
 !build/ps2exe.config.json
 
+# Keep test data files
+!test-data/**/*.csv
+
 # Ignore log files
 logs/
 *.log

@@ -4025,8 +4025,8 @@ $xamlString = @"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                     <Button x:Name="NavRules" Content="Rule Generator" Style="{StaticResource NavButton}"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavRuleWizard" Content="Rule Wizard" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavRuleWizard" Content="Rule Wizard (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
                                 </StackPanel>
                             </Expander>
 
@@ -4094,7 +4094,7 @@ $xamlString = @"
                 <Grid Margin="20,10,10,10">
                 <!-- Dashboard Panel -->
                 <StackPanel x:Name="PanelDashboard" Visibility="Collapsed">
-                    <TextBlock Text="Dashboard" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Dashboard (WIP)" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
                     <!-- Stats Cards -->
                     <Grid>
@@ -5025,17 +5025,28 @@ $xamlString = @"
                 <StackPanel x:Name="PanelDeployment" Visibility="Collapsed">
                     <TextBlock Text="Deployment" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
-                    <!-- Import/Export Rules Buttons -->
-                    <Grid Margin="0,0,0,15">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
+                    <!-- Export Rules Button -->
+                    <Button x:Name="ExportRulesBtn" Content="Export Rules" Style="{StaticResource SecondaryButton}" Margin="0,0,0,15"/>
 
-                        <Button x:Name="ExportRulesBtn" Content="Export Rules" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
-                        <Button x:Name="ImportRulesBtn" Content="Import Rules to GPO" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
-                    </Grid>
+                    <!-- Rule File Selection -->
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
+                            CornerRadius="8" Padding="15" Margin="0,0,0,15">
+                        <StackPanel>
+                            <TextBlock Text="Rule File Selection" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBox x:Name="RuleFilePathBox" Grid.Column="0" Height="30" FontSize="11"
+                                         Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                         Padding="8,4" Text="Select an AppLocker XML rule file..." IsReadOnly="True"/>
+                                <Button x:Name="BrowseRuleFileBtn" Content="Browse..." Grid.Column="2"
+                                        Style="{StaticResource SecondaryButton}" Height="30" Padding="12,0"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Import to GPO Section -->
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
@@ -5052,6 +5063,8 @@ $xamlString = @"
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="8"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="15"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Text="Target GPO:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0"/>
@@ -5065,6 +5078,8 @@ $xamlString = @"
                                     <ComboBoxItem Content="Merge (Add)" IsSelected="True" ToolTip="Add new rules, keep existing rules"/>
                                     <ComboBoxItem Content="Overwrite" ToolTip="Replace all existing rules"/>
                                 </ComboBox>
+                                <Button x:Name="ImportRulesBtn" Content="Apply" Grid.Column="8"
+                                        Style="{StaticResource PrimaryButton}" Height="30" Padding="20,0"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -6529,6 +6544,10 @@ $TargetGpoCombo = $window.FindName("TargetGpoCombo")
 if ($null -eq $TargetGpoCombo) { Write-Log "WARNING: Control 'TargetGpoCombo' not found in XAML" -Level "WARNING" }
 $ImportModeCombo = $window.FindName("ImportModeCombo")
 if ($null -eq $ImportModeCombo) { Write-Log "WARNING: Control 'ImportModeCombo' not found in XAML" -Level "WARNING" }
+$RuleFilePathBox = $window.FindName("RuleFilePathBox")
+if ($null -eq $RuleFilePathBox) { Write-Log "WARNING: Control 'RuleFilePathBox' not found in XAML" -Level "WARNING" }
+$BrowseRuleFileBtn = $window.FindName("BrowseRuleFileBtn")
+if ($null -eq $BrowseRuleFileBtn) { Write-Log "WARNING: Control 'BrowseRuleFileBtn' not found in XAML" -Level "WARNING" }
 
 # Global variables
 $script:CollectedArtifacts = @()
@@ -14774,9 +14793,26 @@ $ExportRulesBtn.Add_Click({
 })
 }
 
+# Browse for rule file button
+if ($null -ne $BrowseRuleFileBtn) {
+$BrowseRuleFileBtn.Add_Click({
+    Write-Log "Browse rule file button clicked"
+
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
+    $openDialog.Title = "Select AppLocker Rules XML File"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker\Rules"
+
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        $RuleFilePathBox.Text = $openDialog.FileName
+        Write-Log "Rule file selected: $($openDialog.FileName)"
+    }
+})
+}
+
 if ($null -ne $ImportRulesBtn) {
 $ImportRulesBtn.Add_Click({
-    Write-Log "Import rules to GPO button clicked"
+    Write-Log "Apply rules to GPO button clicked"
 
     # Check workgroup mode
     if ($script:IsWorkgroup) {
@@ -14802,17 +14838,21 @@ $ImportRulesBtn.Add_Click({
     $importModeItem = $ImportModeCombo.SelectedItem
     $isMergeMode = if ($importModeItem) { $importModeItem.Content.ToString() -eq "Merge (Add)" } else { $true }
 
-    # Open file dialog
-    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
-    $openDialog.Title = "Import AppLocker Rules to $targetGpoName"
-    $openDialog.InitialDirectory = "C:\GA-AppLocker\Rules"
+    # Get file path from textbox or open dialog if not set
+    $xmlFilePath = $RuleFilePathBox.Text
+    if ([string]::IsNullOrWhiteSpace($xmlFilePath) -or $xmlFilePath -eq "Select an AppLocker XML rule file..." -or -not (Test-Path $xmlFilePath)) {
+        # Open file dialog if no valid file selected
+        $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $openDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
+        $openDialog.Title = "Select AppLocker Rules XML File"
+        $openDialog.InitialDirectory = "C:\GA-AppLocker\Rules"
 
-    if ($openDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
-        return
+        if ($openDialog.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) {
+            return
+        }
+        $xmlFilePath = $openDialog.FileName
+        $RuleFilePathBox.Text = $xmlFilePath
     }
-
-    $xmlFilePath = $openDialog.FileName
     $DeploymentStatus.Text = "Importing rules to: $targetGpoName`nMode: $(if ($isMergeMode) { 'Merge (Add)' } else { 'Overwrite' })`nSource: $xmlFilePath`n`nProcessing..."
 
     Write-Log "Importing rules to GPO: $targetGpoName (Mode: $(if ($isMergeMode) { 'Merge' } else { 'Overwrite' }))"
