@@ -27,6 +27,15 @@
 .PARAMETER PolicyMode
     Policy enforcement mode: Audit or Enforce. Defaults to Audit.
 
+.PARAMETER MergeWithPolicy
+    Path to existing policy XML to merge new rules into.
+
+.PARAMETER ApplyToLocalGPO
+    Apply the policy directly to local Group Policy (requires admin).
+
+.PARAMETER MergeWhenApplying
+    When using -ApplyToLocalGPO, merge with existing rules instead of replacing.
+
 .EXAMPLE
     .\Scan-And-CreateAppLockerPolicy.ps1
     Scans local computer and creates Audit policy.
@@ -38,6 +47,21 @@
 .EXAMPLE
     .\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName "PC1","PC2","PC3" -CreatePolicy -PolicyMode Enforce
     Scans multiple computers and creates Enforce policies.
+
+.EXAMPLE
+    .\Scan-And-CreateAppLockerPolicy.ps1 -MergeWithPolicy "C:\Policies\BasePolicy.xml"
+    Scans local computer and merges results with existing policy.
+
+.EXAMPLE
+    .\Scan-And-CreateAppLockerPolicy.ps1 -ApplyToLocalGPO -MergeWhenApplying
+    Scans and applies policy to local GPO, merging with existing rules.
+
+.EXAMPLE
+    # Scan multiple computers and merge all into one policy:
+    $policy = "C:\GA-AppLocker\Scans\MasterPolicy.xml"
+    "PC1","PC2","PC3" | ForEach-Object {
+        .\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName $_ -MergeWithPolicy $policy
+    }
 
 .NOTES
     Output XML can be imported using:
@@ -58,7 +82,16 @@ param(
     [switch]$CreatePolicy,
 
     [ValidateSet("Audit", "Enforce")]
-    [string]$PolicyMode = "Audit"
+    [string]$PolicyMode = "Audit",
+
+    # Merge with existing policy file instead of creating new
+    [string]$MergeWithPolicy,
+
+    # Apply directly to local GPO (requires admin)
+    [switch]$ApplyToLocalGPO,
+
+    # Merge when applying (don't replace existing rules)
+    [switch]$MergeWhenApplying
 )
 
 begin {
@@ -398,14 +431,76 @@ end {
         Write-Host "AppLocker Policy: $policyPath" -ForegroundColor Yellow
         Write-Host "Policy Mode: $PolicyMode" -ForegroundColor White
         Write-Host ""
+
+        # If merging with existing policy
+        if ($MergeWithPolicy -and (Test-Path $MergeWithPolicy)) {
+            Write-Host "--- Merging with existing policy ---" -ForegroundColor Yellow
+            try {
+                # Load existing policy
+                [xml]$existingPolicy = Get-Content $MergeWithPolicy -Encoding Unicode
+                [xml]$newPolicy = Get-Content $policyPath -Encoding Unicode
+
+                # Merge rules from new policy into existing
+                foreach ($newCollection in $newPolicy.AppLockerPolicy.RuleCollection) {
+                    $existingCollection = $existingPolicy.AppLockerPolicy.RuleCollection |
+                        Where-Object { $_.Type -eq $newCollection.Type }
+
+                    if ($existingCollection) {
+                        # Add new rules to existing collection
+                        foreach ($rule in $newCollection.ChildNodes) {
+                            if ($rule.NodeType -eq 'Element') {
+                                $importedRule = $existingPolicy.ImportNode($rule, $true)
+                                $existingCollection.AppendChild($importedRule) | Out-Null
+                            }
+                        }
+                    }
+                }
+
+                # Save merged policy
+                $mergedPath = $policyPath -replace '\.xml$', '-MERGED.xml'
+                $existingPolicy.Save($mergedPath)
+                Write-Host "Merged policy saved to: $mergedPath" -ForegroundColor Green
+                $policyPath = $mergedPath
+            } catch {
+                Write-Host "Merge failed: $($_.Exception.Message)" -ForegroundColor Red
+            }
+        }
+
+        # Apply to local GPO if requested
+        if ($ApplyToLocalGPO) {
+            Write-Host ""
+            Write-Host "--- Applying to Local GPO ---" -ForegroundColor Yellow
+            try {
+                $applyParams = @{
+                    XmlPolicy = $policyPath
+                }
+                if ($MergeWhenApplying) {
+                    $applyParams["Merge"] = $true
+                    Write-Host "Merging with existing local policy..." -ForegroundColor Gray
+                } else {
+                    Write-Host "Replacing local policy..." -ForegroundColor Gray
+                }
+
+                Set-AppLockerPolicy @applyParams -ErrorAction Stop
+                Write-Host "Policy applied successfully!" -ForegroundColor Green
+            } catch {
+                Write-Host "Failed to apply: $($_.Exception.Message)" -ForegroundColor Red
+                Write-Host "Make sure you're running as Administrator." -ForegroundColor Yellow
+            }
+        }
+
+        Write-Host ""
         Write-Host "TO IMPORT THIS POLICY:" -ForegroundColor Cyan
         Write-Host "  1. Open Group Policy Editor (gpedit.msc)" -ForegroundColor Gray
         Write-Host "  2. Navigate to: Computer Configuration > Windows Settings > Security Settings > Application Control Policies > AppLocker" -ForegroundColor Gray
         Write-Host "  3. Right-click AppLocker > Import Policy..." -ForegroundColor Gray
         Write-Host "  4. Select: $policyPath" -ForegroundColor Gray
         Write-Host ""
-        Write-Host "Or use PowerShell:" -ForegroundColor Cyan
+        Write-Host "Or use PowerShell (MERGE with existing):" -ForegroundColor Cyan
         Write-Host "  Set-AppLockerPolicy -XmlPolicy `"$policyPath`" -Merge" -ForegroundColor Gray
+        Write-Host ""
+        Write-Host "Or use PowerShell (REPLACE existing):" -ForegroundColor Cyan
+        Write-Host "  Set-AppLockerPolicy -XmlPolicy `"$policyPath`"" -ForegroundColor Gray
         Write-Host ""
 
         # Return the policy path for automation
