@@ -491,20 +491,35 @@ function Export-AllEvidence {
         }
 
         $results = @{}
+        $allSucceeded = $true
+        $errors = @()
 
         $policy = Export-CurrentPolicy -OutputPath "$BasePath\Policies\CurrentPolicy.xml"
         $results.policy = $policy
+        if (-not $policy.success) {
+            $allSucceeded = $false
+            $errors += "Policy export failed: $($policy.error)"
+        }
 
         $inventory = Export-SystemInventory -OutputPath "$BasePath\Inventory\Inventory.json"
         $results.inventory = $inventory
+        if (-not $inventory.success) {
+            $allSucceeded = $false
+            $errors += "Inventory export failed: $($inventory.error)"
+        }
 
         $report = New-ComplianceReport -OutputPath "$BasePath\Reports\ComplianceReport.html"
         $results.report = $report
+        if (-not $report.success) {
+            $allSucceeded = $false
+            $errors += "Report generation failed: $($report.error)"
+        }
 
         return @{
-            success = $true
+            success = $allSucceeded
             basePath = $BasePath
             results = $results
+            errors = if ($errors.Count -gt 0) { $errors } else { $null }
         }
     }
     catch {

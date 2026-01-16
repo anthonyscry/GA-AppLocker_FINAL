@@ -351,6 +351,31 @@ function Add-UserToAppLockerGroup {
         [string]$GroupName
     )
 
+    # Tier-0 Protected Groups - these CANNOT be modified through this function
+    $protectedGroups = @(
+        'Domain Admins',
+        'Enterprise Admins',
+        'Schema Admins',
+        'Administrators',
+        'Backup Operators',
+        'Account Operators',
+        'Server Operators',
+        'Print Operators',
+        'Cert Publishers',
+        'Group Policy Creator Owners'
+    )
+
+    # Allowed AppLocker groups whitelist
+    $allowedGroups = @(
+        'AppLocker-Admins',
+        'AppLocker-StandardUsers',
+        'AppLocker-PowerUsers',
+        'AppLocker-RestrictedUsers',
+        'AppLocker-Service-Accounts',
+        'AppLocker-Installers',
+        'AppLocker-Developers'
+    )
+
     # Validate parameters
     if ([string]::IsNullOrWhiteSpace($SamAccountName)) {
         return @{ success = $false; error = 'SamAccountName is required' }
@@ -425,6 +450,20 @@ function Remove-UserFromAppLockerGroup {
         [string]$SamAccountName,
         [Parameter(Mandatory = $true)]
         [string]$GroupName
+    )
+
+    # Tier-0 Protected Groups - these CANNOT be modified through this function
+    $protectedGroups = @(
+        'Domain Admins',
+        'Enterprise Admins',
+        'Schema Admins',
+        'Administrators',
+        'Backup Operators',
+        'Account Operators',
+        'Server Operators',
+        'Print Operators',
+        'Cert Publishers',
+        'Group Policy Creator Owners'
     )
 
     # Validate parameters

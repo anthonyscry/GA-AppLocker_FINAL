@@ -585,6 +585,7 @@ function New-PublisherRule {
         type = 'Publisher'
         action = $Action
         publisher = $PublisherName
+        Description = $Description
         xml = $xml
     }
 }
@@ -639,6 +640,7 @@ function New-PathRule {
         type = 'Path'
         action = $Action
         path = $Path
+        Description = $Description
         xml = $xml
     }
 }
@@ -703,6 +705,7 @@ function New-HashRule {
             hash = $hash
             fileName = $fileName
             fileSize = $fileSize
+            Description = $Description
             xml = $xml
         }
     }

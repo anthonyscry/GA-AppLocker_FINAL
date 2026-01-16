@@ -297,7 +297,7 @@ function Set-GPOAppLockerPolicy {
         $ldapPath = "LDAP://{0}" -f $gpo.Path.Replace("LDAP://", "")
 
         Write-Verbose "Applying policy to GPO '$GpoName' in domain '$($domain.Name)'"
-        Set-AppLockerPolicy -AppLockerPolicy $policy -LDAP $ldapPath -ErrorAction Stop
+        Set-AppLockerPolicy -PolicyObject $policy -Ldap $ldapPath -ErrorAction Stop
 
         return @{
             success = $true
@@ -402,7 +402,7 @@ function Set-LatestAppLockerPolicy {
         $policy = [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.AppLockerPolicy]::Load($latestPolicy.FullName)
         $ldapPath = "LDAP://{0}" -f $gpo.Path.Replace("LDAP://", "")
 
-        Set-AppLockerPolicy -AppLockerPolicy $policy -LDAP $ldapPath -ErrorAction Stop
+        Set-AppLockerPolicy -PolicyObject $policy -Ldap $ldapPath -ErrorAction Stop
 
         return @{
             success = $true
