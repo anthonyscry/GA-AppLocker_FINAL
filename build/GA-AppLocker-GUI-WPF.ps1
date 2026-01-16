@@ -467,6 +467,38 @@ function New-HashRule {
     return @{ success = $true; id = $guid; type = "Hash"; hash = $hash; fileName = $fileName; action = $Action; sid = $UserOrGroupSid; xml = $xml }
 }
 
+function New-PathRule {
+    param(
+        [string]$FilePath,
+        [string]$Action = "Allow",
+        [string]$UserOrGroupSid = "S-1-1-0"
+    )
+
+    if (-not $FilePath) {
+        return @{ success = $false; error = "File path is required" }
+    }
+
+    $directory = Split-Path -Parent $FilePath -ErrorAction SilentlyContinue
+    if (-not $directory) {
+        return @{ success = $false; error = "Could not determine directory from path" }
+    }
+
+    $guid = "{" + (New-Guid).ToString() + "}"
+    $pathPattern = "$directory\*"
+    $ruleName = Split-Path -Leaf $directory
+    $xml = "<FilePathRule Id=`"$guid`" Name=`"$ruleName`" UserOrGroupSid=`"$UserOrGroupSid`" Action=`"$Action`"><Conditions><FilePathCondition Path=`"$pathPattern`"/></Conditions></FilePathRule>"
+
+    return @{
+        success = $true
+        id = $guid
+        type = "Path"
+        path = $pathPattern
+        action = $Action
+        sid = $UserOrGroupSid
+        xml = $xml
+    }
+}
+
 function New-RulesFromArtifacts {
     param(
         [array]$Artifacts,
@@ -873,6 +905,15 @@ function New-WinRMGpo {
     )
 
     try {
+        # Check for admin elevation first
+        $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        if (-not $isAdmin) {
+            return @{
+                success = $false
+                error = "This operation requires Administrator (Domain Admin) rights. Please run PowerShell as Administrator."
+            }
+        }
+
         Import-Module GroupPolicy -ErrorAction Stop
         Import-Module ActiveDirectory -ErrorAction SilentlyContinue
 
@@ -7206,8 +7247,9 @@ function Deduplicate-Rules {
                 else { "$($rule.FilePath)|$groupSid" }
             }
             "Hash" {
-                if ($rule.FileHash) { "$($rule.FileHash)|$groupSid" }
-                else { "$($rule.Name)$($rule.FilePath)|$groupSid" }
+                if ($rule.hash) { "$($rule.hash)|$groupSid" }
+                elseif ($rule.FileHash) { "$($rule.FileHash)|$groupSid" }
+                else { "$($rule.fileName)$($rule.path)|$groupSid" }
             }
         }
 
@@ -9330,21 +9372,56 @@ function Import-SoftwareList {
 function Convert-RulesToAppLockerXml {
     param([array]$Rules)
 
-    $xml = @"
+    # Create XML document with proper structure
+    [xml]$xmlDoc = @"
 <AppLockerPolicy Version="1">
   <RuleCollection Type="Executable" EnforcementMode="AuditOnly" />
   <RuleCollection Type="Script" EnforcementMode="AuditOnly" />
-  <RuleCollection Type="WindowsInstallerFile" EnforcementMode="AuditOnly" />
+  <RuleCollection Type="WindowsInstaller" EnforcementMode="AuditOnly" />
   <RuleCollection Type="Dll" EnforcementMode="AuditOnly" />
   <RuleCollection Type="Appx" EnforcementMode="AuditOnly" />
 </AppLockerPolicy>
 "@
 
-    # Note: For full rule conversion, would need to parse $script:GeneratedRules
-    # and create proper AppLocker XML structure
-    # This is a placeholder for the export functionality
+    # Get rule collection nodes
+    $exeNode = $xmlDoc.SelectSingleNode("//RuleCollection[@Type='Executable']")
+    $scriptNode = $xmlDoc.SelectSingleNode("//RuleCollection[@Type='Script']")
+    $msiNode = $xmlDoc.SelectSingleNode("//RuleCollection[@Type='WindowsInstaller']")
+    $dllNode = $xmlDoc.SelectSingleNode("//RuleCollection[@Type='Dll']")
 
-    return $xml
+    # Process each rule and add to appropriate collection
+    foreach ($rule in $Rules) {
+        if (-not $rule -or -not $rule.xml) { continue }
+
+        try {
+            # Create document fragment from rule XML
+            $fragment = $xmlDoc.CreateDocumentFragment()
+            $fragment.InnerXml = $rule.xml
+
+            # Determine which collection to add to based on rule type and file extension
+            $ruleType = if ($rule.type) { $rule.type } else { "Publisher" }
+            $fileName = if ($rule.fileName) { $rule.fileName } elseif ($rule.path) { Split-Path -Leaf $rule.path } else { "" }
+            $ext = if ($fileName) { [System.IO.Path]::GetExtension($fileName).ToLower() } else { ".exe" }
+
+            # Add to appropriate collection based on file type
+            switch ($ext) {
+                ".ps1" { [void]$scriptNode.AppendChild($fragment) }
+                ".bat" { [void]$scriptNode.AppendChild($fragment) }
+                ".cmd" { [void]$scriptNode.AppendChild($fragment) }
+                ".vbs" { [void]$scriptNode.AppendChild($fragment) }
+                ".js"  { [void]$scriptNode.AppendChild($fragment) }
+                ".msi" { [void]$msiNode.AppendChild($fragment) }
+                ".msp" { [void]$msiNode.AppendChild($fragment) }
+                ".dll" { [void]$dllNode.AppendChild($fragment) }
+                default { [void]$exeNode.AppendChild($fragment) }
+            }
+        }
+        catch {
+            Write-Log "Error adding rule to XML: $($_.Exception.Message)" -Level "WARN"
+        }
+    }
+
+    return $xmlDoc.OuterXml
 }
 
 <#
@@ -9478,31 +9555,31 @@ function Show-Panel {
     }
 
     switch ($PanelName) {
-        "Dashboard" { $PanelDashboard.Visibility = [System.Windows.Visibility]::Visible }
-        "Discovery" { $PanelDiscovery.Visibility = [System.Windows.Visibility]::Visible }
-        "Artifacts" { $PanelArtifacts.Visibility = [System.Windows.Visibility]::Visible }
+        "Dashboard" { if ($null -ne $PanelDashboard) { $PanelDashboard.Visibility = [System.Windows.Visibility]::Visible } }
+        "Discovery" { if ($null -ne $PanelDiscovery) { $PanelDiscovery.Visibility = [System.Windows.Visibility]::Visible } }
+        "Artifacts" { if ($null -ne $PanelArtifacts) { $PanelArtifacts.Visibility = [System.Windows.Visibility]::Visible } }
         "Rules" {
             if ($null -ne $PanelRules) {
-            $PanelRules.Visibility = [System.Windows.Visibility]::Visible
+                $PanelRules.Visibility = [System.Windows.Visibility]::Visible
             }
             Update-Badges
         }
-        "Deployment" { $PanelDeployment.Visibility = [System.Windows.Visibility]::Visible }
-        "Events" { $PanelEvents.Visibility = [System.Windows.Visibility]::Visible }
-        "Compliance" { $PanelCompliance.Visibility = [System.Windows.Visibility]::Visible }
-        "Reports" { $PanelReports.Visibility = [System.Windows.Visibility]::Visible }
-        "WinRM" { $PanelWinRM.Visibility = [System.Windows.Visibility]::Visible }
-        "GroupMgmt" { $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Visible }
-        "AppLockerSetup" { $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible }
-        "GapAnalysis" { $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Visible }
+        "Deployment" { if ($null -ne $PanelDeployment) { $PanelDeployment.Visibility = [System.Windows.Visibility]::Visible } }
+        "Events" { if ($null -ne $PanelEvents) { $PanelEvents.Visibility = [System.Windows.Visibility]::Visible } }
+        "Compliance" { if ($null -ne $PanelCompliance) { $PanelCompliance.Visibility = [System.Windows.Visibility]::Visible } }
+        "Reports" { if ($null -ne $PanelReports) { $PanelReports.Visibility = [System.Windows.Visibility]::Visible } }
+        "WinRM" { if ($null -ne $PanelWinRM) { $PanelWinRM.Visibility = [System.Windows.Visibility]::Visible } }
+        "GroupMgmt" { if ($null -ne $PanelGroupMgmt) { $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Visible } }
+        "AppLockerSetup" { if ($null -ne $PanelAppLockerSetup) { $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible } }
+        "GapAnalysis" { if ($null -ne $PanelGapAnalysis) { $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Visible } }
         "Templates" {
             if ($null -ne $PanelTemplates) {
-            $PanelTemplates.Visibility = [System.Windows.Visibility]::Visible
+                $PanelTemplates.Visibility = [System.Windows.Visibility]::Visible
             }
             Load-TemplatesList
         }
-        "Help" { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible }
-        "About" { $PanelAbout.Visibility = [System.Windows.Visibility]::Visible }
+        "Help" { if ($null -ne $PanelHelp) { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible } }
+        "About" { if ($null -ne $PanelAbout) { $PanelAbout.Visibility = [System.Windows.Visibility]::Visible } }
     }
 }
 
@@ -11421,13 +11498,13 @@ $DuplicateRulesBtn.Add_Click({
     foreach ($item in $selectedItems) {
         $rule = $item.Rule
 
-        # Create a deep copy of the rule
+        # Create a deep copy of the rule (use consistent property names)
         $newRule = [PSCustomObject]@{
             id = "{" + (New-Guid).ToString() + "}"
             type = $rule.type
             action = $rule.action
             userOrGroupSid = $targetSid
-            publisherName = if ($rule.publisherName) { $rule.publisherName } else { $null }
+            publisher = if ($rule.publisher) { $rule.publisher } elseif ($rule.publisherName) { $rule.publisherName } else { $null }
             fileName = if ($rule.fileName) { $rule.fileName } else { $null }
             path = if ($rule.path) { $rule.path } else { $null }
             hash = if ($rule.hash) { $rule.hash } else { $null }
@@ -12559,13 +12636,13 @@ function Invoke-BulkDuplicateToGroup {
             try {
                 $rule = $item.Rule
 
-                # Create a deep copy of the rule
+                # Create a deep copy of the rule (use consistent property names)
                 $newRule = [PSCustomObject]@{
                     id = "{" + (New-Guid).ToString() + "}"
                     type = $rule.type
                     action = $rule.action
                     userOrGroupSid = $targetSid
-                    publisherName = if ($rule.publisherName) { $rule.publisherName } else { $null }
+                    publisher = if ($rule.publisher) { $rule.publisher } elseif ($rule.publisherName) { $rule.publisherName } else { $null }
                     fileName = if ($rule.fileName) { $rule.fileName } else { $null }
                     path = if ($rule.path) { $rule.path } else { $null }
                     hash = if ($rule.hash) { $rule.hash } else { $null }
@@ -12885,9 +12962,9 @@ function Filter-RulesDataGrid {
         $ruleSid = if ($rule.userOrGroupSid) { $rule.userOrGroupSid } else { "S-1-1-0" }
         $groupName = Resolve-SidToGroupName -Sid $ruleSid
 
-        # Build name based on type
+        # Build name based on type (check both property name formats for compatibility)
         $name = switch ($ruleType) {
-            "Publisher" { if ($rule.publisherName) { $rule.publisherName } else { "Unknown Publisher" } }
+            "Publisher" { if ($rule.publisher) { $rule.publisher } elseif ($rule.publisherName) { $rule.publisherName } else { "Unknown Publisher" } }
             "Hash" { if ($rule.fileName) { $rule.fileName } else { if ($rule.hash) { $rule.hash.Substring(0, 16) + "..." } else { "Unknown" } } }
             "Path" { if ($rule.path) { $rule.path } else { "Unknown Path" } }
             default { "Unknown" }
@@ -15059,8 +15136,19 @@ $ImportRulesBtn.Add_Click({
                     }
                 }
 
-                # Apply merged policy to GPO
-                Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXml $mergedPolicy.OuterXml -ErrorAction Stop | Out-Null
+                # Apply merged policy to GPO (save to temp file first as function expects path)
+                $tempXmlPath = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "AppLocker_Merge_$(Get-Random).xml")
+                try {
+                    $xws = [System.Xml.XmlWriterSettings]::new()
+                    $xws.Encoding = [System.Text.Encoding]::Unicode
+                    $xws.Indent = $true
+                    $xw = [System.Xml.XmlWriter]::Create($tempXmlPath, $xws)
+                    $mergedPolicy.Save($xw)
+                    $xw.Close()
+                    Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXmlPath $tempXmlPath -ErrorAction Stop | Out-Null
+                } finally {
+                    if (Test-Path $tempXmlPath) { Remove-Item $tempXmlPath -Force -ErrorAction SilentlyContinue }
+                }
 
                 $resultMessage = "=== IMPORT COMPLETE (MERGE MODE) ===`n`n"
                 $resultMessage += "Target GPO: $targetGpoName`n"
@@ -15072,8 +15160,8 @@ $ImportRulesBtn.Add_Click({
                 $resultMessage += "Merge mode adds new rules while preserving existing rules."
             }
             else {
-                # No existing policy - just import new rules
-                Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXml $newPolicyXml.OuterXml -ErrorAction Stop | Out-Null
+                # No existing policy - just import new rules (use source file directly since it's already a valid path)
+                Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXmlPath $xmlFilePath -ErrorAction Stop | Out-Null
                 $rulesAdded = ($newPolicyXml.AppLockerPolicy.RuleCollection.ChildNodes | Measure-Object).Count
 
                 $resultMessage = "=== IMPORT COMPLETE ===`n`n"
@@ -15094,8 +15182,8 @@ $ImportRulesBtn.Add_Click({
                 $rulesOverwritten = ($existingPolicy.AppLockerPolicy.RuleCollection.ChildNodes | Measure-Object).Count
             }
 
-            # Apply new policy (overwrites existing)
-            Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXml $newPolicyXml.OuterXml -ErrorAction Stop | Out-Null
+            # Apply new policy (overwrites existing) - use source file directly
+            Set-GPOAppLockerPolicy -GpoName $targetGpoName -PolicyXmlPath $xmlFilePath -ErrorAction Stop | Out-Null
             $rulesAdded = ($newPolicyXml.AppLockerPolicy.RuleCollection.ChildNodes | Measure-Object).Count
 
             $resultMessage = "=== IMPORT COMPLETE (OVERWRITE MODE) ===`n`n"
@@ -15125,83 +15213,102 @@ $ImportRulesBtn.Add_Click({
 
 # Other events
 function Update-StatusBar {
-    # Update main status text
-    if ($script:IsWorkgroup) {
-        $StatusText.Text = "WORKGROUP MODE - Local scanning available"
-    } elseif (-not $script:HasRSAT) {
-        $StatusText.Text = "$($script:DomainInfo.dnsRoot) - RSAT required for GPO features"
-    } else {
-        $StatusText.Text = "$($script:DomainInfo.dnsRoot) - Full features available"
-    }
-
-    # Phase 3: Enhanced Context Indicators
-    # Domain/Workgroup indicator
-    if ($script:IsWorkgroup) {
-        $MiniStatusDomain.Text = "WORKGROUP"
-        $MiniStatusDomain.Foreground = "#8B949E"
-    } else {
-        $MiniStatusDomain.Text = "$($script:DomainInfo.netBIOSName)"
-        $MiniStatusDomain.Foreground = "#3FB950"
-    }
-
-    # Mode indicator (Audit vs Enforce)
     try {
-        $policy = Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue
-        $hasEnforce = $false
-        if ($policy) {
-            foreach ($collection in $policy.RuleCollections) {
-                if ($collection.EnforcementMode -eq "Enabled") {
-                    $hasEnforce = $true
-                    break
-                }
+        # Update main status text
+        if ($null -ne $StatusText) {
+            if ($script:IsWorkgroup) {
+                $StatusText.Text = "WORKGROUP MODE - Local scanning available"
+            } elseif (-not $script:HasRSAT) {
+                $StatusText.Text = "$($script:DomainInfo.dnsRoot) - RSAT required for GPO features"
+            } else {
+                $StatusText.Text = "$($script:DomainInfo.dnsRoot) - Full features available"
             }
         }
 
-        if ($hasEnforce) {
-            $MiniStatusMode.Text = "ENFORCE"
-            $MiniStatusMode.Foreground = "#F85149"
-        } else {
-            $MiniStatusMode.Text = "AUDIT"
-            $MiniStatusMode.Foreground = "#3FB950"
+        # Phase 3: Enhanced Context Indicators
+        # Domain/Workgroup indicator
+        if ($null -ne $MiniStatusDomain) {
+            if ($script:IsWorkgroup) {
+                $MiniStatusDomain.Text = "WORKGROUP"
+                $MiniStatusDomain.Foreground = "#8B949E"
+            } else {
+                $MiniStatusDomain.Text = "$($script:DomainInfo.netBIOSName)"
+                $MiniStatusDomain.Foreground = "#3FB950"
+            }
+        }
+
+        # Mode indicator (Audit vs Enforce)
+        if ($null -ne $MiniStatusMode) {
+            try {
+                $policy = Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue
+                $hasEnforce = $false
+                if ($policy) {
+                    foreach ($collection in $policy.RuleCollections) {
+                        if ($collection.EnforcementMode -eq "Enabled") {
+                            $hasEnforce = $true
+                            break
+                        }
+                    }
+                }
+
+                if ($hasEnforce) {
+                    $MiniStatusMode.Text = "ENFORCE"
+                    $MiniStatusMode.Foreground = "#F85149"
+                } else {
+                    $MiniStatusMode.Text = "AUDIT"
+                    $MiniStatusMode.Foreground = "#3FB950"
+                }
+            }
+            catch {
+                $MiniStatusMode.Text = "UNKNOWN"
+                $MiniStatusMode.Foreground = "#8B949E"
+            }
+        }
+
+        # Phase indicator (from GPO quick assignment)
+        if ($null -ne $MiniStatusPhase) {
+            $currentPhase = $script:CurrentDeploymentPhase
+            if ($currentPhase) {
+                $MiniStatusPhase.Text = "P$currentPhase"
+            } else {
+                $MiniStatusPhase.Text = ""
+            }
+        }
+
+        # Connected systems count
+        if ($null -ne $MiniStatusConnected) {
+            if ($script:DiscoveredSystems) {
+                $onlineCount = @($script:DiscoveredSystems | Where-Object { $_.status -eq "Online" }).Count
+                $MiniStatusConnected.Text = "$onlineCount online"
+            } else {
+                $MiniStatusConnected.Text = "0 systems"
+            }
+        }
+
+        # Artifacts count
+        if ($null -ne $MiniStatusArtifacts) {
+            $artifactCount = $script:CollectedArtifacts.Count
+            $MiniStatusArtifacts.Text = "$artifactCount artifacts"
+        }
+
+        # Last sync time
+        if ($null -ne $MiniStatusSync) {
+            if ($script:LastSyncTime) {
+                $timeDiff = (Get-Date) - $script:LastSyncTime
+                if ($timeDiff.TotalMinutes -lt 1) {
+                    $MiniStatusSync.Text = "Just now"
+                } elseif ($timeDiff.TotalMinutes -lt 60) {
+                    $MiniStatusSync.Text = "$([int]$timeDiff.TotalMinutes)m ago"
+                } else {
+                    $MiniStatusSync.Text = "$([int]$timeDiff.TotalHours)h ago"
+                }
+            } else {
+                $MiniStatusSync.Text = "Ready"
+            }
         }
     }
     catch {
-        $MiniStatusMode.Text = "UNKNOWN"
-        $MiniStatusMode.Foreground = "#8B949E"
-    }
-
-    # Phase indicator (from GPO quick assignment)
-    $currentPhase = $script:CurrentDeploymentPhase
-    if ($currentPhase) {
-        $MiniStatusPhase.Text = "P$currentPhase"
-    } else {
-        $MiniStatusPhase.Text = ""
-    }
-
-    # Connected systems count
-    if ($script:DiscoveredSystems) {
-        $onlineCount = @($script:DiscoveredSystems | Where-Object { $_.status -eq "Online" }).Count
-        $MiniStatusConnected.Text = "$onlineCount online"
-    } else {
-        $MiniStatusConnected.Text = "0 systems"
-    }
-
-    # Artifacts count
-    $artifactCount = $script:CollectedArtifacts.Count
-    $MiniStatusArtifacts.Text = "$artifactCount artifacts"
-
-    # Last sync time
-    if ($script:LastSyncTime) {
-        $timeDiff = (Get-Date) - $script:LastSyncTime
-        if ($timeDiff.TotalMinutes -lt 1) {
-            $MiniStatusSync.Text = "Just now"
-        } elseif ($timeDiff.TotalMinutes -lt 60) {
-            $MiniStatusSync.Text = "$([int]$timeDiff.TotalMinutes)m ago"
-        } else {
-            $MiniStatusSync.Text = "$([int]$timeDiff.TotalHours)h ago"
-        }
-    } else {
-        $MiniStatusSync.Text = "Ready"
+        Write-Log "Error updating status bar: $($_.Exception.Message)" -Level "ERROR"
     }
 }
 
