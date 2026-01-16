@@ -138,17 +138,22 @@ Generate audit evidence packages:
 
 Follow these steps to deploy AppLocker in your environment:
 
-### Step 1: Prepare (5 minutes)
+### Step 1: Prepare (5-10 minutes)
 1. Run the application as Administrator
 2. Go to **AppLocker Setup** panel
 3. Click **Create AppLocker Structure**
 4. Go to **AD Discovery** panel
 5. Click **Discover Computers** to find targets
+6. **IMPORTANT**: If planning to scan remote computers, go to **WinRM** panel:
+   - Click **Create WinRM GPO** to enable remote management
+   - Click **Force GPUpdate** to push settings
+   - This is required for remote artifact and event scanning
 
 ### Step 2: Collect Artifacts (15-30 minutes)
 1. Go to **Artifacts** panel
 2. Click **Scan Local System** for quick local scan
 3. Or select online computers and click **Scan Selected**
+   - **Note**: Remote scanning requires WinRM to be enabled first (Step 1)
 4. Artifacts saved to `C:\GA-AppLocker\Scans\`
 
 ### Step 3: Generate Rules (10 minutes)
