@@ -1,4 +1,7 @@
-﻿# GA-AppLocker Dashboard - Modern WPF GUI
+﻿#Requires -Version 5.1
+#Requires -RunAsAdministrator
+
+# GA-AppLocker Dashboard - Modern WPF GUI
 # GitHub-style dark theme based on ExampleGUI design
 # Self-contained with embedded module functions
 
@@ -45,6 +48,43 @@ function Write-Log {
     } catch {
         # Silently fail if logging fails
     }
+}
+
+# ============================================================
+# XML ENTITY ESCAPING (Security - prevent XML injection)
+# ============================================================
+function ConvertTo-XmlSafeString {
+    <#
+    .SYNOPSIS
+        Escapes XML special characters in a string
+    .DESCRIPTION
+        Converts special characters (&, <, >, ", ') to their XML entity equivalents
+        to prevent XML injection and ensure valid XML output
+    .PARAMETER InputString
+        The string to escape
+    .OUTPUTS
+        String with XML entities escaped
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [AllowEmptyString()]
+        [string]$InputString
+    )
+
+    if ([string]::IsNullOrEmpty($InputString)) {
+        return $InputString
+    }
+
+    # Order matters: & must be first to avoid double-encoding
+    $result = $InputString -replace '&', '&amp;'
+    $result = $result -replace '<', '&lt;'
+    $result = $result -replace '>', '&gt;'
+    $result = $result -replace '"', '&quot;'
+    $result = $result -replace "'", '&apos;'
+
+    return $result
 }
 
 # ============================================================
@@ -820,7 +860,7 @@ function New-EvidenceFolder {
 
 # Module 7: GPO Functions
 
-# Create AppLocker GPO
+# Create AppLocker GPO with automatic OU targeting based on GPO name
 function New-AppLockerGpo {
     param(
         [string]$GpoName = "AppLocker Policy",
@@ -833,24 +873,81 @@ function New-AppLockerGpo {
         Import-Module GroupPolicy -ErrorAction Stop
         Import-Module ActiveDirectory -ErrorAction SilentlyContinue
 
-        # Detect current domain if OU not specified
+        # Get domain info
+        $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
+        $domainDN = $domain.DistinguishedName
+
+        # Determine target OU based on GPO name if not specified
         if (-not $TargetOU) {
-            $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
-            $TargetOU = $domain.DistinguishedName
+            switch -Wildcard ($GpoName) {
+                "*-DC" {
+                    # Link to Domain Controllers OU (default AD OU)
+                    $TargetOU = "OU=Domain Controllers,$domainDN"
+                    Write-Log "Auto-targeting Domain Controllers OU for $GpoName"
+                }
+                "*-Servers" {
+                    # Link to root domain (servers can be anywhere)
+                    # Could also target a Servers OU if it exists
+                    $serversOU = Get-ADOrganizationalUnit -Filter "Name -eq 'Servers'" -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($serversOU) {
+                        $TargetOU = $serversOU.DistinguishedName
+                        Write-Log "Auto-targeting Servers OU for $GpoName: $TargetOU"
+                    } else {
+                        $TargetOU = $domainDN
+                        Write-Log "No Servers OU found, targeting domain root for $GpoName"
+                    }
+                }
+                "*-Workstations" {
+                    # Try Workstations OU first, then Computers container, then domain root
+                    $workstationsOU = Get-ADOrganizationalUnit -Filter "Name -eq 'Workstations'" -ErrorAction SilentlyContinue | Select-Object -First 1
+                    if ($workstationsOU) {
+                        $TargetOU = $workstationsOU.DistinguishedName
+                        Write-Log "Auto-targeting Workstations OU for $GpoName: $TargetOU"
+                    } else {
+                        # Check for Computers OU
+                        $computersOU = Get-ADOrganizationalUnit -Filter "Name -eq 'Computers'" -ErrorAction SilentlyContinue | Select-Object -First 1
+                        if ($computersOU) {
+                            $TargetOU = $computersOU.DistinguishedName
+                            Write-Log "Auto-targeting Computers OU for $GpoName: $TargetOU"
+                        } else {
+                            $TargetOU = $domainDN
+                            Write-Log "No Workstations/Computers OU found, targeting domain root for $GpoName"
+                        }
+                    }
+                }
+                default {
+                    $TargetOU = $domainDN
+                    Write-Log "Using domain root for $GpoName"
+                }
+            }
         }
 
-        Write-Log "Creating AppLocker GPO: $GpoName"
+        Write-Log "Creating AppLocker GPO: $GpoName -> $TargetOU"
 
         # Check if GPO already exists
         $existingGpo = Get-GPO -Name $GpoName -ErrorAction SilentlyContinue
         if ($existingGpo) {
             Write-Log "GPO already exists: $GpoName"
+
+            # Try to link existing GPO to target OU
+            try {
+                New-GPLink -Name $GpoName -Target $TargetOU -LinkEnabled Yes -ErrorAction Stop | Out-Null
+                Write-Log "Linked existing GPO to: $TargetOU"
+            }
+            catch {
+                if ($_.Exception.Message -notlike "*already linked*") {
+                    Write-Log "Could not link existing GPO: $($_.Exception.Message)" -Level "WARN"
+                } else {
+                    Write-Log "GPO already linked to $TargetOU"
+                }
+            }
+
             return @{
                 success = $true
                 gpoName = $GpoName
                 gpoId = $existingGpo.Id
-                linkedTo = "Existing GPO"
-                message = "GPO '$GpoName' already exists. Use Link GPO to link it to an OU."
+                linkedTo = $TargetOU
+                message = "GPO '$GpoName' already exists and linked to $TargetOU."
                 isNew = $false
             }
         }
@@ -860,8 +957,17 @@ function New-AppLockerGpo {
         Write-Log "GPO created: $($gpo.Id)"
 
         # Link to target OU
-        $link = New-GPLink -Name $GpoName -Target $TargetOU -LinkEnabled Yes -ErrorAction Stop
-        Write-Log "GPO linked to: $TargetOU"
+        try {
+            $link = New-GPLink -Name $GpoName -Target $TargetOU -LinkEnabled Yes -ErrorAction Stop
+            Write-Log "GPO linked to: $TargetOU"
+        }
+        catch {
+            if ($_.Exception.Message -notlike "*already linked*") {
+                Write-Log "GPO link warning: $($_.Exception.Message)" -Level "WARN"
+            } else {
+                Write-Log "GPO already linked to $TargetOU"
+            }
+        }
 
         # Set Domain Admins with full control
         try {
@@ -877,7 +983,7 @@ function New-AppLockerGpo {
             gpoName = $GpoName
             gpoId = $gpo.Id
             linkedTo = $TargetOU
-            message = "AppLocker GPO created and linked successfully"
+            message = "AppLocker GPO created and linked to $TargetOU successfully"
             isNew = $true
         }
     }
@@ -4965,9 +5071,9 @@ $xamlString = @"
 
                                 <TextBlock Text="Target GPO:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0"/>
                                 <ComboBox x:Name="TargetGpoCombo" Grid.Column="2" Height="26" FontSize="11" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
-                                    <ComboBoxItem Content="GA-AppLocker-DC"/>
-                                    <ComboBoxItem Content="GA-AppLocker-Servers"/>
-                                    <ComboBoxItem Content="GA-AppLocker-Workstations"/>
+                                    <ComboBoxItem Content="AppLocker-DC"/>
+                                    <ComboBoxItem Content="AppLocker-Servers"/>
+                                    <ComboBoxItem Content="AppLocker-Workstations"/>
                                 </ComboBox>
                                 <TextBlock Text="Mode:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="4"/>
                                 <ComboBox x:Name="ImportModeCombo" Grid.Column="6" Width="120" Height="26" FontSize="11" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
@@ -7460,7 +7566,7 @@ function Test-EnforceModeReadiness {
     if (-not $script:IsWorkgroup) {
         try {
             Import-Module GroupPolicy -ErrorAction SilentlyContinue
-            $gpoNames = @("GA-AppLocker-DC", "GA-AppLocker-Servers", "GA-AppLocker-Workstations")
+            $gpoNames = @("AppLocker-DC", "AppLocker-Servers", "AppLocker-Workstations")
             $linkedGPOs = 0
 
             foreach ($gpoName in $gpoNames) {
@@ -9312,23 +9418,196 @@ function Import-SoftwareList {
 
 # Convert rules to AppLocker XML format
 function Convert-RulesToAppLockerXml {
-    param([array]$Rules)
+    <#
+    .SYNOPSIS
+        Converts rule objects to AppLocker-compatible XML format
+    .DESCRIPTION
+        Takes an array of rule objects and generates proper AppLocker policy XML
+        that can be imported into Group Policy or used with Set-AppLockerPolicy
+    .PARAMETER Rules
+        Array of rule objects with type, action, userOrGroupSid, and type-specific properties
+    .PARAMETER EnforcementMode
+        Policy enforcement mode: AuditOnly or Enabled (default: AuditOnly)
+    .OUTPUTS
+        String containing valid AppLocker policy XML (UTF-16 compatible)
+    #>
+    param(
+        [array]$Rules,
+        [ValidateSet("AuditOnly", "Enabled")]
+        [string]$EnforcementMode = "AuditOnly"
+    )
 
-    $xml = @"
+    if (-not $Rules -or $Rules.Count -eq 0) {
+        # Return empty policy skeleton if no rules
+        return @"
 <AppLockerPolicy Version="1">
-  <RuleCollection Type="Executable" EnforcementMode="AuditOnly" />
-  <RuleCollection Type="Script" EnforcementMode="AuditOnly" />
-  <RuleCollection Type="WindowsInstallerFile" EnforcementMode="AuditOnly" />
-  <RuleCollection Type="Dll" EnforcementMode="AuditOnly" />
-  <RuleCollection Type="Appx" EnforcementMode="AuditOnly" />
+  <RuleCollection Type="Exe" EnforcementMode="$EnforcementMode" />
+  <RuleCollection Type="Script" EnforcementMode="$EnforcementMode" />
+  <RuleCollection Type="Msi" EnforcementMode="$EnforcementMode" />
+  <RuleCollection Type="Dll" EnforcementMode="$EnforcementMode" />
+  <RuleCollection Type="Appx" EnforcementMode="$EnforcementMode" />
+</AppLockerPolicy>
+"@
+    }
+
+    # Group rules by collection type (Exe, Script, Msi, Dll, Appx)
+    $exeRules = @()
+    $scriptRules = @()
+    $msiRules = @()
+    $dllRules = @()
+    $appxRules = @()
+
+    foreach ($rule in $Rules) {
+        # Determine collection type from rule properties or default to Exe
+        $collectionType = "Exe"
+        if ($rule.collectionType) {
+            $collectionType = $rule.collectionType
+        } elseif ($rule.path) {
+            # Infer collection type from file extension in path
+            if ($rule.path -match '\.ps1$|\.bat$|\.cmd$|\.vbs$|\.js$') {
+                $collectionType = "Script"
+            } elseif ($rule.path -match '\.msi$|\.msp$|\.mst$') {
+                $collectionType = "Msi"
+            } elseif ($rule.path -match '\.dll$|\.ocx$') {
+                $collectionType = "Dll"
+            } elseif ($rule.path -match '\.appx$') {
+                $collectionType = "Appx"
+            }
+        } elseif ($rule.fileName) {
+            if ($rule.fileName -match '\.ps1$|\.bat$|\.cmd$|\.vbs$|\.js$') {
+                $collectionType = "Script"
+            } elseif ($rule.fileName -match '\.msi$|\.msp$|\.mst$') {
+                $collectionType = "Msi"
+            } elseif ($rule.fileName -match '\.dll$|\.ocx$') {
+                $collectionType = "Dll"
+            }
+        }
+
+        switch ($collectionType) {
+            "Script" { $scriptRules += $rule }
+            "Msi" { $msiRules += $rule }
+            "Dll" { $dllRules += $rule }
+            "Appx" { $appxRules += $rule }
+            default { $exeRules += $rule }
+        }
+    }
+
+    # Helper function to build individual rule XML
+    function Build-RuleXml {
+        param($Rule, $CollectionType)
+
+        $ruleId = if ($Rule.id) { $Rule.id -replace '[{}]', '' } else { (New-Guid).ToString() }
+        $action = if ($Rule.action) { $Rule.action } else { "Allow" }
+        $sid = if ($Rule.userOrGroupSid) { $Rule.userOrGroupSid } else { "S-1-1-0" }  # Everyone as default
+        $name = ConvertTo-XmlSafeString -InputString (if ($Rule.name) { $Rule.name } else { "Rule-$ruleId" })
+        $description = ConvertTo-XmlSafeString -InputString (if ($Rule.description) { $Rule.description } else { "Generated by GA-AppLocker" })
+
+        # If rule already has pre-built XML, use it (with ID/SID updates)
+        if ($Rule.xml -and $Rule.xml -match '<FilePublisherRule|<FilePathRule|<FileHashRule') {
+            $ruleXml = $Rule.xml
+            # Update ID and SID if different
+            $ruleXml = $ruleXml -replace 'Id="[^"]*"', "Id=`"$ruleId`""
+            $ruleXml = $ruleXml -replace 'UserOrGroupSid="[^"]*"', "UserOrGroupSid=`"$sid`""
+            return "    $ruleXml"
+        }
+
+        switch ($Rule.type) {
+            "Publisher" {
+                $publisherName = ConvertTo-XmlSafeString -InputString (if ($Rule.publisherName) { $Rule.publisherName } else { "*" })
+                $productName = ConvertTo-XmlSafeString -InputString (if ($Rule.productName) { $Rule.productName } else { "*" })
+                $fileName = ConvertTo-XmlSafeString -InputString (if ($Rule.fileName) { $Rule.fileName } else { "*" })
+                $minVersion = if ($Rule.minVersion) { $Rule.minVersion } else { "0.0.0.0" }
+                $maxVersion = if ($Rule.maxVersion) { $Rule.maxVersion } else { "*" }
+
+                return @"
+    <FilePublisherRule Id="$ruleId" Name="$name" Description="$description" UserOrGroupSid="$sid" Action="$action">
+      <Conditions>
+        <FilePublisherCondition PublisherName="$publisherName" ProductName="$productName" BinaryName="$fileName">
+          <BinaryVersionRange LowSection="$minVersion" HighSection="$maxVersion" />
+        </FilePublisherCondition>
+      </Conditions>
+    </FilePublisherRule>
+"@
+            }
+            "Path" {
+                $path = ConvertTo-XmlSafeString -InputString (if ($Rule.path) { $Rule.path } else { "*" })
+
+                return @"
+    <FilePathRule Id="$ruleId" Name="$name" Description="$description" UserOrGroupSid="$sid" Action="$action">
+      <Conditions>
+        <FilePathCondition Path="$path" />
+      </Conditions>
+    </FilePathRule>
+"@
+            }
+            "Hash" {
+                $hashValue = if ($Rule.hash) { $Rule.hash } else { "" }
+                $hashType = if ($Rule.hashType) { $Rule.hashType } else { "SHA256" }
+                $sourceFileName = ConvertTo-XmlSafeString -InputString (if ($Rule.fileName) { $Rule.fileName } else { "Unknown" })
+                $sourceFileLength = if ($Rule.fileLength) { $Rule.fileLength } else { "0" }
+
+                return @"
+    <FileHashRule Id="$ruleId" Name="$name" Description="$description" UserOrGroupSid="$sid" Action="$action">
+      <Conditions>
+        <FileHashCondition>
+          <FileHash Type="$hashType" Data="$hashValue" SourceFileName="$sourceFileName" SourceFileLength="$sourceFileLength" />
+        </FileHashCondition>
+      </Conditions>
+    </FileHashRule>
+"@
+            }
+            default {
+                # Default to path rule if type unknown
+                $path = ConvertTo-XmlSafeString -InputString (if ($Rule.path) { $Rule.path } else { "*" })
+                return @"
+    <FilePathRule Id="$ruleId" Name="$name" Description="$description" UserOrGroupSid="$sid" Action="$action">
+      <Conditions>
+        <FilePathCondition Path="$path" />
+      </Conditions>
+    </FilePathRule>
+"@
+            }
+        }
+    }
+
+    # Build rule collection XML for each type
+    function Build-RuleCollectionXml {
+        param($CollectionType, $RulesList, $Mode)
+
+        if ($RulesList.Count -eq 0) {
+            return "  <RuleCollection Type=`"$CollectionType`" EnforcementMode=`"$Mode`" />"
+        }
+
+        $rulesXml = $RulesList | ForEach-Object { Build-RuleXml -Rule $_ -CollectionType $CollectionType }
+        $rulesContent = $rulesXml -join "`n"
+
+        return @"
+  <RuleCollection Type="$CollectionType" EnforcementMode="$Mode">
+$rulesContent
+  </RuleCollection>
+"@
+    }
+
+    # Build the complete policy XML
+    $exeCollectionXml = Build-RuleCollectionXml -CollectionType "Exe" -RulesList $exeRules -Mode $EnforcementMode
+    $scriptCollectionXml = Build-RuleCollectionXml -CollectionType "Script" -RulesList $scriptRules -Mode $EnforcementMode
+    $msiCollectionXml = Build-RuleCollectionXml -CollectionType "Msi" -RulesList $msiRules -Mode $EnforcementMode
+    $dllCollectionXml = Build-RuleCollectionXml -CollectionType "Dll" -RulesList $dllRules -Mode $EnforcementMode
+    $appxCollectionXml = Build-RuleCollectionXml -CollectionType "Appx" -RulesList $appxRules -Mode $EnforcementMode
+
+    $policyXml = @"
+<AppLockerPolicy Version="1">
+$exeCollectionXml
+$scriptCollectionXml
+$msiCollectionXml
+$dllCollectionXml
+$appxCollectionXml
 </AppLockerPolicy>
 "@
 
-    # Note: For full rule conversion, would need to parse $script:GeneratedRules
-    # and create proper AppLocker XML structure
-    # This is a placeholder for the export functionality
+    Write-Log "Generated AppLocker XML with $($Rules.Count) rules (Exe:$($exeRules.Count), Script:$($scriptRules.Count), Msi:$($msiRules.Count), Dll:$($dllRules.Count), Appx:$($appxRules.Count))"
 
-    return $xml
+    return $policyXml
 }
 
 <#
@@ -10101,7 +10380,7 @@ function Initialize-Tooltips {
     if ($null -ne $GenerateEvidenceBtn) { $GenerateEvidenceBtn.ToolTip = "Generate compliance evidence package with policy and inventory reports." }
 
     # Deployment tooltips
-    if ($null -ne $CreateGPOsBtn) { $CreateGPOsBtn.ToolTip = "Create 3 GPOs: GA-AppLocker-DC, GA-AppLocker-Servers, GA-AppLocker-Workstations." }
+    if ($null -ne $CreateGPOsBtn) { $CreateGPOsBtn.ToolTip = "Create 3 GPOs: AppLocker-DC, AppLocker-Servers, AppLocker-Workstations." }
     if ($null -ne $DisableGpoBtn) { $DisableGpoBtn.ToolTip = "Disable AppLocker policy in existing GPOs." }
     if ($null -ne $ExportRulesBtn) { $ExportRulesBtn.ToolTip = "Export generated rules to XML files (Audit and Enforce versions)." }
     if ($null -ne $ImportRulesBtn) { $ImportRulesBtn.ToolTip = "Import rules into existing GPO (Merge or Overwrite)." }
@@ -10119,7 +10398,7 @@ $RefreshDashboardBtn.Add_Click({
 if ($null -ne $CreateGPOsBtn) {
 $CreateGPOsBtn.Add_Click({
     Write-Log "User requested creation of 3 AppLocker GPOs (DC, Servers, Workstations)"
-    Write-AuditLog -Action "GPO_CREATE_ATTEMPT" -Target "GA-AppLocker-DC, GA-AppLocker-Servers, GA-AppLocker-Workstations" -Result 'ATTEMPT' -Details "User initiated bulk GPO creation"
+    Write-AuditLog -Action "GPO_CREATE_ATTEMPT" -Target "AppLocker-DC, AppLocker-Servers, AppLocker-Workstations" -Result 'ATTEMPT' -Details "User initiated bulk GPO creation"
 
     if ($script:IsWorkgroup) {
         [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
@@ -10129,7 +10408,7 @@ $CreateGPOsBtn.Add_Click({
     }
 
     # Confirmation dialog for GPO creation
-    $confirmed = Show-ConfirmationDialog -Title "Confirm GPO Creation" -Message "This will create 3 Group Policy Objects:" -TargetObject "GA-AppLocker-DC, GA-AppLocker-Servers, GA-AppLocker-Workstations" -ActionType 'CREATE'
+    $confirmed = Show-ConfirmationDialog -Title "Confirm GPO Creation" -Message "This will create 3 Group Policy Objects:" -TargetObject "AppLocker-DC, AppLocker-Servers, AppLocker-Workstations" -ActionType 'CREATE'
     if (-not $confirmed) {
         $DashboardOutput.Text = "GPO creation cancelled by user."
         return
@@ -10139,7 +10418,7 @@ $CreateGPOsBtn.Add_Click({
         # Use embedded New-AppLockerGpo function - no module import needed
         Import-Module GroupPolicy -ErrorAction Stop
 
-        $gpoNames = @("GA-AppLocker-DC", "GA-AppLocker-Servers", "GA-AppLocker-Workstations")
+        $gpoNames = @("AppLocker-DC", "AppLocker-Servers", "AppLocker-Workstations")
         $results = @()
         $successCount = 0
 
@@ -10205,9 +10484,9 @@ $ApplyGPOSettingsBtn.Add_Click({
 
         # Check if any GPO is being set to Enforce mode - requires validation and confirmation
         $enforceGPOs = @()
-        if ($dcPhase -ne "--" -and $dcMode -eq "Enforce") { $enforceGPOs += "GA-AppLocker-DC" }
-        if ($serversPhase -ne "--" -and $serversMode -eq "Enforce") { $enforceGPOs += "GA-AppLocker-Servers" }
-        if ($workstationsPhase -ne "--" -and $workstationsMode -eq "Enforce") { $enforceGPOs += "GA-AppLocker-Workstations" }
+        if ($dcPhase -ne "--" -and $dcMode -eq "Enforce") { $enforceGPOs += "AppLocker-DC" }
+        if ($serversPhase -ne "--" -and $serversMode -eq "Enforce") { $enforceGPOs += "AppLocker-Servers" }
+        if ($workstationsPhase -ne "--" -and $workstationsMode -eq "Enforce") { $enforceGPOs += "AppLocker-Workstations" }
 
         if ($enforceGPOs.Count -gt 0) {
             $enforceList = $enforceGPOs -join ", "
@@ -10233,13 +10512,13 @@ $ApplyGPOSettingsBtn.Add_Click({
 
         # Apply to DC GPO
         if ($dcPhase -ne "--") {
-            $gpo = Get-GPO -Name "GA-AppLocker-DC" -ErrorAction SilentlyContinue
+            $gpo = Get-GPO -Name "AppLocker-DC" -ErrorAction SilentlyContinue
             if ($gpo) {
                 # Set enforcement mode based on selection
                 $enforcementMode = if ($dcMode -eq "Enforce") { "Enforced" } else { "AuditOnly" }
                 $results += "DC GPO: Phase=$dcPhase, Mode=$enforcementMode`n"
                 Write-Log "DC GPO: Phase=$dcPhase, Mode=$enforcementMode"
-                Write-AuditLog -Action "GPO_SETTINGS_APPLIED" -Target "GA-AppLocker-DC" -Result 'SUCCESS' -Details "Phase=$dcPhase, Mode=$enforcementMode"
+                Write-AuditLog -Action "GPO_SETTINGS_APPLIED" -Target "AppLocker-DC" -Result 'SUCCESS' -Details "Phase=$dcPhase, Mode=$enforcementMode"
 
                 # Update status text with phase info
                 $DCGPOStatus.Text = "P$dcPhase - $dcMode"
@@ -10248,24 +10527,24 @@ $ApplyGPOSettingsBtn.Add_Click({
 
         # Apply to Servers GPO
         if ($serversPhase -ne "--") {
-            $gpo = Get-GPO -Name "GA-AppLocker-Servers" -ErrorAction SilentlyContinue
+            $gpo = Get-GPO -Name "AppLocker-Servers" -ErrorAction SilentlyContinue
             if ($gpo) {
                 $enforcementMode = if ($serversMode -eq "Enforce") { "Enforced" } else { "AuditOnly" }
                 $results += "Servers GPO: Phase=$serversPhase, Mode=$enforcementMode`n"
                 Write-Log "Servers GPO: Phase=$serversPhase, Mode=$enforcementMode"
-                Write-AuditLog -Action "GPO_SETTINGS_APPLIED" -Target "GA-AppLocker-Servers" -Result 'SUCCESS' -Details "Phase=$serversPhase, Mode=$enforcementMode"
+                Write-AuditLog -Action "GPO_SETTINGS_APPLIED" -Target "AppLocker-Servers" -Result 'SUCCESS' -Details "Phase=$serversPhase, Mode=$enforcementMode"
                 $ServersGPOStatus.Text = "P$serversPhase - $serversMode"
             }
         }
 
         # Apply to Workstations GPO
         if ($workstationsPhase -ne "--") {
-            $gpo = Get-GPO -Name "GA-AppLocker-Workstations" -ErrorAction SilentlyContinue
+            $gpo = Get-GPO -Name "AppLocker-Workstations" -ErrorAction SilentlyContinue
             if ($gpo) {
                 $enforcementMode = if ($workstationsMode -eq "Enforce") { "Enforced" } else { "AuditOnly" }
                 $results += "Workstations GPO: Phase=$workstationsPhase, Mode=$enforcementMode`n"
                 Write-Log "Workstations GPO: Phase=$workstationsPhase, Mode=$enforcementMode"
-                Write-AuditLog -Action "GPO_SETTINGS_APPLIED" -Target "GA-AppLocker-Workstations" -Result 'SUCCESS' -Details "Phase=$workstationsPhase, Mode=$enforcementMode"
+                Write-AuditLog -Action "GPO_SETTINGS_APPLIED" -Target "AppLocker-Workstations" -Result 'SUCCESS' -Details "Phase=$workstationsPhase, Mode=$enforcementMode"
                 $WorkstationsGPOStatus.Text = "P$workstationsPhase - $workstationsMode"
             }
         }
@@ -10295,7 +10574,7 @@ $LinkGPOsBtn.Add_Click({
     }
 
     # Confirmation dialog for GPO linking
-    $confirmed = Show-ConfirmationDialog -Title "Confirm GPO Linking" -Message "This will link 3 GPOs to OUs, applying policies immediately." -TargetObject "GA-AppLocker-DC, GA-AppLocker-Servers, GA-AppLocker-Workstations" -ActionType 'LINK'
+    $confirmed = Show-ConfirmationDialog -Title "Confirm GPO Linking" -Message "This will link 3 GPOs to OUs, applying policies immediately." -TargetObject "AppLocker-DC, AppLocker-Servers, AppLocker-Workstations" -ActionType 'LINK'
     if (-not $confirmed) {
         $DashboardOutput.Text = "GPO linking cancelled by user."
         return
@@ -10330,33 +10609,33 @@ $LinkGPOsBtn.Add_Click({
         $successCount = 0
 
         # Link DC GPO to Domain Controllers OU
-        $dcResult = Add-GPOLink -GpoName "GA-AppLocker-DC" -TargetOU $dcOU
+        $dcResult = Add-GPOLink -GpoName "AppLocker-DC" -TargetOU $dcOU
         if ($dcResult.success) {
             $results += "DC GPO linked to: $dcOU`n"
-            Write-AuditLog -Action "GPO_LINKED" -Target "GA-AppLocker-DC -> $dcOU" -Result 'SUCCESS' -Details "GPO linked successfully"
+            Write-AuditLog -Action "GPO_LINKED" -Target "AppLocker-DC -> $dcOU" -Result 'SUCCESS' -Details "GPO linked successfully"
             $successCount++
         } else {
-            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "GA-AppLocker-DC -> $dcOU" -Result 'FAILURE' -Details "Error: $($dcResult.error)"
+            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-DC -> $dcOU" -Result 'FAILURE' -Details "Error: $($dcResult.error)"
         }
 
         # Link Servers GPO
-        $serversResult = Add-GPOLink -GpoName "GA-AppLocker-Servers" -TargetOU $serversTarget
+        $serversResult = Add-GPOLink -GpoName "AppLocker-Servers" -TargetOU $serversTarget
         if ($serversResult.success) {
             $results += "Servers GPO linked to: $serversTarget`n"
-            Write-AuditLog -Action "GPO_LINKED" -Target "GA-AppLocker-Servers -> $serversTarget" -Result 'SUCCESS' -Details "GPO linked successfully"
+            Write-AuditLog -Action "GPO_LINKED" -Target "AppLocker-Servers -> $serversTarget" -Result 'SUCCESS' -Details "GPO linked successfully"
             $successCount++
         } else {
-            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "GA-AppLocker-Servers -> $serversTarget" -Result 'FAILURE' -Details "Error: $($serversResult.error)"
+            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-Servers -> $serversTarget" -Result 'FAILURE' -Details "Error: $($serversResult.error)"
         }
 
         # Link Workstations GPO
-        $workstationsResult = Add-GPOLink -GpoName "GA-AppLocker-Workstations" -TargetOU $workstationsTarget
+        $workstationsResult = Add-GPOLink -GpoName "AppLocker-Workstations" -TargetOU $workstationsTarget
         if ($workstationsResult.success) {
             $results += "Workstations GPO linked to: $workstationsTarget`n"
-            Write-AuditLog -Action "GPO_LINKED" -Target "GA-AppLocker-Workstations -> $workstationsTarget" -Result 'SUCCESS' -Details "GPO linked successfully"
+            Write-AuditLog -Action "GPO_LINKED" -Target "AppLocker-Workstations -> $workstationsTarget" -Result 'SUCCESS' -Details "GPO linked successfully"
             $successCount++
         } else {
-            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "GA-AppLocker-Workstations -> $workstationsTarget" -Result 'FAILURE' -Details "Error: $($workstationsResult.error)"
+            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-Workstations -> $workstationsTarget" -Result 'FAILURE' -Details "Error: $($workstationsResult.error)"
         }
 
         $results += "`nNOTE: If your organization uses custom OUs for Servers/Workstations, the GPOs have been linked to the domain root. You can manually move the GPO links to your custom OUs using GPMC."
