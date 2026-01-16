@@ -6507,7 +6507,7 @@ if (-not (Test-Path $script:ModulePath)) {
         $script:ModulePath = Join-Path $parentPath "src\modules"
     } else {
         # Final fallback - try the project directory structure
-        $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+        $script:ModulePath = "C:\GA-AppLocker\src\modules"
     }
 }
 
@@ -10138,7 +10138,7 @@ $CreateGPOsBtn.Add_Click({
         if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
             Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
         } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+            $script:ModulePath = "C:\GA-AppLocker\src\modules"
             if (Test-Path $script:ModulePath) {
                 Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
             } else {
@@ -10204,7 +10204,7 @@ $ApplyGPOSettingsBtn.Add_Click({
         if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
             Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
         } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+            $script:ModulePath = "C:\GA-AppLocker\src\modules"
             if (Test-Path $script:ModulePath) {
                 Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
             } else {
@@ -10324,7 +10324,7 @@ $LinkGPOsBtn.Add_Click({
         if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
             Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
         } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+            $script:ModulePath = "C:\GA-AppLocker\src\modules"
             if (Test-Path $script:ModulePath) {
                 Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
             } else {
@@ -10447,7 +10447,7 @@ $ScanDirectoriesBtn.Add_Click({
         if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
             Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
         } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+            $script:ModulePath = "C:\GA-AppLocker\src\modules"
             if (Test-Path $script:ModulePath) {
                 Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
             } else {
@@ -10654,7 +10654,7 @@ $ScanLocalArtifactsBtn.Add_Click({
         if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
             Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
         } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+            $script:ModulePath = "C:\GA-AppLocker\src\modules"
             if (Test-Path $script:ModulePath) {
                 Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
             } else {
@@ -13617,7 +13617,7 @@ $RefreshComputersBtn.Add_Click({
             if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
                 Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
             } else {
-                $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+                $script:ModulePath = "C:\GA-AppLocker\src\modules"
                 if (Test-Path $script:ModulePath) {
                     Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
                 } else {
@@ -13709,7 +13709,7 @@ $GenerateEvidenceBtn.Add_Click({
     if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
         Import-Module (Join-Path $script:ModulePath "Module7-Compliance.psm1") -ErrorAction Stop
     } else {
-        $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+        $script:ModulePath = "C:\GA-AppLocker\src\modules"
         if (Test-Path $script:ModulePath) {
             Import-Module (Join-Path $script:ModulePath "Module7-Compliance.psm1") -ErrorAction Stop
         } else {
