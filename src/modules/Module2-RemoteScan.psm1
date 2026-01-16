@@ -550,7 +550,8 @@ function Get-RemoteArtifacts {
 
         $results = @()
         $paths = @('C:\Program Files', 'C:\Program Files (x86)', 'C:\ProgramData')
-        $executableExtensions = @('.exe', '.dll', '.msi', '.msp', '.bat', '.cmd', '.ps1', '.vbs')
+        # Match local scan extensions exactly
+        $executableExtensions = @('.exe', '.dll', '.com', '.ocx', '.msi', '.msp', '.mst', '.bat', '.cmd', '.ps1', '.vbs', '.js')
 
         foreach ($path in $paths) {
             if (-not (Test-Path $path)) { continue }
@@ -568,6 +569,7 @@ function Get-RemoteArtifacts {
 
                     $publisher = 'Unknown'
                     $productName = ''
+                    $binaryName = ''
                     $version = ''
                     $hash = ''
 
@@ -575,6 +577,7 @@ function Get-RemoteArtifacts {
                         if ($alfi.Publisher) {
                             $publisher = $alfi.Publisher.PublisherName
                             $productName = $alfi.Publisher.ProductName
+                            $binaryName = $alfi.Publisher.BinaryName
                             $version = if ($alfi.Publisher.BinaryVersion) { $alfi.Publisher.BinaryVersion.ToString() } else { '' }
                         }
                         if ($alfi.Hash -and $alfi.Hash.HashDataString) {
@@ -590,13 +593,20 @@ function Get-RemoteArtifacts {
                         }
                     }
 
-                    # Determine file type
+                    # Determine file type - match local scan exactly
                     $fileType = switch ($file.Extension.ToLower()) {
                         '.exe' { 'EXE' }
                         '.dll' { 'DLL' }
+                        '.com' { 'EXE' }
+                        '.ocx' { 'DLL' }
                         '.msi' { 'MSI' }
                         '.msp' { 'MSI' }
-                        { $_ -in '.bat', '.cmd', '.ps1', '.vbs' } { 'Script' }
+                        '.mst' { 'MSI' }
+                        '.bat' { 'Script' }
+                        '.cmd' { 'Script' }
+                        '.ps1' { 'Script' }
+                        '.vbs' { 'Script' }
+                        '.js'  { 'Script' }
                         default { 'Unknown' }
                     }
 
@@ -605,6 +615,7 @@ function Get-RemoteArtifacts {
                         Path = $file.FullName
                         Publisher = if ($publisher) { $publisher } else { 'Unknown' }
                         ProductName = $productName
+                        BinaryName = $binaryName
                         Version = $version
                         Hash = $hash
                         Size = $file.Length
