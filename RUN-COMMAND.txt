@@ -1,47 +1,16 @@
-================================================================================
-GA-AppLocker Toolkit - How to Run (Modular Version)
-================================================================================
+GA-AppLocker Toolkit - How to Run
+==================================
 
-This version uses the modular architecture with 39 component files
-for better maintainability and easier updates.
+STEP 1: Extract to C:\GA-AppLocker
 
---------------------------------------------------------------------------------
-STEP 1: Open PowerShell as Administrator
---------------------------------------------------------------------------------
+STEP 2: Open PowerShell as Administrator
 
-Right-click PowerShell > "Run as administrator"
+STEP 3: Run these commands:
 
---------------------------------------------------------------------------------
-STEP 2: Navigate to the GA-AppLocker folder
---------------------------------------------------------------------------------
+  cd C:\GA-AppLocker
+  powershell -NoProfile -ExecutionPolicy Bypass -File GA-AppLocker-GUI.ps1
 
-cd C:\GA-AppLocker
-
---------------------------------------------------------------------------------
-STEP 3: Run the application
---------------------------------------------------------------------------------
-
-powershell -NoProfile -ExecutionPolicy Bypass -File "src\GUI\Main\GA-AppLocker-GUI.ps1"
-
---------------------------------------------------------------------------------
-ALTERNATIVE: Use the launcher script (if included)
---------------------------------------------------------------------------------
-
-powershell -NoProfile -ExecutionPolicy Bypass -File "Launch-GA-AppLocker.ps1"
-
---------------------------------------------------------------------------------
 NOTES
---------------------------------------------------------------------------------
-
-- Run as Administrator for full functionality (reading AppLocker events,
-  deploying GPO policies, remote computer scanning)
-
-- The modular version loads component files on startup - first launch may
-  take a few seconds
-
-- Architecture:
-  src/
-  ├── GUI/           (39 UI component files)
-  ├── lib/           (shared library)
-  ├── modules/       (7 feature modules)
-  └── Config.psm1    (configuration)
+-----
+- Run as Administrator for full functionality
+- AppLocker events, GPO deployment, and remote scanning require admin rights
