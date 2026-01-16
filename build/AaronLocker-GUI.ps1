@@ -323,14 +323,19 @@ $xamlString = @"
                     </StackPanel>
                 </Border>
 
-                <!-- Folders & Maintenance -->
+                <!-- Setup & Folders -->
                 <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
                     <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <StackPanel Grid.Column="0">
+                        <StackPanel Grid.Column="0" Margin="0,0,20,0">
+                            <TextBlock Text="Required" FontSize="11" Foreground="#F0883E" Margin="0,0,0,6"/>
+                            <Button x:Name="BtnDownloadAccessChk" Content="Setup AccessChk.exe" Style="{StaticResource PrimaryButton}" ToolTip="Required for scanning writable directories - locate or browse for accesschk.exe"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
                             <TextBlock Text="Folders" FontSize="11" Foreground="#6E7681" Margin="0,0,0,6"/>
                             <WrapPanel>
                                 <Button x:Name="BtnOpenOutputs" Content="Outputs" Style="{StaticResource SmallButton}" Margin="0,0,8,0"/>
@@ -338,7 +343,7 @@ $xamlString = @"
                                 <Button x:Name="BtnOpenAaronLocker" Content="AaronLocker" Style="{StaticResource SmallButton}"/>
                             </WrapPanel>
                         </StackPanel>
-                        <StackPanel Grid.Column="1">
+                        <StackPanel Grid.Column="2">
                             <TextBlock Text="Maintenance" FontSize="11" Foreground="#6E7681" Margin="0,0,0,6"/>
                             <WrapPanel>
                                 <Button x:Name="BtnClearLocalPolicy" Content="Clear Policy" Style="{StaticResource DangerButton}" Margin="0,0,8,0"/>
@@ -448,6 +453,7 @@ $BtnEditKnownAdmins = $window.FindName("BtnEditKnownAdmins")
 $BtnOpenOutputs = $window.FindName("BtnOpenOutputs")
 $BtnOpenScanResults = $window.FindName("BtnOpenScanResults")
 $BtnOpenAaronLocker = $window.FindName("BtnOpenAaronLocker")
+$BtnDownloadAccessChk = $window.FindName("BtnDownloadAccessChk")
 
 # ============================================================
 # Helper Functions
@@ -471,6 +477,7 @@ function Test-AaronLockerExists {
 }
 
 # Launch script in its own visible console window
+# Uses Windows PowerShell 5.1 explicitly (required for AaronLocker compatibility with -Encoding Byte)
 function Invoke-AaronLockerScript {
     param(
         [string]$ScriptName,
@@ -485,13 +492,50 @@ function Invoke-AaronLockerScript {
         return
     }
 
-    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters`n`nA new PowerShell window will open..."
+    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters`n`nA new Windows PowerShell 5.1 window will open..."
 
-    # Build the command to run in the new window
-    $cmd = "Set-Location '$($script:AaronLockerRoot)'; Write-Host '=== $ScriptName ===' -ForegroundColor Cyan; Write-Host ''; . '$ScriptPath' $Parameters; Write-Host ''; Write-Host '=== COMPLETE ===' -ForegroundColor Green; Write-Host 'Press any key to close...'; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')"
+    # CRITICAL: Must use Windows PowerShell 5.1 (not PowerShell 7/Core)
+    # AaronLocker scripts use -Encoding Byte which only works in Windows PowerShell 5.1
+    $windowsPowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
 
-    # Launch in a new visible console window
-    Start-Process powershell.exe -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-Command", $cmd
+    if (-not (Test-Path $windowsPowerShell)) {
+        Write-Console "ERROR: Windows PowerShell 5.1 not found at:`n$windowsPowerShell`n`nAaronLocker requires Windows PowerShell 5.1."
+        [System.Windows.MessageBox]::Show(
+            "Windows PowerShell 5.1 not found!`n`nAaronLocker requires Windows PowerShell 5.1 (not PowerShell 7).`n`nExpected path:`n$windowsPowerShell",
+            "PowerShell 5.1 Required",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Error
+        )
+        return
+    }
+
+    # Build the command to run - verify PS version first, then run script
+    $cmd = @"
+`$Host.UI.RawUI.WindowTitle = 'AaronLocker - $ScriptName'
+if (`$PSVersionTable.PSVersion.Major -ne 5) {
+    Write-Host 'ERROR: This script requires Windows PowerShell 5.1' -ForegroundColor Red
+    Write-Host "Current version: `$(`$PSVersionTable.PSVersion)" -ForegroundColor Red
+    Write-Host 'Press any key to close...'
+    `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    exit 1
+}
+Set-Location '$($script:AaronLockerRoot)'
+Write-Host '=== $ScriptName ===' -ForegroundColor Cyan
+Write-Host "PowerShell Version: `$(`$PSVersionTable.PSVersion)" -ForegroundColor DarkGray
+Write-Host ''
+. '$ScriptPath' $Parameters
+Write-Host ''
+Write-Host '=== COMPLETE ===' -ForegroundColor Green
+Write-Host 'Press any key to close...'
+`$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+"@
+
+    # Launch in a new visible console window using Windows PowerShell 5.1
+    # Use -Command with encoded command to handle complex strings
+    $bytes = [System.Text.Encoding]::Unicode.GetBytes($cmd)
+    $encodedCommand = [Convert]::ToBase64String($bytes)
+
+    Start-Process $windowsPowerShell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encodedCommand
 }
 
 # ============================================================
@@ -568,7 +612,7 @@ $BtnComparePolicies.Add_Click({
             $policy2 = $openDialog2.FileName
             $scriptPath = Join-Path $script:AaronLockerRoot "Compare-Policies.ps1"
 
-            Invoke-AaronLockerScript -ScriptName "Compare Policies" -ScriptPath $scriptPath -Parameters "-Policy1Path `"$policy1`" -Policy2Path `"$policy2`""
+            Invoke-AaronLockerScript -ScriptName "Compare Policies" -ScriptPath $scriptPath -Parameters "-ReferencePolicyXML `"$policy1`" -ComparisonPolicyXML `"$policy2`""
         }
     }
 })
@@ -615,37 +659,46 @@ $BtnGenerateEventWorkbook.Add_Click({
 # === LOCAL CONFIGURATION ===
 
 $BtnApplyToLocalGPO.Add_Click({
-    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openDialog.Filter = "XML Files (*.xml)|*.xml"
-    $openDialog.Title = "Select AppLocker Policy to Apply to Local GPO"
-    $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+    # Script auto-selects the latest policy file - user chooses Audit or Enforce mode
+    $result = [System.Windows.MessageBox]::Show(
+        "Apply the most recent policy to LOCAL GPO?`n`nClick YES to apply ENFORCE rules (blocks unauthorized software)`nClick NO to apply AUDIT rules (logs only, doesn't block)`n`nThis will modify the local Group Policy.",
+        "Apply to Local GPO - Choose Mode",
+        [System.Windows.MessageBoxButton]::YesNoCancel,
+        [System.Windows.MessageBoxImage]::Question
+    )
 
-    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $result = [System.Windows.MessageBox]::Show(
-            "Apply this policy to LOCAL GPO?`n`nPolicy: $($openDialog.FileName)`n`nThis will modify the local Group Policy.",
-            "Confirm Apply to Local GPO",
-            [System.Windows.MessageBoxButton]::YesNo,
-            [System.Windows.MessageBoxImage]::Warning
-        )
-
-        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
-            $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
-            Invoke-AaronLockerScript -ScriptName "Apply to Local GPO" -ScriptPath $scriptPath -Parameters "-PolicyPath `"$($openDialog.FileName)`""
-        }
+    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+        # Apply Enforce rules
+        $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
+        Invoke-AaronLockerScript -ScriptName "Apply Enforce Policy to Local GPO" -ScriptPath $scriptPath -Parameters ""
+    }
+    elseif ($result -eq [System.Windows.MessageBoxResult]::No) {
+        # Apply Audit rules
+        $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
+        Invoke-AaronLockerScript -ScriptName "Apply Audit Policy to Local GPO" -ScriptPath $scriptPath -Parameters "-AuditOnly"
     }
 })
 
 $BtnSetGPOPolicy.Add_Click({
-    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openDialog.Filter = "XML Files (*.xml)|*.xml"
-    $openDialog.Title = "Select AppLocker Policy to Set on Domain GPO"
-    $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+    # Script auto-selects the latest policy file - user provides GPO name and chooses Audit or Enforce
+    $gpoName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the GPO name to apply AppLocker policy to:", "Set GPO AppLocker Policy", "AppLocker Policy")
+    if ($gpoName) {
+        $result = [System.Windows.MessageBox]::Show(
+            "Apply the most recent policy to GPO '$gpoName'?`n`nClick YES to apply ENFORCE rules (blocks unauthorized software)`nClick NO to apply AUDIT rules (logs only, doesn't block)`n`nThis will modify the domain Group Policy.",
+            "Set Domain GPO Policy - Choose Mode",
+            [System.Windows.MessageBoxButton]::YesNoCancel,
+            [System.Windows.MessageBoxImage]::Question
+        )
 
-    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $gpoName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the GPO name:", "Set GPO AppLocker Policy", "AppLocker Policy")
-        if ($gpoName) {
+        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+            # Apply Enforce rules
             $scriptPath = Join-Path $script:AaronLockerRoot "GPOConfiguration\Set-GPOAppLockerPolicy.ps1"
-            Invoke-AaronLockerScript -ScriptName "Set GPO Policy" -ScriptPath $scriptPath -Parameters "-GpoName `"$gpoName`" -AppLockerXml `"$($openDialog.FileName)`""
+            Invoke-AaronLockerScript -ScriptName "Set GPO Enforce Policy" -ScriptPath $scriptPath -Parameters "-GpoName `"$gpoName`" -Enforce"
+        }
+        elseif ($result -eq [System.Windows.MessageBoxResult]::No) {
+            # Apply Audit rules (default)
+            $scriptPath = Join-Path $script:AaronLockerRoot "GPOConfiguration\Set-GPOAppLockerPolicy.ps1"
+            Invoke-AaronLockerScript -ScriptName "Set GPO Audit Policy" -ScriptPath $scriptPath -Parameters "-GpoName `"$gpoName`""
         }
     }
 })
@@ -764,6 +817,123 @@ $BtnOpenAaronLocker.Add_Click({
         Write-Console "Opened AaronLocker folder`n`nPath: $script:AaronLockerRoot"
     } else {
         Write-Console "AaronLocker folder not found: $script:AaronLockerRoot"
+    }
+})
+
+# === SETUP ACCESSCHK.EXE ===
+
+$BtnDownloadAccessChk.Add_Click({
+    $targetPath = Join-Path $script:AaronLockerRoot "accesschk.exe"
+
+    # Check if already exists in AaronLocker folder
+    if (Test-Path $targetPath) {
+        Write-Console "AccessChk.exe is already installed.`n`nLocation: $targetPath`n`nYou can run Scan and Create Policies."
+        [System.Windows.MessageBox]::Show(
+            "AccessChk.exe is already installed at:`n$targetPath`n`nYou can run scanning and policy creation.",
+            "AccessChk.exe Found",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Information
+        )
+        return
+    }
+
+    # Check common locations for accesschk.exe
+    $searchPaths = @(
+        "C:\GA-AppLocker\accesschk.exe",
+        "C:\GA-AppLocker\AaronLocker-main\accesschk.exe",
+        "C:\GA-AppLocker\AaronLocker-main\AaronLocker\accesschk.exe",
+        (Join-Path $PSScriptRoot "accesschk.exe"),
+        (Join-Path $PSScriptRoot "..\accesschk.exe"),
+        "$env:USERPROFILE\Downloads\accesschk.exe",
+        "$env:USERPROFILE\Desktop\accesschk.exe",
+        "C:\Tools\accesschk.exe",
+        "C:\Sysinternals\accesschk.exe"
+    )
+
+    $foundPath = $null
+    foreach ($path in $searchPaths) {
+        if (Test-Path $path) {
+            $foundPath = $path
+            break
+        }
+    }
+
+    if ($foundPath) {
+        # Found it - ask to copy
+        $result = [System.Windows.MessageBox]::Show(
+            "Found AccessChk.exe at:`n$foundPath`n`nCopy it to the AaronLocker folder?",
+            "AccessChk.exe Found",
+            [System.Windows.MessageBoxButton]::YesNo,
+            [System.Windows.MessageBoxImage]::Question
+        )
+
+        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+            try {
+                Copy-Item -Path $foundPath -Destination $targetPath -Force
+                Write-Console "AccessChk.exe copied successfully.`n`nFrom: $foundPath`nTo: $targetPath`n`nYou can now run Scan and Create Policies."
+                [System.Windows.MessageBox]::Show(
+                    "AccessChk.exe installed successfully!`n`nYou can now run scanning and policy creation.",
+                    "Setup Complete",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Information
+                )
+            } catch {
+                Write-Console "ERROR copying AccessChk.exe:`n$($_.Exception.Message)"
+                [System.Windows.MessageBox]::Show(
+                    "Failed to copy AccessChk.exe.`n`n$($_.Exception.Message)",
+                    "Copy Failed",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Error
+                )
+            }
+        }
+    } else {
+        # Not found - prompt user to browse
+        Write-Console "AccessChk.exe not found in common locations.`n`nPlease browse to select accesschk.exe..."
+
+        $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+        $openDialog.Filter = "AccessChk (accesschk.exe)|accesschk.exe|Executables (*.exe)|*.exe"
+        $openDialog.Title = "Select AccessChk.exe (Sysinternals)"
+        $openDialog.InitialDirectory = "C:\GA-AppLocker"
+
+        if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            $selectedFile = $openDialog.FileName
+
+            # Verify it's accesschk.exe
+            if ((Split-Path $selectedFile -Leaf) -ne "accesschk.exe") {
+                $result = [System.Windows.MessageBox]::Show(
+                    "The selected file is not named 'accesschk.exe'.`n`nFile: $(Split-Path $selectedFile -Leaf)`n`nContinue anyway?",
+                    "Unexpected Filename",
+                    [System.Windows.MessageBoxButton]::YesNo,
+                    [System.Windows.MessageBoxImage]::Warning
+                )
+                if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
+                    Write-Console "Setup cancelled."
+                    return
+                }
+            }
+
+            try {
+                Copy-Item -Path $selectedFile -Destination $targetPath -Force
+                Write-Console "AccessChk.exe copied successfully.`n`nFrom: $selectedFile`nTo: $targetPath`n`nYou can now run Scan and Create Policies."
+                [System.Windows.MessageBox]::Show(
+                    "AccessChk.exe installed successfully!`n`nYou can now run scanning and policy creation.",
+                    "Setup Complete",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Information
+                )
+            } catch {
+                Write-Console "ERROR copying AccessChk.exe:`n$($_.Exception.Message)"
+                [System.Windows.MessageBox]::Show(
+                    "Failed to copy AccessChk.exe.`n`n$($_.Exception.Message)",
+                    "Copy Failed",
+                    [System.Windows.MessageBoxButton]::OK,
+                    [System.Windows.MessageBoxImage]::Error
+                )
+            }
+        } else {
+            Write-Console "Setup cancelled.`n`nTo use scanning features, place accesschk.exe in:`n$script:AaronLockerRoot`n`nYou can download it from:`nhttps://live.sysinternals.com/accesschk.exe"
+        }
     }
 })
 
