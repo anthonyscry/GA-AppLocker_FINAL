@@ -1,27 +1,33 @@
 ================================================================================
-GA-AppLocker Toolkit - How to Run
+GA-AppLocker Toolkit - How to Run (Modular Version)
 ================================================================================
 
-Copy and paste these commands into PowerShell (run as Administrator):
+This version uses the modular architecture with 39 component files
+for better maintainability and easier updates.
 
 --------------------------------------------------------------------------------
-STEP 1: Change to the GA-AppLocker directory
+STEP 1: Open PowerShell as Administrator
 --------------------------------------------------------------------------------
 
-cd C:\GA-AppLocker
+Right-click PowerShell > "Run as administrator"
 
 --------------------------------------------------------------------------------
-STEP 2: Run the application
---------------------------------------------------------------------------------
-
-powershell -NoProfile -ExecutionPolicy Bypass -File "GA-AppLocker-GUI.ps1"
-
---------------------------------------------------------------------------------
-ALTERNATIVE: PowerShell 7 (better performance)
+STEP 2: Navigate to the GA-AppLocker folder
 --------------------------------------------------------------------------------
 
 cd C:\GA-AppLocker
-pwsh -NoProfile -ExecutionPolicy Bypass -File "GA-AppLocker-GUI.ps1"
+
+--------------------------------------------------------------------------------
+STEP 3: Run the application
+--------------------------------------------------------------------------------
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "src\GUI\Main\GA-AppLocker-GUI.ps1"
+
+--------------------------------------------------------------------------------
+ALTERNATIVE: Use the launcher script (if included)
+--------------------------------------------------------------------------------
+
+powershell -NoProfile -ExecutionPolicy Bypass -File "Launch-GA-AppLocker.ps1"
 
 --------------------------------------------------------------------------------
 NOTES
@@ -30,4 +36,12 @@ NOTES
 - Run as Administrator for full functionality (reading AppLocker events,
   deploying GPO policies, remote computer scanning)
 
-- To run as admin: Right-click PowerShell > "Run as administrator" > paste commands
+- The modular version loads component files on startup - first launch may
+  take a few seconds
+
+- Architecture:
+  src/
+  ├── GUI/           (39 UI component files)
+  ├── lib/           (shared library)
+  ├── modules/       (7 feature modules)
+  └── Config.psm1    (configuration)
