@@ -1,0 +1,158 @@
+================================================================================
+                    GA-APPLOCKER QUICKSTART COMMANDS
+================================================================================
+
+This guide shows the fastest way to scan computers and create AppLocker policies
+that can be imported into Group Policy.
+
+================================================================================
+STEP 1: SCAN LOCAL COMPUTER
+================================================================================
+
+# Basic scan - creates policy XML in C:\GA-AppLocker\Scans\
+.\Scan-And-CreateAppLockerPolicy.ps1
+
+# Scan with AppLocker events included
+.\Scan-And-CreateAppLockerPolicy.ps1 -IncludeEvents
+
+# Create Enforce policy instead of Audit
+.\Scan-And-CreateAppLockerPolicy.ps1 -PolicyMode Enforce
+
+================================================================================
+STEP 2: SCAN REMOTE COMPUTERS
+================================================================================
+
+# Scan single remote computer
+.\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName "SERVER01"
+
+# Scan multiple computers
+.\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName "PC1","PC2","PC3"
+
+# Get computers from AD and scan them
+.\Get-ADComputersForScan.ps1 | .\Scan-And-CreateAppLockerPolicy.ps1
+
+# Get specific OU computers
+.\Get-ADComputersForScan.ps1 -SearchBase "OU=Workstations,DC=contoso,DC=com"
+
+# Get only Windows 10 computers
+.\Get-ADComputersForScan.ps1 -OperatingSystem "*Windows 10*"
+
+================================================================================
+STEP 3: MERGE MULTIPLE SCANS INTO ONE POLICY
+================================================================================
+
+# First scan creates the base policy
+.\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName "PC1"
+# Output: C:\GA-AppLocker\Scans\AppLocker-Policy-Audit-20260116-120000.xml
+
+# Subsequent scans merge into that policy
+.\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName "PC2" -MergeWithPolicy "C:\GA-AppLocker\Scans\AppLocker-Policy-Audit-20260116-120000.xml"
+# Output: C:\GA-AppLocker\Scans\AppLocker-Policy-Audit-20260116-120100-MERGED.xml
+
+# Continue merging
+.\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName "PC3" -MergeWithPolicy "C:\GA-AppLocker\Scans\AppLocker-Policy-Audit-20260116-120100-MERGED.xml"
+
+================================================================================
+STEP 4: IMPORT POLICY INTO GROUP POLICY
+================================================================================
+
+METHOD A: Using Group Policy Editor (GUI)
+-----------------------------------------
+1. Open gpedit.msc (local) or gpmc.msc (domain)
+2. Navigate to:
+   Computer Configuration > Windows Settings > Security Settings >
+   Application Control Policies > AppLocker
+3. Right-click "AppLocker" > "Import Policy..."
+4. Select your policy XML file
+5. Choose "Merge" to add rules or "Replace" to overwrite
+
+METHOD B: Using PowerShell (Recommended)
+----------------------------------------
+# MERGE with existing rules (keeps existing, adds new)
+Set-AppLockerPolicy -XmlPolicy "C:\GA-AppLocker\Scans\AppLocker-Policy-Audit-20260116-120000.xml" -Merge
+
+# REPLACE existing rules (removes old, uses only new)
+Set-AppLockerPolicy -XmlPolicy "C:\GA-AppLocker\Scans\AppLocker-Policy-Audit-20260116-120000.xml"
+
+METHOD C: Direct Apply from Script
+----------------------------------
+# Scan and apply directly to local GPO (merge with existing)
+.\Scan-And-CreateAppLockerPolicy.ps1 -ApplyToLocalGPO -MergeWhenApplying
+
+# Scan and apply directly to local GPO (replace existing)
+.\Scan-And-CreateAppLockerPolicy.ps1 -ApplyToLocalGPO
+
+================================================================================
+COMPLETE WORKFLOW EXAMPLE: Scan All AD Computers
+================================================================================
+
+# 1. Get list of computers from AD
+$computers = .\Get-ADComputersForScan.ps1 -MaxCount 50
+
+# 2. Scan first computer to create base policy
+$firstPC = $computers[0]
+$result = .\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName $firstPC
+$masterPolicy = $result.PolicyPath
+
+# 3. Scan remaining computers and merge
+foreach ($pc in $computers[1..($computers.Count-1)]) {
+    Write-Host "Scanning $pc..."
+    $result = .\Scan-And-CreateAppLockerPolicy.ps1 -ComputerName $pc -MergeWithPolicy $masterPolicy
+    $masterPolicy = $result.PolicyPath
+}
+
+# 4. Apply final merged policy
+Set-AppLockerPolicy -XmlPolicy $masterPolicy -Merge
+
+================================================================================
+USING THE GUI (AaronLocker-GUI.ps1)
+================================================================================
+
+1. Run: .\AaronLocker-GUI.ps1
+
+2. Click "SCAN ALL" button to scan local computer
+   - Scans: Events + User Profiles + ProgramData + Non-Default Dirs + Writable Paths
+   - Saves to: Scans\HOSTNAME_DATE\ folder
+
+3. Click "Create Policies" to generate AppLocker XML from scan results
+
+4. Click "Apply to Local GPO" to import the policy
+
+5. Use "Scans" folder button to see all scan results
+
+================================================================================
+OUTPUT FILES
+================================================================================
+
+Scan results are saved to: C:\GA-AppLocker\Scans\
+
+Each scan creates:
+  - AppLocker-Policy-Audit-TIMESTAMP.xml    <- IMPORT THIS INTO GROUP POLICY
+  - HOSTNAME_TIMESTAMP\                     <- Folder with detailed CSVs
+      - InstalledSoftware.csv
+      - Executables.csv
+      - Publishers.csv
+      - AppLockerEvents.csv (if -IncludeEvents)
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+"Access Denied" errors:
+  - Run PowerShell as Administrator
+  - For remote computers, ensure you have admin rights on target
+
+"Cannot connect to remote computer":
+  - Verify WinRM is enabled: Enable-PSRemoting -Force
+  - Check firewall allows WinRM (port 5985/5986)
+  - Verify computer name/IP is correct
+
+"Set-AppLockerPolicy failed":
+  - Must run as Administrator
+  - AppLocker service must be running: Start-Service AppIDSvc
+
+No executables found in scan:
+  - Normal if directory is empty
+  - Try scanning ProgramData or Non-Default Root directories
+
+================================================================================
