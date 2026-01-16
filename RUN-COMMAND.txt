@@ -2,19 +2,26 @@
 GA-AppLocker Toolkit - How to Run
 ================================================================================
 
-Copy and paste one of these commands into PowerShell:
+Copy and paste these commands into PowerShell (run as Administrator):
 
 --------------------------------------------------------------------------------
-OPTION 1: Run from project root (recommended)
+STEP 1: Change to the GA-AppLocker directory
 --------------------------------------------------------------------------------
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "build\GA-AppLocker-GUI-WPF.ps1"
+cd C:\GA-AppLocker
 
 --------------------------------------------------------------------------------
-OPTION 2: If you have PowerShell 7 installed (better performance)
+STEP 2: Run the application
 --------------------------------------------------------------------------------
 
-pwsh -NoProfile -ExecutionPolicy Bypass -File "build\GA-AppLocker-GUI-WPF.ps1"
+powershell -NoProfile -ExecutionPolicy Bypass -File "GA-AppLocker-GUI.ps1"
+
+--------------------------------------------------------------------------------
+ALTERNATIVE: PowerShell 7 (better performance)
+--------------------------------------------------------------------------------
+
+cd C:\GA-AppLocker
+pwsh -NoProfile -ExecutionPolicy Bypass -File "GA-AppLocker-GUI.ps1"
 
 --------------------------------------------------------------------------------
 NOTES
@@ -23,6 +30,4 @@ NOTES
 - Run as Administrator for full functionality (reading AppLocker events,
   deploying GPO policies, remote computer scanning)
 
-- To run as admin: Right-click PowerShell > "Run as administrator" > paste command
-
-- Make sure you're in the GA-AppLocker_FINAL folder before running
+- To run as admin: Right-click PowerShell > "Run as administrator" > paste commands
