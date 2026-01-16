@@ -213,6 +213,25 @@ $xamlString = @"
                             <TextBlock Text="2" FontSize="14" FontWeight="Bold" Foreground="#0D1117" Background="#58A6FF" Padding="6,2" Margin="0,0,8,0"/>
                             <TextBlock Text="Scan System" FontSize="16" FontWeight="Bold" Foreground="#58A6FF"/>
                         </StackPanel>
+
+                        <!-- SCAN ALL - One-Click Comprehensive Scan -->
+                        <Border Background="#1F6FEB" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="SCAN ALL ARTIFACTS" FontSize="13" FontWeight="Bold" Foreground="White" Margin="0,0,0,4"/>
+                                    <TextBlock Text="Events + Program Files + Windows + ProgramData + User Profiles + Writable Paths" FontSize="10" Foreground="#A5D6FF"/>
+                                    <TextBlock Text="Saves to: Scans/HOSTNAME_DATE/ folder" FontSize="10" Foreground="#A5D6FF" Margin="0,2,0,0"/>
+                                </StackPanel>
+                                <Button x:Name="BtnScanAll" Content="SCAN ALL" Style="{StaticResource PrimaryButton}"
+                                        Grid.Column="1" VerticalAlignment="Center" MinWidth="120" FontWeight="Bold" FontSize="14"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- Individual Scan Options -->
                         <Border Background="#21262D" CornerRadius="6" Padding="12">
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -220,7 +239,7 @@ $xamlString = @"
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Scan for files that need AppLocker rules" FontSize="11" Foreground="#8B949E" Margin="0,0,0,8"/>
+                                    <TextBlock Text="Or select specific directories to scan:" FontSize="11" Foreground="#8B949E" Margin="0,0,0,8"/>
                                     <WrapPanel>
                                         <CheckBox x:Name="ScanUserProfile" Content="User Profile" IsChecked="True" Margin="0,0,12,4"/>
                                         <CheckBox x:Name="ScanAllProfiles" Content="All Profiles" Margin="0,0,12,4"/>
@@ -338,6 +357,7 @@ $xamlString = @"
                         <StackPanel Grid.Column="1">
                             <TextBlock Text="Folders" FontSize="11" Foreground="#6E7681" Margin="0,0,0,6"/>
                             <WrapPanel>
+                                <Button x:Name="BtnOpenScans" Content="Scans" Style="{StaticResource SmallButton}" Margin="0,0,8,0" ToolTip="Open folder with comprehensive scan results"/>
                                 <Button x:Name="BtnOpenOutputs" Content="Outputs" Style="{StaticResource SmallButton}" Margin="0,0,8,0"/>
                                 <Button x:Name="BtnOpenScanResults" Content="ScanResults" Style="{StaticResource SmallButton}" Margin="0,0,8,0"/>
                                 <Button x:Name="BtnOpenAaronLocker" Content="AaronLocker" Style="{StaticResource SmallButton}"/>
@@ -412,6 +432,7 @@ $ScanNonDefaultRoot = $window.FindName("ScanNonDefaultRoot")
 $ScanExcel = $window.FindName("ScanExcel")
 $ScanGridView = $window.FindName("ScanGridView")
 $BtnScanDirectories = $window.FindName("BtnScanDirectories")
+$BtnScanAll = $window.FindName("BtnScanAll")
 
 # Get Events controls
 $EventsWarningOnly = $window.FindName("EventsWarningOnly")
@@ -450,6 +471,7 @@ $BtnEditUnsafePaths = $window.FindName("BtnEditUnsafePaths")
 $BtnEditDenyList = $window.FindName("BtnEditDenyList")
 $BtnEditHashRules = $window.FindName("BtnEditHashRules")
 $BtnEditKnownAdmins = $window.FindName("BtnEditKnownAdmins")
+$BtnOpenScans = $window.FindName("BtnOpenScans")
 $BtnOpenOutputs = $window.FindName("BtnOpenOutputs")
 $BtnOpenScanResults = $window.FindName("BtnOpenScanResults")
 $BtnOpenAaronLocker = $window.FindName("BtnOpenAaronLocker")
@@ -482,7 +504,8 @@ function Invoke-AaronLockerScript {
     param(
         [string]$ScriptName,
         [string]$ScriptPath,
-        [string]$Parameters = ""
+        [string]$Parameters = "",
+        [string]$OutputFile = ""  # Optional: save output to this file
     )
 
     if (-not (Test-AaronLockerExists)) { return }
@@ -492,7 +515,12 @@ function Invoke-AaronLockerScript {
         return
     }
 
-    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters`n`nA new Windows PowerShell 5.1 window will open..."
+    $outputMsg = ""
+    if ($OutputFile) {
+        $outputMsg = "`n`nOutput will be saved to:`n$OutputFile"
+    }
+
+    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters$outputMsg`n`nA new Windows PowerShell 5.1 window will open..."
 
     # CRITICAL: Must use Windows PowerShell 5.1 (not PowerShell 7/Core)
     # AaronLocker scripts use -Encoding Byte which only works in Windows PowerShell 5.1
@@ -507,6 +535,12 @@ function Invoke-AaronLockerScript {
             [System.Windows.MessageBoxImage]::Error
         )
         return
+    }
+
+    # Build output redirection command if output file specified
+    $outputRedirect = ""
+    if ($OutputFile) {
+        $outputRedirect = " | Out-File -FilePath '$OutputFile' -Encoding UTF8"
     }
 
     # Build the command to run - verify PS version and language mode first, then run script
@@ -542,21 +576,12 @@ if (`$langMode -ne 'FullLanguage') {
     Write-Host ''
 }
 
-# Verify Get-Content supports -Encoding Byte (diagnostic)
-try {
-    `$testParams = (Get-Command Microsoft.PowerShell.Management\Get-Content).Parameters
-    if (-not `$testParams.ContainsKey('Encoding')) {
-        Write-Host 'ERROR: Get-Content cmdlet is missing -Encoding parameter!' -ForegroundColor Red
-        Write-Host 'This indicates a restricted PowerShell environment.' -ForegroundColor Red
-    }
-} catch {
-    Write-Host "Warning: Could not verify Get-Content parameters: `$_" -ForegroundColor Yellow
-}
-
 Write-Host ''
 Set-Location '$($script:AaronLockerRoot)'
-. '$ScriptPath' $Parameters
+$(if ($OutputFile) { "Write-Host 'Saving output to: $OutputFile' -ForegroundColor Yellow; Write-Host ''" })
+. '$ScriptPath' $Parameters$outputRedirect
 Write-Host ''
+$(if ($OutputFile) { "Write-Host 'Output saved to: $OutputFile' -ForegroundColor Green; Write-Host ''" })
 Write-Host '=== COMPLETE ===' -ForegroundColor Green
 Write-Host 'Press any key to close...'
 `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
@@ -582,6 +607,185 @@ $BtnClearConsole.Add_Click({
     $OutputConsole.Text = "AaronLocker output will appear here..."
 })
 
+# === SCAN ALL ARTIFACTS ===
+# Comprehensive one-click scan that collects all data and saves to organized folder
+$BtnScanAll.Add_Click({
+    if (-not (Test-AaronLockerExists)) { return }
+
+    # Create scan folder: Scans/HOSTNAME_YYYYMMDD-HHMMSS
+    $hostname = $env:COMPUTERNAME
+    $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+    $scanFolderName = "${hostname}_${timestamp}"
+    $scanFolder = Join-Path $script:AaronLockerRoot "Scans\$scanFolderName"
+
+    # Create folder structure
+    if (-not (Test-Path $scanFolder)) {
+        New-Item -ItemType Directory -Path $scanFolder -Force | Out-Null
+    }
+
+    Write-Console "=== SCAN ALL ARTIFACTS ===`n`nCreating scan folder:`n$scanFolder`n`nThis will run multiple scans in sequence...`n"
+
+    # Check for AccessChk.exe (required for writable path scans)
+    $accessChkPath = Join-Path $script:AaronLockerRoot "accesschk.exe"
+    $hasAccessChk = Test-Path $accessChkPath
+
+    if (-not $hasAccessChk) {
+        Write-Console "WARNING: AccessChk.exe not found!`nWritable path scans will be limited.`nUse 'Setup AccessChk.exe' button to install.`n" -Append
+    }
+
+    # CRITICAL: Must use Windows PowerShell 5.1
+    $windowsPowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+
+    if (-not (Test-Path $windowsPowerShell)) {
+        Write-Console "ERROR: Windows PowerShell 5.1 not found!`n$windowsPowerShell"
+        return
+    }
+
+    # Build comprehensive scan script
+    $scanScript = @"
+`$Host.UI.RawUI.WindowTitle = 'AaronLocker - Comprehensive Scan'
+
+# Check PowerShell version
+if (`$PSVersionTable.PSVersion.Major -ne 5) {
+    Write-Host 'ERROR: This script requires Windows PowerShell 5.1' -ForegroundColor Red
+    Write-Host "Current version: `$(`$PSVersionTable.PSVersion)" -ForegroundColor Red
+    Write-Host 'Press any key to close...'
+    `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    exit 1
+}
+
+Write-Host '============================================' -ForegroundColor Cyan
+Write-Host ' COMPREHENSIVE APPLOCKER ARTIFACT SCAN' -ForegroundColor Cyan
+Write-Host '============================================' -ForegroundColor Cyan
+Write-Host ''
+Write-Host "Hostname: $hostname" -ForegroundColor White
+Write-Host "Timestamp: $timestamp" -ForegroundColor White
+Write-Host "Output Folder: $scanFolder" -ForegroundColor Yellow
+Write-Host ''
+
+Set-Location '$($script:AaronLockerRoot)'
+
+# Create output folder
+if (-not (Test-Path '$scanFolder')) {
+    New-Item -ItemType Directory -Path '$scanFolder' -Force | Out-Null
+}
+
+# ============================================
+# 1. APPLOCKER EVENTS
+# ============================================
+Write-Host ''
+Write-Host '--- [1/5] Scanning AppLocker Events ---' -ForegroundColor Yellow
+`$eventsFile = '$scanFolder\AppLockerEvents.csv'
+try {
+    . '.\Get-AppLockerEvents.ps1' -AllEvents | Out-File -FilePath `$eventsFile -Encoding UTF8
+    `$eventCount = (Get-Content `$eventsFile -ErrorAction SilentlyContinue | Measure-Object -Line).Lines - 1
+    Write-Host "Saved `$eventCount events to: `$eventsFile" -ForegroundColor Green
+} catch {
+    Write-Host "Events scan failed: `$(`$_.Exception.Message)" -ForegroundColor Red
+}
+
+# ============================================
+# 2. USER PROFILES
+# ============================================
+Write-Host ''
+Write-Host '--- [2/5] Scanning User Profiles ---' -ForegroundColor Yellow
+`$profilesFile = '$scanFolder\UserProfiles.csv'
+try {
+    . '.\Scan-Directories.ps1' -SearchAllUserProfiles | Out-File -FilePath `$profilesFile -Encoding UTF8
+    `$profileCount = (Get-Content `$profilesFile -ErrorAction SilentlyContinue | Measure-Object -Line).Lines - 1
+    Write-Host "Found `$profileCount items in user profiles: `$profilesFile" -ForegroundColor Green
+} catch {
+    Write-Host "User profiles scan failed: `$(`$_.Exception.Message)" -ForegroundColor Red
+}
+
+# ============================================
+# 3. PROGRAMDATA
+# ============================================
+Write-Host ''
+Write-Host '--- [3/5] Scanning ProgramData ---' -ForegroundColor Yellow
+`$programDataFile = '$scanFolder\ProgramData.csv'
+try {
+    . '.\Scan-Directories.ps1' -SearchProgramData | Out-File -FilePath `$programDataFile -Encoding UTF8
+    `$pdCount = (Get-Content `$programDataFile -ErrorAction SilentlyContinue | Measure-Object -Line).Lines - 1
+    Write-Host "Found `$pdCount items in ProgramData: `$programDataFile" -ForegroundColor Green
+} catch {
+    Write-Host "ProgramData scan failed: `$(`$_.Exception.Message)" -ForegroundColor Red
+}
+
+# ============================================
+# 4. NON-DEFAULT ROOT DIRECTORIES
+# ============================================
+Write-Host ''
+Write-Host '--- [4/5] Scanning Non-Default Root Directories ---' -ForegroundColor Yellow
+`$nonDefaultFile = '$scanFolder\NonDefaultRoot.csv'
+try {
+    . '.\Scan-Directories.ps1' -SearchNonDefaultRootDirs | Out-File -FilePath `$nonDefaultFile -Encoding UTF8
+    `$ndCount = (Get-Content `$nonDefaultFile -ErrorAction SilentlyContinue | Measure-Object -Line).Lines - 1
+    Write-Host "Found `$ndCount items in non-default root dirs: `$nonDefaultFile" -ForegroundColor Green
+} catch {
+    Write-Host "Non-default root scan failed: `$(`$_.Exception.Message)" -ForegroundColor Red
+}
+
+# ============================================
+# 5. WRITABLE PATHS (requires AccessChk.exe)
+# ============================================
+Write-Host ''
+Write-Host '--- [5/5] Scanning Writable Paths ---' -ForegroundColor Yellow
+`$writableFile = '$scanFolder\WritablePaths.csv'
+
+if (Test-Path '.\accesschk.exe') {
+    try {
+        . '.\Scan-Directories.ps1' -WritableWindir -WritablePF | Out-File -FilePath `$writableFile -Encoding UTF8
+        `$wCount = (Get-Content `$writableFile -ErrorAction SilentlyContinue | Measure-Object -Line).Lines - 1
+        Write-Host "Found `$wCount items in writable paths: `$writableFile" -ForegroundColor Green
+    } catch {
+        Write-Host "Writable paths scan failed: `$(`$_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Run Create-Policies.ps1 first to generate writable path lists." -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "SKIPPED: accesschk.exe not found (required for writable path scanning)" -ForegroundColor Yellow
+    Write-Host "Use 'Setup AccessChk.exe' in the GUI to install it." -ForegroundColor Yellow
+}
+
+# ============================================
+# SUMMARY
+# ============================================
+Write-Host ''
+Write-Host '============================================' -ForegroundColor Cyan
+Write-Host ' SCAN COMPLETE' -ForegroundColor Green
+Write-Host '============================================' -ForegroundColor Cyan
+Write-Host ''
+Write-Host "All scan results saved to:" -ForegroundColor White
+Write-Host "$scanFolder" -ForegroundColor Yellow
+Write-Host ''
+Write-Host "Files created:" -ForegroundColor White
+Get-ChildItem '$scanFolder' -File | ForEach-Object {
+    `$size = [math]::Round(`$_.Length / 1KB, 1)
+    Write-Host "  - `$(`$_.Name) (`$size KB)" -ForegroundColor Gray
+}
+Write-Host ''
+Write-Host "NEXT STEP: Run 'Create Policies' to generate importable AppLocker rules" -ForegroundColor Cyan
+Write-Host "           from these scan results." -ForegroundColor Cyan
+Write-Host ''
+Write-Host 'Press any key to close...'
+`$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+"@
+
+    # Launch the comprehensive scan
+    $bytes = [System.Text.Encoding]::Unicode.GetBytes($scanScript)
+    $encodedCommand = [Convert]::ToBase64String($bytes)
+
+    Write-Console "Launching comprehensive scan...`n`nA Windows PowerShell 5.1 window will open.`nResults will be saved to:`n$scanFolder" -Append
+
+    Start-Process $windowsPowerShell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encodedCommand
+
+    # Open the scan folder when done (give user time to see it)
+    Start-Sleep -Milliseconds 500
+    if (Test-Path $scanFolder) {
+        Start-Process explorer.exe -ArgumentList $scanFolder
+    }
+})
+
 # === SCANNING ===
 
 # Scan Directories
@@ -595,16 +799,30 @@ $BtnScanDirectories.Add_Click({
     if ($ScanUserProfile.IsChecked) { $params += "-SearchOneUserProfile" }
     if ($ScanAllProfiles.IsChecked) { $params += "-SearchAllUserProfiles" }
     if ($ScanNonDefaultRoot.IsChecked) { $params += "-SearchNonDefaultRootDirs" }
-    if ($ScanExcel.IsChecked) { $params += "-Excel" }
-    if ($ScanGridView.IsChecked) { $params += "-GridView" }
 
-    # Need at least one scan option
-    if ($params.Count -eq 0 -or ($params.Count -eq 1 -and ($params[0] -eq "-Excel" -or $params[0] -eq "-GridView"))) {
+    # Check for Excel/GridView options
+    $hasExcel = $ScanExcel.IsChecked
+    $hasGridView = $ScanGridView.IsChecked
+
+    # Need at least one scan location (not just display options)
+    $scanParams = $params.Clone()
+    if ($scanParams.Count -eq 0) {
         Write-Console "Please select at least one directory to scan."
         return
     }
 
-    Invoke-AaronLockerScript -ScriptName "Scan Directories" -ScriptPath $scriptPath -Parameters ($params -join " ")
+    $outputFile = ""
+    if ($hasExcel) {
+        $params += "-Excel"
+    } elseif ($hasGridView) {
+        $params += "-GridView"
+    } else {
+        # Auto-save to CSV when no display option selected
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $outputFile = Join-Path $script:AaronLockerRoot "ScanResults\ScanDirectories-$timestamp.csv"
+    }
+
+    Invoke-AaronLockerScript -ScriptName "Scan Directories" -ScriptPath $scriptPath -Parameters ($params -join " ") -OutputFile $outputFile
 })
 
 # Get AppLocker Events
@@ -617,10 +835,18 @@ $BtnGetEvents.Add_Click({
     elseif ($EventsAllowedOnly.IsChecked) { $params += "-AllowedOnly" }
     elseif ($EventsAll.IsChecked) { $params += "-AllEvents" }
 
-    if ($EventsExcel.IsChecked) { $params += "-Excel" }
-    if ($EventsGridView.IsChecked) { $params += "-GridView" }
+    $outputFile = ""
+    if ($EventsExcel.IsChecked) {
+        $params += "-Excel"
+    } elseif ($EventsGridView.IsChecked) {
+        $params += "-GridView"
+    } else {
+        # Auto-save to CSV when no display option selected
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $outputFile = Join-Path $script:AaronLockerRoot "ScanResults\AppLockerEvents-$timestamp.csv"
+    }
 
-    Invoke-AaronLockerScript -ScriptName "Get AppLocker Events" -ScriptPath $scriptPath -Parameters ($params -join " ")
+    Invoke-AaronLockerScript -ScriptName "Get AppLocker Events" -ScriptPath $scriptPath -Parameters ($params -join " ") -OutputFile $outputFile
 })
 
 # Compare Policies
@@ -823,6 +1049,15 @@ $BtnEditKnownAdmins.Add_Click({
     } else {
         Write-Console "File not found: $filePath"
     }
+})
+
+$BtnOpenScans.Add_Click({
+    $folderPath = Join-Path $script:AaronLockerRoot "Scans"
+    if (-not (Test-Path $folderPath)) {
+        New-Item -ItemType Directory -Path $folderPath -Force | Out-Null
+    }
+    Start-Process explorer.exe -ArgumentList $folderPath
+    Write-Console "Opened Scans folder`n`nPath: $folderPath`n`nThis folder contains comprehensive scan results organized by HOSTNAME_DATE."
 })
 
 $BtnOpenOutputs.Add_Click({
