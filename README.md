@@ -76,13 +76,22 @@ Find target computers for AppLocker deployment:
 - Test connectivity to each computer
 - Export computer inventory to CSV
 
-### Scanning (Artifacts Panel)
-Collect executable inventory from your environment:
+### Scanning
+
+**Artifacts Panel (Local):**
 - **Quick Load**: Pull artifacts from Event Monitor
 - **Import File**: Load CSV exports manually
 - **Import Folder**: Batch load multiple CSVs
 - **Deduplicate**: Remove duplicates by Publisher/Hash/Path
 - **Export List**: Save filtered artifact list
+- **Scan Local System**: Quick scan of local machine only
+
+**AD Discovery Panel (Remote):**
+- **Discover Computers**: Scan AD for all computers
+- **Test Connectivity**: Ping computers to check online status
+- **Select Online**: Choose computers to scan
+- **Scan Selected**: Remote artifact collection via WinRM
+  - *Requires WinRM to be enabled first (WinRM panel)*
 
 ### Rule Generator (Rules Panel)
 Create AppLocker rules with enhanced workflow:

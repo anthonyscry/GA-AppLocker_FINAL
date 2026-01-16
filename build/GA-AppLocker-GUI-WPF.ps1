@@ -8028,18 +8028,30 @@ PHASE 1: SETUP (Prepare Your Environment)
 PHASE 2: SCANNING (Collect Software Inventory)
 ---------------------------------------------------------------------------
 
-4. Artifact Collection (Artifacts Panel)
+4A. AD Discovery Panel (Remote Scanning)
 
-   Purpose: Collect executable files from your environment
+   Purpose: Find target computers and collect artifacts remotely
+
+   Workflow:
+   - Discover Computers: Scans Active Directory for all computers
+   - Test Connectivity: Pings computers to check online/offline status
+   - Select Online: Choose computers from the Online list
+   - Scan Selected: Collects artifacts from remote computers via WinRM
+
+   Requirements:
+   - WinRM must be enabled (use WinRM panel first)
+   - Domain Administrator privileges
+   - Target computers must be online
+
+4B. Artifacts Panel (Local Scanning)
+
+   Purpose: Collect artifacts from the local system
 
    Scan Options:
-   - Scan Localhost: Quick scan of the local system
-   - Comprehensive Scan: AaronLocker-style deep scan that creates:
-     * Executables.csv - All executable files found
-     * Publishers.csv - Code signing information
-     * InstalledSoftware.csv - Programs from registry
-     * RunningProcesses.csv - Currently executing programs
-     * WritableDirectories.csv - User-writable locations
+   - Scan Local System: Quick scan of the local computer
+   - Load Artifacts: Pull from AD Discovery panel results
+   - Import File: Load a CSV file manually
+   - Import Folder: Load all CSVs from a folder
 
    Output: C:\GA-AppLocker\Scans\
 
@@ -8101,8 +8113,11 @@ PHASE 3: DEPLOYMENT (Push Policies to Computers)
    - Firewall rules for ports 5985/5986
 
    Actions:
+   - Create WinRM GPO: Creates the GPO
    - Force GPUpdate: Push policy to all computers
    - Enable/Disable: Turn WinRM GPO link on or off
+
+   Required For: Remote artifact scanning and remote event collection
 
 
 PHASE 4: MONITORING (Track Effectiveness)
@@ -8113,7 +8128,8 @@ PHASE 4: MONITORING (Track Effectiveness)
    Purpose: Monitor AppLocker policy effectiveness
 
    Actions:
-   - Scan Local/Remote: Collect AppLocker events
+   - Scan Local: Collect AppLocker events from local system
+   - Scan Selected: Collect events from remote computers via WinRM
    - Quick Date Filters: Last Hour, Today, 7 Days, 30 Days
    - Filter by Type: Allowed (8002), Audit (8003), Blocked (8004)
    - Export to CSV: Analyze events externally
