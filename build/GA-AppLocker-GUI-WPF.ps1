@@ -4399,19 +4399,38 @@ $xamlString = @"
                     <!-- Local Scan Header -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Margin="0,0,0,10" Padding="15">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Local Artifact Scanning" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3"/>
-                                <TextBlock Text="Scan the local system for executable artifacts" FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="Local Artifact Scanning" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                    <TextBlock Text="Scan the local system for executable artifacts" FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
+                                </StackPanel>
+
+                                <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Local System" Style="{StaticResource PrimaryButton}" Grid.Column="1" MinHeight="32" MinWidth="140"/>
+                                <Button x:Name="CancelScanBtn" Content="Cancel" Style="{StaticResource SecondaryButton}" Grid.Column="3" MinHeight="32" MinWidth="80" Visibility="Collapsed"/>
+                            </Grid>
+
+                            <!-- Progress Section -->
+                            <StackPanel x:Name="ScanProgressPanel" Visibility="Collapsed" Margin="0,15,0,0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="ScanProgressText" Text="Scanning..." FontSize="12" Foreground="#58A6FF" Grid.Column="0"/>
+                                    <TextBlock x:Name="ScanProgressCount" Text="" FontSize="12" Foreground="#8B949E" Grid.Column="1"/>
+                                </Grid>
+                                <ProgressBar x:Name="ScanProgressBar" Height="6" Margin="0,8,0,0" IsIndeterminate="True"
+                                             Background="#21262D" Foreground="#238636"/>
                             </StackPanel>
-
-                            <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Local System" Style="{StaticResource PrimaryButton}" Grid.Column="1" MinHeight="32" MinWidth="140"/>
-                        </Grid>
+                        </StackPanel>
                     </Border>
 
                     <!-- Directory Selection -->
@@ -6257,6 +6276,16 @@ if ($null -eq $ArtifactsList) { Write-Log "WARNING: Control 'ArtifactsList' not 
 # Artifact Local Scan controls
 $ScanLocalArtifactsBtn = $window.FindName("ScanLocalArtifactsBtn")
 if ($null -eq $ScanLocalArtifactsBtn) { Write-Log "WARNING: Control 'ScanLocalArtifactsBtn' not found in XAML" -Level "WARNING" }
+$CancelScanBtn = $window.FindName("CancelScanBtn")
+if ($null -eq $CancelScanBtn) { Write-Log "WARNING: Control 'CancelScanBtn' not found in XAML" -Level "WARNING" }
+$ScanProgressPanel = $window.FindName("ScanProgressPanel")
+if ($null -eq $ScanProgressPanel) { Write-Log "WARNING: Control 'ScanProgressPanel' not found in XAML" -Level "WARNING" }
+$ScanProgressText = $window.FindName("ScanProgressText")
+if ($null -eq $ScanProgressText) { Write-Log "WARNING: Control 'ScanProgressText' not found in XAML" -Level "WARNING" }
+$ScanProgressCount = $window.FindName("ScanProgressCount")
+if ($null -eq $ScanProgressCount) { Write-Log "WARNING: Control 'ScanProgressCount' not found in XAML" -Level "WARNING" }
+$ScanProgressBar = $window.FindName("ScanProgressBar")
+if ($null -eq $ScanProgressBar) { Write-Log "WARNING: Control 'ScanProgressBar' not found in XAML" -Level "WARNING" }
 $RuleTypeAuto = $window.FindName("RuleTypeAuto")
 if ($null -eq $RuleTypeAuto) { Write-Log "WARNING: Control 'RuleTypeAuto' not found in XAML" -Level "WARNING" }
 $RuleTypePublisher = $window.FindName("RuleTypePublisher")
@@ -10607,6 +10636,10 @@ $DirectoryList.Add_SelectionChanged({
 })
 }
 
+# Global cancel flag for scans
+$script:ScanCancelled = $false
+$script:CurrentSyncHash = $null
+
 # Scan Local Artifacts button - scans localhost directories
 if ($null -ne $ScanLocalArtifactsBtn) {
 $ScanLocalArtifactsBtn.Add_Click({
@@ -10641,6 +10674,13 @@ $ScanLocalArtifactsBtn.Add_Click({
     $RulesOutput.Text = "Starting local scan ($scanMode)...`n`nDirectories:`n$($directories -join "`n")`n`nThis runs in the background - UI will remain responsive."
     $ScanLocalArtifactsBtn.IsEnabled = $false
 
+    # Show progress panel and cancel button
+    $script:ScanCancelled = $false
+    if ($null -ne $ScanProgressPanel) { $ScanProgressPanel.Visibility = [System.Windows.Visibility]::Visible }
+    if ($null -ne $CancelScanBtn) { $CancelScanBtn.Visibility = [System.Windows.Visibility]::Visible }
+    if ($null -ne $ScanProgressText) { $ScanProgressText.Text = "Initializing scan..." }
+    if ($null -ne $ScanProgressCount) { $ScanProgressCount.Text = "" }
+
     # Create a background Runspace for async scanning
     $syncHash = [hashtable]::Synchronized(@{})
     $syncHash.ArtifactsList = $ArtifactsList
@@ -10652,6 +10692,12 @@ $ScanLocalArtifactsBtn.Add_Click({
     $syncHash.MaxFiles = $maxFiles
     $syncHash.ArtifactCountBadge = $ArtifactCountBadge
     $syncHash.EventCountBadge = $EventCountBadge
+    $syncHash.ScanProgressPanel = $ScanProgressPanel
+    $syncHash.ScanProgressText = $ScanProgressText
+    $syncHash.ScanProgressCount = $ScanProgressCount
+    $syncHash.CancelScanBtn = $CancelScanBtn
+    $syncHash.Cancelled = $false
+    $script:CurrentSyncHash = $syncHash
 
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = "STA"
@@ -10703,7 +10749,20 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("")
             })
             # Scan each directory
+            $dirIndex = 0
+            $totalDirs = $directories.Count
             foreach ($dir in $directories) {
+                $dirIndex++
+
+                # Check for cancellation
+                if ($syncHash.Cancelled) {
+                    $syncHash.Window.Dispatcher.Invoke([action]{
+                        $syncHash.ArtifactsList.Items.Add("")
+                        $syncHash.ArtifactsList.Items.Add("=== SCAN CANCELLED ===")
+                    })
+                    break
+                }
+
                 if (-not (Test-Path $dir)) {
                     $syncHash.Window.Dispatcher.Invoke([action]{
                         $syncHash.ArtifactsList.Items.Add("[!] Directory not found: $dir")
@@ -10711,8 +10770,16 @@ $ScanLocalArtifactsBtn.Add_Click({
                     continue
                 }
 
+                # Update progress text
+                $dirName = Split-Path $dir -Leaf
                 $syncHash.Window.Dispatcher.Invoke([action]{
                     $syncHash.ArtifactsList.Items.Add("[*] Scanning: $dir...")
+                    if ($null -ne $syncHash.ScanProgressText) {
+                        $syncHash.ScanProgressText.Text = "Scanning: $dirName"
+                    }
+                    if ($null -ne $syncHash.ScanProgressCount) {
+                        $syncHash.ScanProgressCount.Text = "Directory $dirIndex of $totalDirs | Artifacts: $($allArtifacts.Count)"
+                    }
                 })
 
                 # Get executable artifacts from directory
@@ -10735,6 +10802,9 @@ $ScanLocalArtifactsBtn.Add_Click({
 
                 $syncHash.Window.Dispatcher.Invoke([action]{
                     $syncHash.ArtifactsList.Items.Add("    Found: $($artifacts.Count) files")
+                    if ($null -ne $syncHash.ScanProgressCount) {
+                        $syncHash.ScanProgressCount.Text = "Directory $dirIndex of $totalDirs | Artifacts: $($allArtifacts.Count)"
+                    }
                 })
             }
 
@@ -10805,6 +10875,10 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactCountBadge.Text = "$($allArtifacts.Count)"
                 $syncHash.ArtifactCountBadge.Foreground = "#3FB950"
                 $syncHash.ArtifactCountBadge.Background = "#1F6FEB"
+
+                # Hide progress panel
+                if ($null -ne $syncHash.ScanProgressPanel) { $syncHash.ScanProgressPanel.Visibility = [System.Windows.Visibility]::Collapsed }
+                if ($null -ne $syncHash.CancelScanBtn) { $syncHash.CancelScanBtn.Visibility = [System.Windows.Visibility]::Collapsed }
             })
 
             Write-Log "Local scan complete: $($allArtifacts.Count) artifacts collected, saved to: $csvPath"
@@ -10815,7 +10889,9 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("ERROR: $errorMsg")
                 $syncHash.RulesOutput.Text = "Local scan failed: $errorMsg"
                 $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
-                $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
+                # Hide progress panel on error
+                if ($null -ne $syncHash.ScanProgressPanel) { $syncHash.ScanProgressPanel.Visibility = [System.Windows.Visibility]::Collapsed }
+                if ($null -ne $syncHash.CancelScanBtn) { $syncHash.CancelScanBtn.Visibility = [System.Windows.Visibility]::Collapsed }
             })
             Write-Log "Local scan failed: $errorMsg" -Level "ERROR"
         }
@@ -10825,6 +10901,32 @@ $ScanLocalArtifactsBtn.Add_Click({
 
     # Store async handle for cleanup if needed
     $script:LocalScanHandle = @{Handle = $handle; PowerShell = $powerShell}
+})
+}
+
+# Cancel Scan button
+if ($null -ne $CancelScanBtn) {
+$CancelScanBtn.Add_Click({
+    Write-Log "Scan cancelled by user"
+    $script:ScanCancelled = $true
+    if ($null -ne $script:CurrentSyncHash) {
+        $script:CurrentSyncHash.Cancelled = $true
+    }
+
+    # Stop the running scan
+    if ($null -ne $script:LocalScanHandle) {
+        try {
+            $script:LocalScanHandle.PowerShell.Stop()
+        } catch { }
+    }
+
+    # Update UI
+    $ArtifactsList.Items.Add("")
+    $ArtifactsList.Items.Add("=== SCAN CANCELLED ===")
+    $RulesOutput.Text = "Scan cancelled by user."
+    $ScanLocalArtifactsBtn.IsEnabled = $true
+    $ScanProgressPanel.Visibility = [System.Windows.Visibility]::Collapsed
+    $CancelScanBtn.Visibility = [System.Windows.Visibility]::Collapsed
 })
 }
 
