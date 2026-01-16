@@ -53,9 +53,18 @@ if (Test-Path "..\src") {
     Copy-Item -Path "..\src\*" -Destination "$portableDir\modules" -Recurse -Force
 }
 
+# Copy AaronLocker scripts (REQUIRED for AaronLocker Tools page)
+if (Test-Path "..\AaronLocker-main") {
+    Write-Host "[Step 6] Including AaronLocker scripts..." -ForegroundColor Cyan
+    Copy-Item -Path "..\AaronLocker-main" -Destination "$portableDir\AaronLocker-main" -Recurse -Force
+    Write-Host "         AaronLocker tools will be available at: AaronLocker-main\AaronLocker\" -ForegroundColor Gray
+} else {
+    Write-Host "[WARNING] AaronLocker-main folder not found - AaronLocker Tools page will not work!" -ForegroundColor Yellow
+}
+
 # Copy sample files if they exist
 if (Test-Path "..\samples") {
-    Write-Host "[Step 6] Including sample artifacts..." -ForegroundColor Cyan
+    Write-Host "[Step 7] Including sample artifacts..." -ForegroundColor Cyan
     Copy-Item -Path "..\samples\*" -Destination "$portableDir" -Recurse -Force
 }
 
@@ -86,6 +95,16 @@ Or run from PowerShell:
 - Event Monitor - View AppLocker audit events
 - Compliance Reports - Generate compliance reports
 - WinRM Setup - Configure WinRM via GPO (1-click setup)
+- AaronLocker Tools - Full GUI for AaronLocker scripts (scan, create policies, export)
+
+## AaronLocker Integration
+
+The AaronLocker-main folder is included with this package. Access it from the sidebar menu:
+- Scan Directories for writable paths
+- Create AppLocker/WDAC policies
+- Export policies to CSV/Excel
+- Configure local AppLocker settings
+- Edit customization input files
 
 ## Requirements
 

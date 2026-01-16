@@ -77,6 +77,16 @@ jobs:
             Write-Host "Copied src modules" -ForegroundColor Green
           }
 
+      - name: Copy AaronLocker scripts
+        shell: pwsh
+        run: |
+          if (Test-Path "./AaronLocker-main") {
+            Copy-Item -Path "./AaronLocker-main" -Destination "./output/AaronLocker-main" -Recurse -Force
+            Write-Host "Copied AaronLocker scripts" -ForegroundColor Green
+          } else {
+            Write-Host "WARNING: AaronLocker-main not found - AaronLocker Tools page will not work" -ForegroundColor Yellow
+          }
+
       - name: Create batch launcher
         shell: pwsh
         run: |

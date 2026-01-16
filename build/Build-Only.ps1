@@ -167,6 +167,15 @@ if (Test-Path ".\README.md") {
     Copy-Item -Path ".\README.md" -Destination $releaseDir
 }
 
+# Copy AaronLocker scripts (REQUIRED for AaronLocker Tools page)
+Write-BuildStep "Step 5: Including AaronLocker scripts..."
+if (Test-Path ".\AaronLocker-main") {
+    Copy-Item -Path ".\AaronLocker-main" -Destination "$releaseDir\AaronLocker-main" -Recurse -Force
+    Write-BuildSuccess "AaronLocker scripts included"
+} else {
+    Write-Host "  [WARNING] AaronLocker-main folder not found - AaronLocker Tools will not work!" -ForegroundColor Yellow
+}
+
 Write-BuildSuccess "Release folder created: $releaseDir"
 
 # Build summary
