@@ -23,6 +23,31 @@ try {
 }
 
 # ============================================================
+# LOGGING FUNCTION (must be defined early)
+# ============================================================
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+
+    $logDir = "C:\GA-AppLocker\Logs"
+    if (-not (Test-Path $logDir)) {
+        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logFile = Join-Path $logDir "GA-AppLocker-$(Get-Date -Format 'yyyy-MM-dd').log"
+    $logEntry = "[$timestamp] [$Level] $Message"
+
+    try {
+        Add-Content -Path $logFile -Value $logEntry -ErrorAction Stop
+    } catch {
+        # Silently fail if logging fails
+    }
+}
+
+# ============================================================
 # EMBEDDED: All Module Functions
 # ============================================================
 
@@ -3489,7 +3514,7 @@ $xamlString = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:sys="clr-namespace:System;assembly=mscorlib"
-        Title="GA-AppLocker Dashboard" Height="700" Width="1050" MinHeight="500" MinWidth="800"
+        Title="GA-AppLocker Dashboard" Height="800" Width="1150" MinHeight="600" MinWidth="900"
         WindowStartupLocation="CenterScreen" Background="#0D1117">
     <Window.Resources>
         <!-- GitHub Dark Theme Colors -->
@@ -6525,28 +6550,6 @@ function Initialize-AppLockerFolders {
             success = $false
             error = $_.Exception.Message
         }
-    }
-}
-
-function Write-Log {
-    param(
-        [string]$Message,
-        [string]$Level = "INFO"
-    )
-
-    $logDir = "C:\GA-AppLocker\Logs"
-    if (-not (Test-Path $logDir)) {
-        New-Item -ItemType Directory -Path $logDir -Force | Out-Null
-    }
-
-    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $logFile = Join-Path $logDir "GA-AppLocker-$(Get-Date -Format 'yyyy-MM-dd').log"
-    $logEntry = "[$timestamp] [$Level] $Message"
-
-    try {
-        Add-Content -Path $logFile -Value $logEntry -ErrorAction Stop
-    } catch {
-        # Silently fail if logging fails
     }
 }
 
@@ -9847,8 +9850,8 @@ function Update-Charts {
         $GaugeFill.Data = ""
     }
 
-    $GaugeScore.Text = $HealthScore.ToString()
-    $GaugeLabel.Text = if ($HealthScore -eq 100) { "Fully Configured" } elseif ($HealthScore -ge 75) { "Well Configured" } elseif ($HealthScore -ge 50) { "Partially Configured" } elseif ($HealthScore -gt 0) { "Minimal Configuration" } else { "No Policy Configured" }
+    if ($null -ne $GaugeScore) { $GaugeScore.Text = $HealthScore.ToString() }
+    if ($null -ne $GaugeLabel) { $GaugeLabel.Text = if ($HealthScore -eq 100) { "Fully Configured" } elseif ($HealthScore -ge 75) { "Well Configured" } elseif ($HealthScore -ge 50) { "Partially Configured" } elseif ($HealthScore -gt 0) { "Minimal Configuration" } else { "No Policy Configured" } }
 
     # Update Machine Type Bars (placeholder data - would need actual AD query)
     $workstations = 42
@@ -9861,16 +9864,16 @@ function Update-Charts {
         $svHeight = ($servers / $maxMachines) * 120
         $dcHeight = ($dcs / $maxMachines) * 120
 
-        $BarWorkstations.Height = $wsHeight
-        $BarServers.Height = $svHeight
-        $BarDCs.Height = $dcHeight
+        if ($null -ne $BarWorkstations) { $BarWorkstations.Height = $wsHeight }
+        if ($null -ne $BarServers) { $BarServers.Height = $svHeight }
+        if ($null -ne $BarDCs) { $BarDCs.Height = $dcHeight }
 
-        $LabelWorkstations.Text = $workstations.ToString()
-        $LabelServers.Text = $servers.ToString()
-        $LabelDCs.Text = $dcs.ToString()
+        if ($null -ne $LabelWorkstations) { $LabelWorkstations.Text = $workstations.ToString() }
+        if ($null -ne $LabelServers) { $LabelServers.Text = $servers.ToString() }
+        if ($null -ne $LabelDCs) { $LabelDCs.Text = $dcs.ToString() }
     }
 
-    $TotalMachinesLabel.Text = "Total: $($workstations + $servers + $dcs) machines"
+    if ($null -ne $TotalMachinesLabel) { $TotalMachinesLabel.Text = "Total: $($workstations + $servers + $dcs) machines" }
 
     # Update Trend Chart (placeholder - would need historical data)
     $TrendChartCanvas.Children.Clear()
@@ -9934,66 +9937,6 @@ function Get-PieSlicePath {
     }
 
     return "M $CenterX,$CenterY L $startX,$startY A $Radius,$Radius 0 $largeArc,1 $endX,$endY Z"
-}
-
-# Filter Rules DataGrid
-function Filter-RulesDataGrid {
-    $typeFilter = if ($RulesTypeFilter.SelectedItem) { $RulesTypeFilter.SelectedItem.Tag } else { "" }
-    $actionFilter = if ($RulesActionFilter.SelectedItem) { $RulesActionFilter.SelectedItem.Tag } else { "" }
-    $groupFilter = if ($RulesGroupFilter.SelectedItem) { $RulesGroupFilter.SelectedItem.Tag } else { "" }
-    $searchText = if ($RulesFilterSearch.Text -ne "Search...") { $RulesFilterSearch.Text } else { "" }
-
-    $filteredRules = @($script:GeneratedRules)
-
-    if ($typeFilter) {
-        $filteredRules = $filteredRules | Where-Object { $_.Type -eq $typeFilter }
-    }
-    if ($actionFilter) {
-        $filteredRules = $filteredRules | Where-Object { $_.Action -eq $actionFilter }
-    }
-    if ($groupFilter) {
-        $filteredRules = $filteredRules | Where-Object { $_.Group -like "*$groupFilter*" }
-    }
-    if ($searchText) {
-        $filteredRules = $filteredRules | Where-Object { $_.Name -like "*$searchText*" -or $_.Group -like "*$searchText*" }
-    }
-
-    $RulesDataGrid.ItemsSource = $filteredRules
-    $RulesFilterCount.Text = if ($filteredRules.Count -lt $script:GeneratedRules.Count) { "$($filteredRules.Count) of $($script:GeneratedRules.Count)" } else { "" }
-}
-
-# Filter Events
-function Filter-Events {
-    $searchText = if ($EventsFilterSearch.Text -ne "Search events...") { $EventsFilterSearch.Text } else { "" }
-
-    # Apply filters to events collection
-    $filteredEvents = @($script:CollectedEvents)
-
-    if ($searchText) {
-        $filteredEvents = $filteredEvents | Where-Object { $_.filePath -like "*$searchText*" -or $_.userName -like "*$searchText*" -or $_.computerName -like "*$searchText*" }
-    }
-
-    # Update display
-    $script:FilteredEvents = $filteredEvents
-    $EventsFilterCount.Text = if ($filteredEvents.Count -lt $script:CollectedEvents.Count) { "$($filteredEvents.Count) of $($script:CollectedEvents.Count)" } else { "" }
-}
-
-# Filter Compliance Computers
-function Filter-ComplianceComputers {
-    $statusFilter = if ($ComplianceStatusFilter.SelectedItem) { $ComplianceStatusFilter.SelectedItem.Tag } else { "" }
-    $searchText = if ($ComplianceFilterSearch.Text -ne "Search computers...") { $ComplianceFilterSearch.Text } else { "" }
-
-    $filteredComputers = @($script:ComplianceComputers)
-
-    if ($statusFilter) {
-        $filteredComputers = $filteredComputers | Where-Object { $_.Status -eq $statusFilter }
-    }
-    if ($searchText) {
-        $filteredComputers = $filteredComputers | Where-Object { $_.Name -like "*$searchText*" }
-    }
-
-    $ComplianceComputersList.ItemsSource = $filteredComputers
-    $ComplianceFilterCount.Text = if ($filteredComputers.Count -lt $script:ComplianceComputers.Count) { "$($filteredComputers.Count) of $($script:ComplianceComputers.Count)" } else { "" }
 }
 
 # Workspace Save/Load Functions
@@ -12756,23 +12699,25 @@ function Update-RulesOutputAuditMode {
 # ============================================================
 # QoL FEATURE: Search/Filter in Rules
 # ============================================================
-$RulesSearchBox.Add_GotFocus({
-    if ($RulesSearchBox.Text -eq "Filter rules/artifacts...") {
-        $RulesSearchBox.Text = ""
-        $RulesSearchBox.Foreground = "#E6EDF3"
-    }
-})
+if ($null -ne $RulesSearchBox) {
+    $RulesSearchBox.Add_GotFocus({
+        if ($RulesSearchBox.Text -eq "Filter rules/artifacts...") {
+            $RulesSearchBox.Text = ""
+            $RulesSearchBox.Foreground = "#E6EDF3"
+        }
+    })
 
-$RulesSearchBox.Add_LostFocus({
-    if ([string]::IsNullOrWhiteSpace($RulesSearchBox.Text)) {
-        $RulesSearchBox.Text = "Filter rules/artifacts..."
-        $RulesSearchBox.Foreground = "#8B949E"
-    }
-})
+    $RulesSearchBox.Add_LostFocus({
+        if ([string]::IsNullOrWhiteSpace($RulesSearchBox.Text)) {
+            $RulesSearchBox.Text = "Filter rules/artifacts..."
+            $RulesSearchBox.Foreground = "#8B949E"
+        }
+    })
 
-$RulesSearchBox.Add_TextChanged({
-    Apply-FilterToRules
-})
+    $RulesSearchBox.Add_TextChanged({
+        Apply-FilterToRules
+    })
+}
 
 if ($null -ne $ClearFilterBtn) {
 $ClearFilterBtn.Add_Click({
@@ -15127,37 +15072,38 @@ function Update-StatusBar {
         }
 
         if ($hasEnforce) {
-            $MiniStatusMode.Text = "ENFORCE"
-            $MiniStatusMode.Foreground = "#F85149"
+            if ($null -ne $MiniStatusMode) { $MiniStatusMode.Text = "ENFORCE"; $MiniStatusMode.Foreground = "#F85149" }
         } else {
-            $MiniStatusMode.Text = "AUDIT"
-            $MiniStatusMode.Foreground = "#3FB950"
+            if ($null -ne $MiniStatusMode) { $MiniStatusMode.Text = "AUDIT"; $MiniStatusMode.Foreground = "#3FB950" }
         }
     }
     catch {
-        $MiniStatusMode.Text = "UNKNOWN"
-        $MiniStatusMode.Foreground = "#8B949E"
+        if ($null -ne $MiniStatusMode) { $MiniStatusMode.Text = "UNKNOWN"; $MiniStatusMode.Foreground = "#8B949E" }
     }
 
     # Phase indicator (from GPO quick assignment)
     $currentPhase = $script:CurrentDeploymentPhase
-    if ($currentPhase) {
-        $MiniStatusPhase.Text = "P$currentPhase"
-    } else {
-        $MiniStatusPhase.Text = ""
+    if ($null -ne $MiniStatusPhase) {
+        if ($currentPhase) {
+            $MiniStatusPhase.Text = "P$currentPhase"
+        } else {
+            $MiniStatusPhase.Text = ""
+        }
     }
 
     # Connected systems count
-    if ($script:DiscoveredSystems) {
-        $onlineCount = @($script:DiscoveredSystems | Where-Object { $_.status -eq "Online" }).Count
-        $MiniStatusConnected.Text = "$onlineCount online"
-    } else {
-        $MiniStatusConnected.Text = "0 systems"
+    if ($null -ne $MiniStatusConnected) {
+        if ($script:DiscoveredSystems) {
+            $onlineCount = @($script:DiscoveredSystems | Where-Object { $_.status -eq "Online" }).Count
+            $MiniStatusConnected.Text = "$onlineCount online"
+        } else {
+            $MiniStatusConnected.Text = "0 systems"
+        }
     }
 
     # Artifacts count
     $artifactCount = $script:CollectedArtifacts.Count
-    $MiniStatusArtifacts.Text = "$artifactCount artifacts"
+    if ($null -ne $MiniStatusArtifacts) { $MiniStatusArtifacts.Text = "$artifactCount artifacts" }
 
     # Last sync time
     if ($script:LastSyncTime) {
