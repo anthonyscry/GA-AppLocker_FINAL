@@ -471,6 +471,7 @@ function Test-AaronLockerExists {
 }
 
 # Launch script in its own visible console window
+# Uses Windows PowerShell 5.1 explicitly (required for AaronLocker compatibility)
 function Invoke-AaronLockerScript {
     param(
         [string]$ScriptName,
@@ -485,13 +486,16 @@ function Invoke-AaronLockerScript {
         return
     }
 
-    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters`n`nA new PowerShell window will open..."
+    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters`n`nA new Windows PowerShell window will open..."
+
+    # Use Windows PowerShell 5.1 explicitly (AaronLocker requires it for -Encoding Byte support)
+    $windowsPowerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 
     # Build the command to run in the new window
     $cmd = "Set-Location '$($script:AaronLockerRoot)'; Write-Host '=== $ScriptName ===' -ForegroundColor Cyan; Write-Host ''; . '$ScriptPath' $Parameters; Write-Host ''; Write-Host '=== COMPLETE ===' -ForegroundColor Green; Write-Host 'Press any key to close...'; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')"
 
-    # Launch in a new visible console window
-    Start-Process powershell.exe -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-Command", $cmd
+    # Launch in a new visible console window using Windows PowerShell 5.1
+    Start-Process $windowsPowerShell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-Command", $cmd
 }
 
 # ============================================================

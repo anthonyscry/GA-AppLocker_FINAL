@@ -17459,6 +17459,7 @@ $AL_ClearConsole.Add_Click({
 
 # === SCANNING & ANALYSIS ===
 # Helper function to launch AaronLocker scripts in their own console window
+# Uses Windows PowerShell 5.1 explicitly (required for AaronLocker compatibility)
 function Start-AaronLockerScript {
     param(
         [string]$ScriptName,
@@ -17471,12 +17472,15 @@ function Start-AaronLockerScript {
         return
     }
 
-    $AL_OutputConsole.Text = "Launching: $ScriptName`nParameters: $Parameters`n`nA new PowerShell window will open..."
+    $AL_OutputConsole.Text = "Launching: $ScriptName`nParameters: $Parameters`n`nA new Windows PowerShell window will open..."
+
+    # Use Windows PowerShell 5.1 explicitly (AaronLocker requires it for -Encoding Byte support)
+    $windowsPowerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
 
     # Build command to run in new window
     $cmd = "Set-Location '$($script:AaronLockerRoot)'; Write-Host '=== $ScriptName ===' -ForegroundColor Cyan; Write-Host 'Parameters: $Parameters' -ForegroundColor Gray; Write-Host ''; . '$ScriptPath' $Parameters; Write-Host ''; Write-Host '=== COMPLETE ===' -ForegroundColor Green; Write-Host 'Press any key to close...'; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')"
 
-    Start-Process powershell.exe -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd
+    Start-Process $windowsPowerShell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd
 }
 
 # Scan Directories - Scans writable directories for potential policy bypasses
