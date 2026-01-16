@@ -9430,6 +9430,12 @@ function Update-Charts {
         [int]$HealthScore = 0
     )
 
+    # Skip if chart controls are not available
+    if ($null -eq $PieAllowed -or $null -eq $PieAudited -or $null -eq $PieBlocked -or
+        $null -eq $GaugeBackground -or $null -eq $GaugeFill) {
+        return
+    }
+
     $total = $Allowed + $Audited + $Blocked
 
     # Update Pie Chart
@@ -9447,34 +9453,34 @@ function Update-Charts {
         if ($Allowed -gt 0) {
             $endAngle = $currentAngle + $allowedAngle
             $allowedPath = Get-PieSlicePath -CenterX $centerX -CenterY $centerY -Radius $radius -StartAngle $currentAngle -EndAngle $endAngle
-            $PieAllowed.Data = $allowedPath
+            if ($null -ne $PieAllowed) { $PieAllowed.Data = $allowedPath }
             $currentAngle = $endAngle
         } else {
-            $PieAllowed.Data = ""
+            if ($null -ne $PieAllowed) { $PieAllowed.Data = "" }
         }
 
         # Audited slice
         if ($Audited -gt 0) {
             $endAngle = $currentAngle + $auditedAngle
             $auditedPath = Get-PieSlicePath -CenterX $centerX -CenterY $centerY -Radius $radius -StartAngle $currentAngle -EndAngle $endAngle
-            $PieAudited.Data = $auditedPath
+            if ($null -ne $PieAudited) { $PieAudited.Data = $auditedPath }
             $currentAngle = $endAngle
         } else {
-            $PieAudited.Data = ""
+            if ($null -ne $PieAudited) { $PieAudited.Data = "" }
         }
 
         # Blocked slice
         if ($Blocked -gt 0) {
             $endAngle = $currentAngle + $blockedAngle
             $blockedPath = Get-PieSlicePath -CenterX $centerX -CenterY $centerY -Radius $radius -StartAngle $currentAngle -EndAngle $endAngle
-            $PieBlocked.Data = $blockedPath
+            if ($null -ne $PieBlocked) { $PieBlocked.Data = $blockedPath }
         } else {
-            $PieBlocked.Data = ""
+            if ($null -ne $PieBlocked) { $PieBlocked.Data = "" }
         }
     } else {
-        $PieAllowed.Data = ""
-        $PieAudited.Data = ""
-        $PieBlocked.Data = ""
+        if ($null -ne $PieAllowed) { $PieAllowed.Data = "" }
+        if ($null -ne $PieAudited) { $PieAudited.Data = "" }
+        if ($null -ne $PieBlocked) { $PieBlocked.Data = "" }
     }
 
     # Update Gauge
@@ -9487,7 +9493,7 @@ function Update-Charts {
     $bgEnd = [System.Windows.Point]::new(190, 90)
     $bgLargeArc = 0
     $bgPath = "M $([Math]::Round($bgStart.X)) $([Math]::Round($bgStart.Y)) A $gaugeRadius $gaugeRadius 0 $bgLargeArc 1 $([Math]::Round($bgEnd.X)) $([Math]::Round($bgEnd.Y)) L 10 90"
-    $GaugeBackground.Data = $bgPath
+    if ($null -ne $GaugeBackground) { $GaugeBackground.Data = $bgPath }
 
     # Fill arc based on health score
     if ($HealthScore -gt 0) {
@@ -9771,61 +9777,61 @@ function Start-AutoSaveTimer {
 # Enhanced Tooltips Initialization
 function Initialize-Tooltips {
     # Dashboard tooltips
-    $DashboardTimeFilter.ToolTip = "Filter dashboard data by time range. Affects event counts and charts."
-    $DashboardSystemFilter.ToolTip = "Filter dashboard data by specific computer system."
-    $RefreshDashboardBtn.ToolTip = "Refresh all dashboard data and charts."
+    if ($null -ne $DashboardTimeFilter) { $DashboardTimeFilter.ToolTip = "Filter dashboard data by time range. Affects event counts and charts." }
+    if ($null -ne $DashboardSystemFilter) { $DashboardSystemFilter.ToolTip = "Filter dashboard data by specific computer system." }
+    if ($null -ne $RefreshDashboardBtn) { $RefreshDashboardBtn.ToolTip = "Refresh all dashboard data and charts." }
 
     # Rules tooltips
-    $ImportArtifactsBtn.ToolTip = "Import individual artifact files (CSV, XML) to create rules."
-    $ImportFolderBtn.ToolTip = "Import all executable files from a folder as artifacts."
-    $MergeRulesBtn.ToolTip = "Merge multiple rule XML files into a single policy."
-    $GenerateRulesBtn.ToolTip = "Generate AppLocker rules from imported artifacts (Ctrl+R)."
-    $DedupeBtn.ToolTip = "Remove duplicate artifacts based on selected criteria (Ctrl+D)."
-    $ExportArtifactsListBtn.ToolTip = "Export current artifact list to CSV file."
-    $AuditToggleBtn.ToolTip = "Toggle all generated rules between Audit (logging only) and Enforce (blocking) mode."
-    $DefaultDenyRulesBtn.ToolTip = "Add default deny rules for common bypass locations (TEMP, Downloads, etc.)."
-    $CreateBrowserDenyBtn.ToolTip = "Add deny rules for web browsers in the AppLocker-Admins group."
+    if ($null -ne $ImportArtifactsBtn) { $ImportArtifactsBtn.ToolTip = "Import individual artifact files (CSV, XML) to create rules." }
+    if ($null -ne $ImportFolderBtn) { $ImportFolderBtn.ToolTip = "Import all executable files from a folder as artifacts." }
+    if ($null -ne $MergeRulesBtn) { $MergeRulesBtn.ToolTip = "Merge multiple rule XML files into a single policy." }
+    if ($null -ne $GenerateRulesBtn) { $GenerateRulesBtn.ToolTip = "Generate AppLocker rules from imported artifacts (Ctrl+R)." }
+    if ($null -ne $DedupeBtn) { $DedupeBtn.ToolTip = "Remove duplicate artifacts based on selected criteria (Ctrl+D)." }
+    if ($null -ne $ExportArtifactsListBtn) { $ExportArtifactsListBtn.ToolTip = "Export current artifact list to CSV file." }
+    if ($null -ne $AuditToggleBtn) { $AuditToggleBtn.ToolTip = "Toggle all generated rules between Audit (logging only) and Enforce (blocking) mode." }
+    if ($null -ne $DefaultDenyRulesBtn) { $DefaultDenyRulesBtn.ToolTip = "Add default deny rules for common bypass locations (TEMP, Downloads, etc.)." }
+    if ($null -ne $CreateBrowserDenyBtn) { $CreateBrowserDenyBtn.ToolTip = "Add deny rules for web browsers in the AppLocker-Admins group." }
 
     # Bulk Actions tooltips
-    $ApplyGroupChangeBtn.ToolTip = "Change the AD group assignment for all selected rules."
-    $ApplyActionChangeBtn.ToolTip = "Change the action (Allow/Deny) for all selected rules."
-    $ApplyDuplicateBtn.ToolTip = "Duplicate all selected rules to another AD group."
-    $BulkRemoveBtn.ToolTip = "Remove all selected rules from the list (Delete key)."
+    if ($null -ne $ApplyGroupChangeBtn) { $ApplyGroupChangeBtn.ToolTip = "Change the AD group assignment for all selected rules." }
+    if ($null -ne $ApplyActionChangeBtn) { $ApplyActionChangeBtn.ToolTip = "Change the action (Allow/Deny) for all selected rules." }
+    if ($null -ne $ApplyDuplicateBtn) { $ApplyDuplicateBtn.ToolTip = "Duplicate all selected rules to another AD group." }
+    if ($null -ne $BulkRemoveBtn) { $BulkRemoveBtn.ToolTip = "Remove all selected rules from the list (Delete key)." }
 
     # Filter tooltips
-    $RulesTypeFilter.ToolTip = "Filter rules by type: Publisher, Hash, or Path."
-    $RulesActionFilter.ToolTip = "Filter rules by action: Allow or Deny."
-    $RulesGroupFilter.ToolTip = "Filter rules by AD group assignment."
-    $RulesFilterSearch.ToolTip = "Search rules by name, file path, or group."
-    $RulesClearFilterBtn.ToolTip = "Clear all filters and show all rules."
+    if ($null -ne $RulesTypeFilter) { $RulesTypeFilter.ToolTip = "Filter rules by type: Publisher, Hash, or Path." }
+    if ($null -ne $RulesActionFilter) { $RulesActionFilter.ToolTip = "Filter rules by action: Allow or Deny." }
+    if ($null -ne $RulesGroupFilter) { $RulesGroupFilter.ToolTip = "Filter rules by AD group assignment." }
+    if ($null -ne $RulesFilterSearch) { $RulesFilterSearch.ToolTip = "Search rules by name, file path, or group." }
+    if ($null -ne $RulesClearFilterBtn) { $RulesClearFilterBtn.ToolTip = "Clear all filters and show all rules." }
 
     # Events tooltips
-    $ScanLocalEventsBtn.ToolTip = "Scan AppLocker events from local system (Ctrl+E)."
-    $ScanRemoteEventsBtn.ToolTip = "Scan AppLocker events from selected remote computers."
-    $RefreshComputersBtn.ToolTip = "Refresh the computer list from Active Directory."
-    $ExportEventsBtn.ToolTip = "Export collected events to CSV file for analysis or rule creation."
-    $FilterAllBtn.ToolTip = "Show all events (Allowed, Audited, Blocked)."
-    $FilterAllowedBtn.ToolTip = "Show only allowed events (Event ID 8002)."
-    $FilterBlockedBtn.ToolTip = "Show only blocked events (Event ID 8004)."
-    $FilterAuditBtn.ToolTip = "Show only audited events that would be blocked (Event ID 8003)."
-    $EventsDateFrom.ToolTip = "Filter events from this date onwards."
-    $EventsDateTo.ToolTip = "Filter events up to this date."
-    $EventsFilterSearch.ToolTip = "Search events by file path, user name, or computer name."
-    $EventsClearFilterBtn.ToolTip = "Clear all event filters."
-    $RefreshEventsBtn.ToolTip = "Refresh event display with current filters."
+    if ($null -ne $ScanLocalEventsBtn) { $ScanLocalEventsBtn.ToolTip = "Scan AppLocker events from local system (Ctrl+E)." }
+    if ($null -ne $ScanRemoteEventsBtn) { $ScanRemoteEventsBtn.ToolTip = "Scan AppLocker events from selected remote computers." }
+    if ($null -ne $RefreshComputersBtn) { $RefreshComputersBtn.ToolTip = "Refresh the computer list from Active Directory." }
+    if ($null -ne $ExportEventsBtn) { $ExportEventsBtn.ToolTip = "Export collected events to CSV file for analysis or rule creation." }
+    if ($null -ne $FilterAllBtn) { $FilterAllBtn.ToolTip = "Show all events (Allowed, Audited, Blocked)." }
+    if ($null -ne $FilterAllowedBtn) { $FilterAllowedBtn.ToolTip = "Show only allowed events (Event ID 8002)." }
+    if ($null -ne $FilterBlockedBtn) { $FilterBlockedBtn.ToolTip = "Show only blocked events (Event ID 8004)." }
+    if ($null -ne $FilterAuditBtn) { $FilterAuditBtn.ToolTip = "Show only audited events that would be blocked (Event ID 8003)." }
+    if ($null -ne $EventsDateFrom) { $EventsDateFrom.ToolTip = "Filter events from this date onwards." }
+    if ($null -ne $EventsDateTo) { $EventsDateTo.ToolTip = "Filter events up to this date." }
+    if ($null -ne $EventsFilterSearch) { $EventsFilterSearch.ToolTip = "Search events by file path, user name, or computer name." }
+    if ($null -ne $EventsClearFilterBtn) { $EventsClearFilterBtn.ToolTip = "Clear all event filters." }
+    if ($null -ne $RefreshEventsBtn) { $RefreshEventsBtn.ToolTip = "Refresh event display with current filters." }
 
     # Compliance tooltips
-    $ScanLocalComplianceBtn.ToolTip = "Scan local system for AppLocker compliance."
-    $ScanSelectedComplianceBtn.ToolTip = "Scan selected remote computers for compliance."
-    $GenerateEvidenceBtn.ToolTip = "Generate compliance evidence package with policy and inventory reports."
+    if ($null -ne $ScanLocalComplianceBtn) { $ScanLocalComplianceBtn.ToolTip = "Scan local system for AppLocker compliance." }
+    if ($null -ne $ScanSelectedComplianceBtn) { $ScanSelectedComplianceBtn.ToolTip = "Scan selected remote computers for compliance." }
+    if ($null -ne $GenerateEvidenceBtn) { $GenerateEvidenceBtn.ToolTip = "Generate compliance evidence package with policy and inventory reports." }
 
     # Deployment tooltips
-    $CreateGPOsBtn.ToolTip = "Create 3 GPOs: GA-AppLocker-DC, GA-AppLocker-Servers, GA-AppLocker-Workstations."
-    $DisableGpoBtn.ToolTip = "Disable AppLocker policy in existing GPOs."
-    $ExportRulesBtn.ToolTip = "Export generated rules to XML files (Audit and Enforce versions)."
-    $ImportRulesBtn.ToolTip = "Import rules into existing GPO (Merge or Overwrite)."
-    $LinkGPOsBtn.ToolTip = "Link GPOs to OUs: Domain Controllers, Servers, Workstations."
-    $ApplyGPOSettingsBtn.ToolTip = "Apply AppLocker policy to selected GPO."
+    if ($null -ne $CreateGPOsBtn) { $CreateGPOsBtn.ToolTip = "Create 3 GPOs: GA-AppLocker-DC, GA-AppLocker-Servers, GA-AppLocker-Workstations." }
+    if ($null -ne $DisableGpoBtn) { $DisableGpoBtn.ToolTip = "Disable AppLocker policy in existing GPOs." }
+    if ($null -ne $ExportRulesBtn) { $ExportRulesBtn.ToolTip = "Export generated rules to XML files (Audit and Enforce versions)." }
+    if ($null -ne $ImportRulesBtn) { $ImportRulesBtn.ToolTip = "Import rules into existing GPO (Merge or Overwrite)." }
+    if ($null -ne $LinkGPOsBtn) { $LinkGPOsBtn.ToolTip = "Link GPOs to OUs: Domain Controllers, Servers, Workstations." }
+    if ($null -ne $ApplyGPOSettingsBtn) { $ApplyGPOSettingsBtn.ToolTip = "Apply AppLocker policy to selected GPO." }
 }
 
 $RefreshDashboardBtn.Add_Click({
