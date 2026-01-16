@@ -6,6 +6,10 @@
 # Import Common library
 Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
+# Import required modules at module level for performance
+# These imports are done once at module load instead of per function call
+Import-Module ActiveDirectory -ErrorAction SilentlyContinue -Verbose:$false
+
 <#
 .SYNOPSIS
     Get AppLocker Event Statistics
@@ -93,13 +97,11 @@ function Get-ADMachineCount {
     [CmdletBinding()]
     param()
 
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{
             success = $false
-            error = 'ActiveDirectory module not available'
+            error = 'ActiveDirectory module not available. This feature requires a Domain Controller or domain-joined computer with RSAT installed.'
             total = 0
         }
     }

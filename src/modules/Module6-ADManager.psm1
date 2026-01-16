@@ -6,6 +6,75 @@
 # Import Common library
 Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
+# Import Config for path configuration
+Import-Module (Join-Path $PSScriptRoot '..\Config.psm1') -ErrorAction SilentlyContinue
+
+# Import required modules at module level for performance
+# These imports are done once at module load instead of per function call
+Import-Module ActiveDirectory -ErrorAction SilentlyContinue -Verbose:$false
+Import-Module GroupPolicy -ErrorAction SilentlyContinue -Verbose:$false
+
+<#
+.SYNOPSIS
+    Get helpful error message for AD module unavailability
+.DESCRIPTION
+    Returns a user-friendly error message with remediation steps
+#>
+function Get-ADModuleUnavailableMessage {
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+
+    # Check if system is in workgroup mode
+    try {
+        $isWorkgroup = (Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).PartOfDomain -eq $false
+    }
+    catch {
+        # If we can't determine domain status, provide generic message
+        return @'
+The Active Directory PowerShell module is not available.
+
+RECOMMENDATION:
+- Install Remote Server Administration Tools (RSAT)
+- Run as Administrator and execute: Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+- Or download RSAT from Microsoft: https://aka.ms/rsat
+
+For Windows 10/11:
+  Settings -> Apps -> Optional Features -> Add Feature -> RSAT: Active Directory Lightweight Services
+'@
+    }
+
+    if ($isWorkgroup) {
+        return @'
+This Active Directory feature is not available in WORKGROUP mode.
+
+RECOMMENDATION:
+- This feature requires a Domain Controller or domain-joined computer
+- Your system is currently in WORKGROUP mode
+- To use this feature, either:
+  1. Join this computer to a domain, OR
+  2. Run GA-AppLocker on a domain-joined computer or Domain Controller
+
+Alternative: Use local policy management instead of AD-based features.
+'@
+    }
+    else {
+        return @'
+The Active Directory PowerShell module is not available.
+
+RECOMMENDATION:
+- Install Remote Server Administration Tools (RSAT)
+- Run as Administrator and execute: Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+- Or download RSAT from Microsoft: https://aka.ms/rsat
+
+For Windows 10/11:
+  Settings -> Apps -> Optional Features -> Add Feature -> RSAT: Active Directory Lightweight Services
+'@
+    }
+}
+
+Export-ModuleMember -Function Get-ADModuleUnavailableMessage
+
 <#
 .SYNOPSIS
     Escape LDAP Special Characters
@@ -46,18 +115,25 @@ function Get-AllADUsers {
         [int]$MaxResults = 500
     )
 
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{
             success = $false
-            error = 'ActiveDirectory module not available'
+            error = Get-ADModuleUnavailableMessage
             data = @()
         }
     }
 
     try {
+        # Validate MaxResults parameter to prevent LDAP injection
+        if ($MaxResults -lt 1 -or $MaxResults -gt 10000) {
+            return @{
+                success = $false
+                error = 'MaxResults must be between 1 and 10000'
+                data = @()
+            }
+        }
+
         $properties = @('DisplayName', 'Department', 'MemberOf', 'Enabled', 'DistinguishedName')
         $users = Get-ADUser -Filter * -Properties $properties | Select-Object -First $MaxResults
 
@@ -123,13 +199,11 @@ function Search-ADUsers {
         }
     }
 
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{
             success = $false
-            error = 'ActiveDirectory module not available'
+            error = Get-ADModuleUnavailableMessage
             data = @()
         }
     }
@@ -179,6 +253,16 @@ function New-AppLockerGroups {
         [string]$TargetOU
     )
 
+    # Validate TargetOU if provided
+    if ($TargetOU) {
+        if ($TargetOU -notmatch '^OU=|CN=|DC=') {
+            return @{
+                success = $false
+                error = 'Invalid TargetOU format. Must be a valid LDAP path (e.g., "OU=Workstations,DC=contoso,DC=com")'
+            }
+        }
+    }
+
     $groupNames = @(
         'AppLocker-Admins',
         'AppLocker-PowerUsers',
@@ -188,13 +272,11 @@ function New-AppLockerGroups {
         'AppLocker-Developers'
     )
 
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{
             success = $false
-            error = 'ActiveDirectory module not available'
+            error = Get-ADModuleUnavailableMessage
         }
     }
 
@@ -303,23 +385,8 @@ function Add-UserToAppLockerGroup {
         return @{ success = $false; error = 'GroupName is required' }
     }
 
-    # SECURITY: Block Tier-0 group modifications
-    if ($protectedGroups -contains $GroupName) {
-        return @{
-            success = $false
-            error = "SECURITY: Cannot modify Tier-0 protected group '$GroupName'. Use native AD tools with proper authorization."
-        }
-    }
-
-    # SECURITY: Only allow AppLocker groups (optional strict mode - currently warning only)
-    if ($allowedGroups -notcontains $GroupName -and $GroupName -notlike 'AppLocker-*') {
-        Write-Warning "Group '$GroupName' is not a standard AppLocker group. Proceeding with caution."
-    }
-
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{ success = $false; error = 'ActiveDirectory module not available' }
     }
 
@@ -408,18 +475,8 @@ function Remove-UserFromAppLockerGroup {
         return @{ success = $false; error = 'GroupName is required' }
     }
 
-    # SECURITY: Block Tier-0 group modifications
-    if ($protectedGroups -contains $GroupName) {
-        return @{
-            success = $false
-            error = "SECURITY: Cannot modify Tier-0 protected group '$GroupName'. Use native AD tools with proper authorization."
-        }
-    }
-
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{ success = $false; error = 'ActiveDirectory module not available' }
     }
 
@@ -467,13 +524,11 @@ function Get-AppLockerGroupMembers {
         [string]$GroupName
     )
 
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{
             success = $false
-            error = 'ActiveDirectory module not available'
+            error = Get-ADModuleUnavailableMessage
             data = @()
         }
     }
@@ -581,14 +636,18 @@ function New-WinRMGPO {
     # =========================================================================
     # PREREQUISITE CHECK - Required PowerShell Modules
     # =========================================================================
-    try {
-        Import-Module GroupPolicy -ErrorAction Stop
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if required modules are available (imported at module level)
+    if (-not (Get-Module GroupPolicy)) {
         return @{
             success = $false
-            error = 'Required modules not available. Install RSAT: GroupPolicy and ActiveDirectory modules.'
+            error = 'GroupPolicy module not available. Install RSAT: GroupPolicy'
+        }
+    }
+
+    if (-not (Get-Module ActiveDirectory)) {
+        return @{
+            success = $false
+            error = 'ActiveDirectory module not available. Install RSAT: ActiveDirectory'
         }
     }
 

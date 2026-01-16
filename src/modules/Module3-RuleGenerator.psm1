@@ -1269,7 +1269,7 @@ function Export-RulesToXml {
                         $fpr = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePublisherRule
                         $fpr.Id = $ruleInfo.id
                         $fpr.Name = $ruleInfo.name
-                        $fpr.Description = $ruleInfo.Description
+                        $fpr.Description = if ($ruleInfo.Description) { $ruleInfo.Description } else { "" }
                         $fpr.UserOrGroupSid = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
                         $fpr.Action = if ($ruleInfo.action -eq 'Allow') {
                             [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePublisherRule+Action]::Allow
@@ -1297,7 +1297,7 @@ function Export-RulesToXml {
                         $fpr = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePathRule
                         $fpr.Id = $ruleInfo.id
                         $fpr.Name = $ruleInfo.name
-                        $fpr.Description = $ruleInfo.Description
+                        $fpr.Description = if ($ruleInfo.Description) { $ruleInfo.Description } else { "" }
                         $fpr.UserOrGroupSid = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
                         $fpr.Action = if ($ruleInfo.action -eq 'Allow') {
                             [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FilePathRule+Action]::Allow
@@ -1317,7 +1317,7 @@ function Export-RulesToXml {
                         $fhr = New-Object Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FileHashRule
                         $fhr.Id = $ruleInfo.id
                         $fhr.Name = $ruleInfo.name
-                        $fhr.Description = $ruleInfo.Description
+                        $fhr.Description = if ($ruleInfo.Description) { $ruleInfo.Description } else { "" }
                         $fhr.UserOrGroupSid = New-Object System.Security.Principal.SecurityIdentifier("S-1-1-0")
                         $fhr.Action = if ($ruleInfo.action -eq 'Allow') {
                             [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.FileHashRule+Action]::Allow
@@ -1454,9 +1454,13 @@ function Import-RulesFromXml {
         $xmlReaderSettings.XmlResolver = $null
 
         $xmlReader = [System.Xml.XmlReader]::Create($XmlPath, $xmlReaderSettings)
-        $xml = New-Object System.Xml.XmlDocument
-        $xml.Load($xmlReader)
-        $xmlReader.Close()
+        try {
+            $xml = New-Object System.Xml.XmlDocument
+            $xml.Load($xmlReader)
+        }
+        finally {
+            $xmlReader.Close()
+        }
 
         $rules = @()
 

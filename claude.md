@@ -225,6 +225,11 @@ $rules = New-RulesFromArtifacts -Artifacts $artifacts -RuleType Publisher -Actio
 - `IsWin32Executable` - PE header detection
 - `Test-AppLockerPath` / `Test-PublisherName` - Input validation
 
+**Artifact Data Model Functions (v1.2.5):**
+- `New-AppLockerArtifact` - Creates standardized artifact hashtable with properties: name, path, publisher, hash, version, size, modifiedDate, fileType
+- `Convert-AppLockerArtifact` - Converts artifacts between different property naming conventions (Module2 lowercase, GUI PascalCase, CSV import)
+- `Test-AppLockerArtifact` - Validates artifact has required properties for specific rule types (Publisher, Path, Hash)
+
 **Key Constants:**
 - `$UnsafeDir`, `$SafeDir`, `$UnknownDir` - Directory classification
 - `$GetAlfiDefaultExts` - Default file extensions for scanning
@@ -251,12 +256,28 @@ Modern WPF-based dashboard with GitHub-style dark theme.
 - Compliance - Evidence collection
 - Policy Guide - Best practices reference
 - About - Application information
+- Help - Context-sensitive help documentation
 
 **Key Script Variables:**
 - `$script:CollectedArtifacts` - Scanned artifact data
 - `$script:DiscoveredComputers` - AD computer list
 - `$script:GeneratedRules` - Generated rule objects
 - `$script:BaselineSoftware` / `$script:TargetSoftware` - Gap analysis data
+
+**Quality-of-Life Features (v1.2.5):**
+- **Search/Filter** - Filter artifacts and rules by publisher, path, filename (Rule Generator panel)
+- **Audit Toggle** - One-click switch between Audit and Enforce modes (Deployment panel)
+- **Rule Preview** - Preview XML rules before generation (Rule Generator panel)
+- **Mini Status Bar** - Real-time domain, artifact count, and sync status (top bar)
+- **Bulk Confirmation** - Confirmation dialogs before destructive operations (clear rules, delete GPOs)
+- **Quick Date Presets** - Last Hour, Today, Last 7 Days, Last 30 Days event filtering (Events panel)
+
+**Rule Validation (v1.2.5):**
+- `Test-AppLockerRules` - Pre-export validation ensures all required properties exist
+- Validates Publisher rules have: type, action, publisher, userSid
+- Validates Path rules have: type, action, path, userSid
+- Validates Hash rules have: type, action, hash, userSid
+- Returns success, validRules, errors, warnings
 
 ---
 
@@ -399,3 +420,159 @@ Get-DashboardSummary
 - Follow existing panel/navigation pattern
 - Update both XAML and event handlers
 - Test in both domain and workgroup modes
+
+---
+
+## Session Context Management
+
+### Purpose
+This section documents how Claude Code maintains continuity across sessions. All sessions should log their activities to enable context recovery and continuous development.
+
+### Context File Location
+```
+GA-AppLocker_FINAL/
+└── .context/
+    ├── sessions/           # Individual session logs
+    │   └── YYYY-MM-DD_session-id.md
+    ├── CURRENT_CONTEXT.md  # Active development context
+    └── CHANGELOG.md        # Summary of all changes
+```
+
+### Session Logging Requirements
+
+**At Session Start:**
+1. Read `.context/CURRENT_CONTEXT.md` for active context
+2. Check recent session logs for continuity
+3. Verify git branch and status
+
+**During Session:**
+1. Log significant operations (commits, major changes)
+2. Track any issues encountered
+3. Note decisions made and rationale
+
+**At Session End:**
+1. Update `.context/CURRENT_CONTEXT.md` with:
+   - Current branch and last commit
+   - Work in progress items
+   - Known issues encountered
+   - Next steps recommended
+2. Create session log in `.context/sessions/`
+
+### CURRENT_CONTEXT.md Format
+
+```markdown
+# GA-AppLocker Current Development Context
+
+## Last Updated
+[Date and session ID]
+
+## Active Branch
+[Branch name]
+
+## Recent Commits
+[Last 3-5 commits with descriptions]
+
+## Work In Progress
+- [ ] Task 1 description
+- [ ] Task 2 description
+
+## Known Issues
+- Issue 1: Description and status
+- Issue 2: Description and status
+
+## Next Steps
+1. Priority 1 task
+2. Priority 2 task
+
+## Session Notes
+[Important decisions, blockers, or context for next session]
+```
+
+### Session Log Format
+
+```markdown
+# Session Log: [Date] - [Session ID]
+
+## Session Summary
+Brief description of what was accomplished
+
+## Changes Made
+- File: description of change
+- File: description of change
+
+## Commits
+- [hash] Commit message
+
+## Issues Encountered
+- Issue description and resolution
+
+## Decisions Made
+- Decision and rationale
+
+## Handoff Notes
+Notes for next session
+```
+
+### Context Recovery
+
+If starting a new session without context:
+1. Run `git log --oneline -10` to see recent commits
+2. Check `.context/CURRENT_CONTEXT.md` for state
+3. Read most recent session log for continuity
+4. Ask user for clarification if needed
+
+---
+
+## Test Coverage Requirements
+
+### Current Test State
+- **Framework:** Pester 5.0
+- **Location:** `/tests/`
+- **Coverage:** ~8% (artifact data model only)
+- **Critical Gap:** 67+ core functions untested
+
+### Priority Test Areas
+
+**Priority 1 (Critical):**
+- Module3-RuleGenerator: Rule creation (Publisher, Path, Hash)
+- Module2-RemoteScan: Local/remote artifact scanning
+- Common.psm1: Helper functions
+
+**Priority 2 (High):**
+- Integration tests: Scan → Rule generation → Export
+- Module4-PolicyLab: GPO operations
+- Module5-EventMonitor: Event collection
+
+**Priority 3 (Medium):**
+- E2E tests: Complete workflows
+- Error handling tests
+- Performance tests
+
+### Test File Naming Convention
+```
+tests/
+├── GA-AppLocker.Tests.ps1              # Structure tests
+├── GA-AppLocker.Artifact.Tests.ps1     # Data model tests
+├── GA-AppLocker.RuleGenerator.Tests.ps1 # Rule generation
+├── GA-AppLocker.RemoteScan.Tests.ps1   # Scanning
+├── GA-AppLocker.Integration.Tests.ps1  # Integration
+└── GA-AppLocker.E2E.Tests.ps1          # End-to-end
+```
+
+---
+
+## Recent Fixes (January 2026)
+
+### Critical Bug Fixes Applied
+1. **New-PathRule missing** - Added function for Path rule generation
+2. **GPO import parameter mismatch** - Fixed `-PolicyXml` to `-PolicyXmlPath`
+3. **Convert-RulesToAppLockerXml placeholder** - Implemented proper XML conversion
+4. **Property name mismatches** - Fixed `publisherName`/`publisher`, `FileHash`/`hash`
+5. **Admin elevation check** - Added to WinRM GPO creation
+6. **Null safety** - Added checks to Show-Panel, Update-StatusBar
+
+### Code Quality Improvements
+- Consolidated duplicate scan buttons in Artifact Collection
+- Enhanced local scanning with Get-AuthenticodeSignature
+- Fixed corrupted emoji characters in comments
+- Removed orphaned button references

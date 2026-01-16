@@ -6,6 +6,9 @@
 # Import Common library
 Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
+# Import Config for path configuration
+Import-Module (Join-Path $PSScriptRoot '..\Config.psm1') -ErrorAction SilentlyContinue
+
 <#
 .SYNOPSIS
     Encode string for safe HTML output
@@ -44,7 +47,7 @@ function New-EvidenceFolder {
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
-        [string]$BasePath = 'C:\AppLocker\Evidence'
+        [string]$BasePath = $script:evidenceDir
     )
 
     $folders = @(
@@ -97,8 +100,24 @@ function Export-CurrentPolicy {
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
-        [string]$OutputPath = 'C:\AppLocker\Evidence\Policies\CurrentPolicy.xml'
+        [string]$OutputPath = (Join-Path $script:evidenceDir "Policies\CurrentPolicy.xml")
     )
+
+    # Validate output path for directory traversal attacks
+    if ($OutputPath -match '\.\.\\|\.\./|:|\x00') {
+        return @{
+            success = $false
+            error = 'Invalid output path: path traversal patterns detected'
+        }
+    }
+
+    # Ensure path is absolute
+    if (-not [System.IO.Path]::IsPathRooted($OutputPath)) {
+        return @{
+            success = $false
+            error = 'Invalid output path: must be an absolute path'
+        }
+    }
 
     try {
         $policy = Get-AppLockerPolicy -Effective -Xml -ErrorAction Stop
@@ -147,8 +166,24 @@ function Export-SystemInventory {
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
-        [string]$OutputPath = 'C:\AppLocker\Evidence\Inventory\Inventory.json'
+        [string]$OutputPath = (Join-Path $script:evidenceDir "Inventory\Inventory.json")
     )
+
+    # Validate output path for directory traversal attacks
+    if ($OutputPath -match '\.\.\\|\.\./|:|\x00') {
+        return @{
+            success = $false
+            error = 'Invalid output path: path traversal patterns detected'
+        }
+    }
+
+    # Ensure path is absolute
+    if (-not [System.IO.Path]::IsPathRooted($OutputPath)) {
+        return @{
+            success = $false
+            error = 'Invalid output path: must be an absolute path'
+        }
+    }
 
     try {
         $inventory = @{
@@ -301,8 +336,24 @@ function New-ComplianceReport {
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
-        [string]$OutputPath = 'C:\AppLocker\Evidence\Reports\ComplianceReport.html'
+        [string]$OutputPath = (Join-Path $script:evidenceDir "Reports\ComplianceReport.html")
     )
+
+    # Validate output path for directory traversal attacks
+    if ($OutputPath -match '\.\.\\|\.\./|:|\x00') {
+        return @{
+            success = $false
+            error = 'Invalid output path: path traversal patterns detected'
+        }
+    }
+
+    # Ensure path is absolute
+    if (-not [System.IO.Path]::IsPathRooted($OutputPath)) {
+        return @{
+            success = $false
+            error = 'Invalid output path: must be an absolute path'
+        }
+    }
 
     try {
         $compliance = Get-ComplianceSummary
@@ -364,10 +415,10 @@ function New-ComplianceReport {
         <h2>Rule Categories</h2>
         <table>
             <tr><th>Category</th><th>Status</th></tr>
-            <tr><td>Executable (EXE)</td><td>$(if ($data.hasExeRules) { '✓ Configured' } else { '✗ Not Configured' })</td></tr>
-            <tr><td>Installer (MSI)</td><td>$(if ($data.hasMsiRules) { '✓ Configured' } else { '✗ Not Configured' })</td></tr>
-            <tr><td>Script</td><td>$(if ($data.hasScriptRules) { '✓ Configured' } else { '✗ Not Configured' })</td></tr>
-            <tr><td>DLL</td><td>$(if ($data.hasDllRules) { '✓ Configured' } else { '✗ Not Configured' })</td></tr>
+            <tr><td>Executable (EXE)</td><td>$(if ($data.hasExeRules) { '[OK] Configured' } else { '[--] Not Configured' })</td></tr>
+            <tr><td>Installer (MSI)</td><td>$(if ($data.hasMsiRules) { '[OK] Configured' } else { '[--] Not Configured' })</td></tr>
+            <tr><td>Script</td><td>$(if ($data.hasScriptRules) { '[OK] Configured' } else { '[--] Not Configured' })</td></tr>
+            <tr><td>DLL</td><td>$(if ($data.hasDllRules) { '[OK] Configured' } else { '[--] Not Configured' })</td></tr>
         </table>
 
         <h2>Event Statistics</h2>
@@ -389,8 +440,8 @@ function New-ComplianceReport {
         <h2>Enforcement Readiness</h2>
         <table>
             <tr><th>Metric</th><th>Status</th></tr>
-            <tr><td>Ready to Enforce</td><td>$(if ($data.readyToEnforce) { '✓ Yes' } else { '✗ No - Too many audit events' })</td></tr>
-            <tr><td>Too Restrictive</td><td>$(if ($data.tooRestrictive) { '⚠ Yes - Review blocked events' } else { '✓ No' })</td></tr>
+            <tr><td>Ready to Enforce</td><td>$(if ($data.readyToEnforce) { '[OK] Yes' } else { '[--] No - Too many audit events' })</td></tr>
+            <tr><td>Too Restrictive</td><td>$(if ($data.tooRestrictive) { '[!] Yes - Review blocked events' } else { '[OK] No' })</td></tr>
         </table>
     </div>
 </body>
@@ -430,7 +481,7 @@ function Export-AllEvidence {
     [CmdletBinding()]
     [OutputType([hashtable])]
     param(
-        [string]$BasePath = 'C:\AppLocker\Evidence'
+        [string]$BasePath = $script:evidenceDir
     )
 
     try {

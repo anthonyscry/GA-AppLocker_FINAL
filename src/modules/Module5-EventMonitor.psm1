@@ -4,7 +4,10 @@
 # Enhanced with patterns from Microsoft AaronLocker
 
 # Import Common library
-Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction SilentlyContinue
+Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
+
+# Import Config for path configuration
+Import-Module (Join-Path $PSScriptRoot '..\Config.psm1') -ErrorAction SilentlyContinue
 
 # Event ID mappings (from AaronLocker)
 $script:EventIdMapping = @{
@@ -351,8 +354,16 @@ function Backup-AllAppLockerEvents {
     param(
         [Parameter(Mandatory = $true)]
         [array]$ComputerNames,
-        [string]$OutputFolder = 'C:\AppLocker\output\events'
+        [string]$OutputFolder = (Join-Path $script:outputsDir "events")
     )
+
+    # Validate ComputerNames parameter
+    if (-not $ComputerNames -or $ComputerNames.Count -eq 0) {
+        return @{
+            success = $false
+            error = 'ComputerNames array is empty or null'
+        }
+    }
 
     if (-not (Test-Path $OutputFolder)) {
         New-Item -ItemType Directory -Path $OutputFolder -Force | Out-Null

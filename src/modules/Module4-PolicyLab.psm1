@@ -6,6 +6,14 @@
 # Import Common library
 Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
+# Import Config for path configuration
+Import-Module (Join-Path $PSScriptRoot '..\Config.psm1') -ErrorAction SilentlyContinue
+
+# Import required modules at module level for performance
+# These imports are done once at module load instead of per function call
+Import-Module GroupPolicy -ErrorAction SilentlyContinue -Verbose:$false
+Import-Module ActiveDirectory -ErrorAction SilentlyContinue -Verbose:$false
+
 <#
 .SYNOPSIS
     Create AppLocker GPO
@@ -20,10 +28,8 @@ function New-AppLockerGPO {
         [string]$Comment = 'AppLocker policy managed by GA-AppLocker Dashboard'
     )
 
-    try {
-        Import-Module GroupPolicy -ErrorAction Stop
-    }
-    catch {
+    # Check if GroupPolicy module is available (imported at module level)
+    if (-not (Get-Module GroupPolicy)) {
         return @{
             success = $false
             error = 'GroupPolicy module not available'
@@ -99,14 +105,18 @@ function Add-GPOLink {
         }
     }
 
-    try {
-        Import-Module GroupPolicy -ErrorAction Stop
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if required modules are available (imported at module level)
+    if (-not (Get-Module GroupPolicy)) {
         return @{
             success = $false
-            error = 'Required modules not available'
+            error = 'GroupPolicy module not available'
+        }
+    }
+
+    if (-not (Get-Module ActiveDirectory)) {
+        return @{
+            success = $false
+            error = 'ActiveDirectory module not available. This feature requires a Domain Controller or domain-joined computer with RSAT installed.'
         }
     }
 
@@ -159,13 +169,11 @@ function Get-OUsWithComputerCounts {
     [CmdletBinding()]
     param()
 
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{
             success = $false
-            error = 'ActiveDirectory module not available'
+            error = 'ActiveDirectory module not available. This feature requires a Domain Controller or domain-joined computer with RSAT installed.'
             data = @()
         }
     }
@@ -218,14 +226,34 @@ function Set-GPOAppLockerPolicy {
         [switch]$Enforce
     )
 
-    try {
-        Import-Module GroupPolicy -ErrorAction Stop
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Validate XML path for directory traversal attacks
+    if ($PolicyXmlPath -match '\.\.\\|\.\./|:|\x00') {
         return @{
             success = $false
-            error = 'Required modules not available'
+            error = 'Invalid XML path: path traversal patterns detected'
+        }
+    }
+
+    # Ensure path is absolute
+    if (-not [System.IO.Path]::IsPathRooted($PolicyXmlPath)) {
+        return @{
+            success = $false
+            error = 'Invalid XML path: must be an absolute path'
+        }
+    }
+
+    # Check if required modules are available (imported at module level)
+    if (-not (Get-Module GroupPolicy)) {
+        return @{
+            success = $false
+            error = 'GroupPolicy module not available'
+        }
+    }
+
+    if (-not (Get-Module ActiveDirectory)) {
+        return @{
+            success = $false
+            error = 'ActiveDirectory module not available. This feature requires a Domain Controller or domain-joined computer with RSAT installed.'
         }
     }
 
@@ -263,17 +291,9 @@ function Set-GPOAppLockerPolicy {
         catch {
             return @{
                 success = $false
-                error = "Computer is not domain-joined or domain is unreachable: $($_.Exception.Message)"
+                error = "Unable to retrieve domain information. This operation requires a domain-joined computer: $($_.Exception.Message)"
             }
         }
-
-        if ($null -eq $domain) {
-            return @{
-                success = $false
-                error = "Unable to determine computer domain"
-            }
-        }
-
         $ldapPath = "LDAP://{0}" -f $gpo.Path.Replace("LDAP://", "")
 
         Write-Verbose "Applying policy to GPO '$GpoName' in domain '$($domain.Name)'"
@@ -321,17 +341,29 @@ function Set-LatestAppLockerPolicy {
 
         [switch]$Enforce = $false,
 
-        [string]$PolicyDirectory = 'C:\AppLocker\output'
+        [string]$PolicyDirectory = $script:outputsDir
     )
 
-    try {
-        Import-Module GroupPolicy -ErrorAction Stop
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Validate PolicyDirectory parameter
+    if (-not (Test-Path $PolicyDirectory)) {
         return @{
             success = $false
-            error = 'Required modules not available'
+            error = "Policy directory not found: $PolicyDirectory"
+        }
+    }
+
+    # Check if required modules are available (imported at module level)
+    if (-not (Get-Module GroupPolicy)) {
+        return @{
+            success = $false
+            error = 'GroupPolicy module not available'
+        }
+    }
+
+    if (-not (Get-Module ActiveDirectory)) {
+        return @{
+            success = $false
+            error = 'ActiveDirectory module not available. This feature requires a Domain Controller or domain-joined computer with RSAT installed.'
         }
     }
 
@@ -362,14 +394,7 @@ function Set-LatestAppLockerPolicy {
     catch {
         return @{
             success = $false
-            error = "Computer is not domain-joined or domain is unreachable: $($_.Exception.Message)"
-        }
-    }
-
-    if ($null -eq $domain) {
-        return @{
-            success = $false
-            error = "Unable to determine computer domain"
+            error = "Unable to retrieve domain information. This operation requires a domain-joined computer: $($_.Exception.Message)"
         }
     }
 
