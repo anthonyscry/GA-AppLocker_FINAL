@@ -4,21 +4,43 @@
 
 A PowerShell WPF application for enterprise AppLocker deployment, aligned with Microsoft AaronLocker best practices.
 
-![Version](https://img.shields.io/badge/version-1.2.4-blue)
+![Version](https://img.shields.io/badge/version-1.2.5-blue)
 ![PowerShell](https://img.shields.io/badge/PowerShell-5.1+-blue)
 ![Platform](https://img.shields.io/badge/platform-Windows-lightgray)
 
 ## Overview
 
-GA-AppLocker Dashboard provides a complete AppLocker lifecycle management solution:
+GA-AppLocker Dashboard provides a complete AppLocker lifecycle management solution with quality-of-life enhancements for enterprise deployments:
 
 1. **Setup** - Initialize AD structure (OU, groups, starter policy)
 2. **Discovery** - Find and ping-check domain computers
 3. **Scanning** - Collect software artifacts (local or remote)
-4. **Rule Generation** - Create Publisher/Hash/Path rules
+4. **Rule Generation** - Create Publisher/Hash/Path rules with validation
 5. **Deployment** - Export rules, create GPOs
 6. **Monitoring** - View events, track policy health
 7. **Compliance** - Generate evidence packages
+
+## What's New in v1.2.5
+
+### Quality-of-Life Features
+- **Search/Filter** - Filter artifacts and rules by publisher, path, filename
+- **Audit Toggle** - One-click switch between Audit and Enforce modes
+- **Rule Preview** - Preview XML rules before generation
+- **Mini Status Bar** - Real-time domain, artifact count, and sync status
+- **Bulk Confirmation** - Confirmation dialogs before destructive operations
+- **Quick Date Presets** - Last Hour, Today, Last 7 Days, Last 30 Days event filtering
+
+### Bug Fixes
+- **UTF-16 Encoding** - Fixed XML export to use proper UTF-16 encoding (required for AppLocker)
+- **Regex Patterns** - Improved directory safety classification with robust regex escaping
+- **System.Web Assembly** - Added assembly loading for HTML encoding security
+- **Emoji Removal** - Replaced emoji characters with ASCII for PowerShell compatibility
+
+### Architecture Improvements
+- **Standardized Artifact Model** - Common artifact data structure across all modules
+- **Artifact Conversion** - Automatic property name mapping between different formats
+- **Rule Validation** - Pre-export validation ensures all required properties exist
+- **Unit Tests** - 20 new artifact interoperability tests (all passing)
 
 ## Features
 

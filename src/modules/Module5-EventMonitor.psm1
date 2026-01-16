@@ -6,6 +6,9 @@
 # Import Common library
 Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction SilentlyContinue
 
+# Import Config for path configuration
+Import-Module (Join-Path $PSScriptRoot '..\Config.psm1') -ErrorAction SilentlyContinue
+
 # Event ID mappings (from AaronLocker)
 $script:EventIdMapping = @{
     ExeDllAllowed  = 8002
@@ -351,7 +354,7 @@ function Backup-AllAppLockerEvents {
     param(
         [Parameter(Mandatory = $true)]
         [array]$ComputerNames,
-        [string]$OutputFolder = 'C:\AppLocker\output\events'
+        [string]$OutputFolder = (Join-Path $script:outputsDir "events")
     )
 
     if (-not (Test-Path $OutputFolder)) {

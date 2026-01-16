@@ -3,7 +3,248 @@
 # Based on patterns from Microsoft AaronLocker
 
 # ======================================================================
-# PRAGMA ONCE - Prevent duplicate module loading
+# ARTIFACT DATA MODEL - Always load (before pragma once check)
+# ======================================================================
+
+# Only define artifact functions if they don't exist yet
+if (-not (Test-Path "function:\New-AppLockerArtifact")) {
+
+<#
+.SYNOPSIS
+    Creates a standardized AppLocker artifact hashtable
+.DESCRIPTION
+    Returns a hashtable with all standard artifact properties initialized.
+    This ensures consistency across all modules (RemoteScan, RuleGenerator, GUI).
+.PARAMETER Name
+    File name (e.g., "notepad.exe")
+.PARAMETER Path
+    Full file path (e.g., "C:\Windows\System32\notepad.exe")
+.PARAMETER Publisher
+    Publisher name from digital signature (e.g., "Microsoft Corporation")
+.PARAMETER Hash
+    SHA256 hash of the file (optional)
+.PARAMETER Version
+    File version (optional)
+.PARAMETER Size
+    File size in bytes (optional)
+.PARAMETER ModifiedDate
+    Last modified date (optional)
+.PARAMETER FileType
+    File type: EXE, DLL, MSI, Script, etc. (optional)
+.OUTPUTS
+    System.Collections.Hashtable with standardized artifact properties
+#>
+function New-AppLockerArtifact {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Name = "",
+
+        [Parameter(Mandatory = $false)]
+        [string]$Path = "",
+
+        [Parameter(Mandatory = $false)]
+        [string]$Publisher = "",
+
+        [Parameter(Mandatory = $false)]
+        [string]$Hash = "",
+
+        [Parameter(Mandatory = $false)]
+        [string]$Version = "",
+
+        [Parameter(Mandatory = $false)]
+        [long]$Size = 0,
+
+        [Parameter(Mandatory = $false)]
+        [DateTime]$ModifiedDate = (Get-Date),
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('EXE', 'DLL', 'MSI', 'Script', 'Unknown')]
+        [string]$FileType = "Unknown"
+    )
+
+    return @{
+        # Core properties (required for rule generation)
+        name      = $Name
+        path      = $Path
+        publisher = if ($Publisher) { $Publisher } else { "Unknown" }
+
+        # Additional properties (optional)
+        hash         = $Hash
+        version      = $Version
+        size         = $Size
+        modifiedDate = $ModifiedDate
+        fileType     = $FileType
+
+        # Metadata
+        source = "New-AppLockerArtifact"
+        created = Get-Date
+    }
+}
+
+<#
+.SYNOPSIS
+    Converts an artifact from one format to another
+.DESCRIPTION
+    Handles conversion between different artifact property naming conventions.
+    Supports: Module2 format, CSV import format, GUI format.
+.PARAMETER Artifact
+    Input artifact (hashtable or PSCustomObject)
+.PARAMETER TargetFormat
+    Target format: Standard, Module2, CSV, GUI
+.OUTPUTS
+    System.Collections.Hashtable with standardized properties
+#>
+function Convert-AppLockerArtifact {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $true)]
+        $Artifact,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Standard', 'Module2', 'CSV', 'GUI')]
+        [string]$TargetFormat = 'Standard'
+    )
+
+    $result = New-AppLockerArtifact
+
+    # Map path property
+    $result.path = $Artifact.FullPath
+    if (-not $result.path) { $result.path = $Artifact.Path }
+    if (-not $result.path) { $result.path = $Artifact.FilePath }
+    if (-not $result.path) { $result.path = $Artifact.path }
+
+    # Map name property
+    $result.name = $Artifact.FileName
+    if (-not $result.name) { $result.name = $Artifact.Name }
+    if (-not $result.name) { $result.name = $Artifact.name }
+
+    # Derive name from path if not set
+    if (-not $result.name -and $result.path) {
+        $result.name = [System.IO.Path]::GetFileName($result.path)
+    }
+
+    # Map publisher property (check multiple naming conventions)
+    $result.publisher = $Artifact.Publisher
+    if (-not $result.publisher) { $result.publisher = $Artifact.Vendor }
+    if (-not $result.publisher) { $result.publisher = $Artifact.Company }
+    if (-not $result.publisher) { $result.publisher = $Artifact.Signer }
+    if (-not $result.publisher) { $result.publisher = $Artifact.publisher }
+
+    # Default to Unknown if no publisher found
+    if (-not $result.publisher) { $result.publisher = "Unknown" }
+
+    # Map hash property
+    $result.hash = $Artifact.Hash
+    if (-not $result.hash) { $result.hash = $Artifact.SHA256 }
+    if (-not $result.hash) { $result.hash = $Artifact.hash }
+
+    # Map optional properties
+    $result.version = $Artifact.Version
+    if (-not $result.version) { $result.version = $Artifact.FileVersion }
+    if (-not $result.version) { $result.version = $Artifact.version }
+
+    $result.size = $Artifact.Size
+    if (-not $result.size) { $result.size = $Artifact.Length }
+    if (-not $result.size) { $result.size = $Artifact.size }
+
+    $result.modifiedDate = $Artifact.ModifiedDate
+    if (-not $result.modifiedDate) { $result.modifiedDate = $Artifact.LastWriteTime }
+    if (-not $result.modifiedDate) { $result.modifiedDate = $Artifact.modifiedDate }
+
+    $result.fileType = $Artifact.FileType
+    if (-not $result.fileType) { $result.fileType = $Artifact.fileType }
+
+    return $result
+}
+
+<#
+.SYNOPSIS
+    Validates an artifact has required properties
+.DESCRIPTION
+    Checks if an artifact has the minimum required properties for rule generation.
+.PARAMETER Artifact
+    Artifact to validate
+.PARAMETER RuleType
+    Type of rule to validate for: Publisher, Path, Hash, Auto
+.OUTPUTS
+    System.Collections.Hashtable with success and validation results
+#>
+function Test-AppLockerArtifact {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $true)]
+        $Artifact,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Publisher', 'Path', 'Hash', 'Auto')]
+        [string]$RuleType = 'Auto'
+    )
+
+    $errors = @()
+    $warnings = @()
+
+    # Check for path (required for all rule types)
+    $hasPath = $false
+    if ($Artifact.path) { $hasPath = $true }
+    elseif ($Artifact.Path) { $hasPath = $true }
+    elseif ($Artifact.FullPath) { $hasPath = $true }
+    elseif ($Artifact.FilePath) { $hasPath = $true }
+
+    if (-not $hasPath) {
+        $errors += "Missing required property: path"
+    }
+
+    # Check for publisher (required for Publisher rules)
+    $hasPublisher = $false
+    if ($Artifact.publisher -and $Artifact.publisher -ne "Unknown") { $hasPublisher = $true }
+    elseif ($Artifact.Publisher -and $Artifact.Publisher -ne "Unknown") { $hasPublisher = $true }
+
+    if ($RuleType -eq 'Publisher' -and -not $hasPublisher) {
+        $errors += "Missing required property for Publisher rule: publisher"
+    }
+
+    # Check for hash (required for Hash rules)
+    if ($RuleType -eq 'Hash') {
+        $hasHash = $false
+        if ($Artifact.hash) { $hasHash = $true }
+        elseif ($Artifact.Hash) { $hasHash = $true }
+        elseif ($Artifact.SHA256) { $hasHash = $true }
+
+        if (-not $hasHash) {
+            $warnings += "Hash not provided - will be calculated from file"
+        }
+    }
+
+    # Check for name (recommended)
+    $hasName = $false
+    if ($Artifact.name) { $hasName = $true }
+    elseif ($Artifact.Name) { $hasName = $true }
+    elseif ($Artifact.FileName) { $hasName = $true }
+
+    if (-not $hasName -and $hasPath) {
+        # Name can be derived from path, so just a warning
+        $warnings += "Name not provided - will be derived from path"
+    }
+
+    return @{
+        success  = ($errors.Count -eq 0)
+        valid    = ($errors.Count -eq 0)
+        errors   = $errors
+        warnings = $warnings
+        canCreatePublisherRule = $hasPublisher
+        canCreatePathRule     = $hasPath
+        canCreateHashRule     = $hasPath
+    }
+}
+
+} # End of artifact functions wrapper
+
+# ======================================================================
+# PRAGMA ONCE - Prevent duplicate module loading for other functions
 # ======================================================================
 if (Test-Path "function:\SaveXmlDocAsUnicode") {
     return
@@ -39,6 +280,242 @@ Set-Variable -Option Constant -Name sFiltered -Value "FILTERED"
 Set-Variable -Option Constant -Name UnsafeDir -Value "UnsafeDir"
 Set-Variable -Option Constant -Name SafeDir -Value "SafeDir"
 Set-Variable -Option Constant -Name UnknownDir -Value "UnknownDir"
+
+# ======================================================================
+# ARTIFACT DATA MODEL - Standardized Properties
+# ======================================================================
+
+<#
+.SYNOPSIS
+    Creates a standardized AppLocker artifact hashtable
+.DESCRIPTION
+    Returns a hashtable with all standard artifact properties initialized.
+    This ensures consistency across all modules (RemoteScan, RuleGenerator, GUI).
+.PARAMETER Name
+    File name (e.g., "notepad.exe")
+.PARAMETER Path
+    Full file path (e.g., "C:\Windows\System32\notepad.exe")
+.PARAMETER Publisher
+    Publisher name from digital signature (e.g., "Microsoft Corporation")
+.PARAMETER Hash
+    SHA256 hash of the file (optional)
+.PARAMETER Version
+    File version (optional)
+.PARAMETER Size
+    File size in bytes (optional)
+.PARAMETER ModifiedDate
+    Last modified date (optional)
+.PARAMETER FileType
+    File type: EXE, DLL, MSI, Script, etc. (optional)
+.OUTPUTS
+    System.Collections.Hashtable with standardized artifact properties
+#>
+function New-AppLockerArtifact {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [string]$Name = "",
+
+        [Parameter(Mandatory = $false)]
+        [string]$Path = "",
+
+        [Parameter(Mandatory = $false)]
+        [string]$Publisher = "",
+
+        [Parameter(Mandatory = $false)]
+        [string]$Hash = "",
+
+        [Parameter(Mandatory = $false)]
+        [string]$Version = "",
+
+        [Parameter(Mandatory = $false)]
+        [long]$Size = 0,
+
+        [Parameter(Mandatory = $false)]
+        [DateTime]$ModifiedDate = (Get-Date),
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('EXE', 'DLL', 'MSI', 'Script', 'Unknown')]
+        [string]$FileType = "Unknown"
+    )
+
+    return @{
+        # Core properties (required for rule generation)
+        name      = $Name
+        path      = $Path
+        publisher = if ($Publisher) { $Publisher } else { "Unknown" }
+
+        # Additional properties (optional)
+        hash         = $Hash
+        version      = $Version
+        size         = $Size
+        modifiedDate = $ModifiedDate
+        fileType     = $FileType
+
+        # Metadata
+        source = "New-AppLockerArtifact"
+        created = Get-Date
+    }
+}
+
+<#
+.SYNOPSIS
+    Converts an artifact from one format to another
+.DESCRIPTION
+    Handles conversion between different artifact property naming conventions.
+    Supports: Module2 format, CSV import format, GUI format.
+.PARAMETER Artifact
+    Input artifact (hashtable or PSCustomObject)
+.PARAMETER TargetFormat
+    Target format: Standard, Module2, CSV, GUI
+.OUTPUTS
+    System.Collections.Hashtable with standardized properties
+#>
+function Convert-AppLockerArtifact {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $true)]
+        $Artifact,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Standard', 'Module2', 'CSV', 'GUI')]
+        [string]$TargetFormat = 'Standard'
+    )
+
+    $result = New-AppLockerArtifact
+
+    # Map path property
+    $result.path = $Artifact.FullPath
+    if (-not $result.path) { $result.path = $Artifact.Path }
+    if (-not $result.path) { $result.path = $Artifact.FilePath }
+    if (-not $result.path) { $result.path = $Artifact.path }
+
+    # Map name property
+    $result.name = $Artifact.FileName
+    if (-not $result.name) { $result.name = $Artifact.Name }
+    if (-not $result.name) { $result.name = $Artifact.name }
+
+    # Derive name from path if not set
+    if (-not $result.name -and $result.path) {
+        $result.name = [System.IO.Path]::GetFileName($result.path)
+    }
+
+    # Map publisher property (check multiple naming conventions)
+    $result.publisher = $Artifact.Publisher
+    if (-not $result.publisher) { $result.publisher = $Artifact.Vendor }
+    if (-not $result.publisher) { $result.publisher = $Artifact.Company }
+    if (-not $result.publisher) { $result.publisher = $Artifact.Signer }
+    if (-not $result.publisher) { $result.publisher = $Artifact.publisher }
+
+    # Default to Unknown if no publisher found
+    if (-not $result.publisher) { $result.publisher = "Unknown" }
+
+    # Map hash property
+    $result.hash = $Artifact.Hash
+    if (-not $result.hash) { $result.hash = $Artifact.SHA256 }
+    if (-not $result.hash) { $result.hash = $Artifact.hash }
+
+    # Map optional properties
+    $result.version = $Artifact.Version
+    if (-not $result.version) { $result.version = $Artifact.FileVersion }
+    if (-not $result.version) { $result.version = $Artifact.version }
+
+    $result.size = $Artifact.Size
+    if (-not $result.size) { $result.size = $Artifact.Length }
+    if (-not $result.size) { $result.size = $Artifact.size }
+
+    $result.modifiedDate = $Artifact.ModifiedDate
+    if (-not $result.modifiedDate) { $result.modifiedDate = $Artifact.LastWriteTime }
+    if (-not $result.modifiedDate) { $result.modifiedDate = $Artifact.modifiedDate }
+
+    $result.fileType = $Artifact.FileType
+    if (-not $result.fileType) { $result.fileType = $Artifact.fileType }
+
+    return $result
+}
+
+<#
+.SYNOPSIS
+    Validates an artifact has required properties
+.DESCRIPTION
+    Checks if an artifact has the minimum required properties for rule generation.
+.PARAMETER Artifact
+    Artifact to validate
+.PARAMETER RuleType
+    Type of rule to validate for: Publisher, Path, Hash, Auto
+.OUTPUTS
+    System.Collections.Hashtable with success and validation results
+#>
+function Test-AppLockerArtifact {
+    [CmdletBinding()]
+    [OutputType([hashtable])]
+    param(
+        [Parameter(Mandatory = $true)]
+        $Artifact,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Publisher', 'Path', 'Hash', 'Auto')]
+        [string]$RuleType = 'Auto'
+    )
+
+    $errors = @()
+    $warnings = @()
+
+    # Check for path (required for all rule types)
+    $hasPath = $false
+    if ($Artifact.path) { $hasPath = $true }
+    elseif ($Artifact.Path) { $hasPath = $true }
+    elseif ($Artifact.FullPath) { $hasPath = $true }
+    elseif ($Artifact.FilePath) { $hasPath = $true }
+
+    if (-not $hasPath) {
+        $errors += "Missing required property: path"
+    }
+
+    # Check for publisher (required for Publisher rules)
+    $hasPublisher = $false
+    if ($Artifact.publisher -and $Artifact.publisher -ne "Unknown") { $hasPublisher = $true }
+    elseif ($Artifact.Publisher -and $Artifact.Publisher -ne "Unknown") { $hasPublisher = $true }
+
+    if ($RuleType -eq 'Publisher' -and -not $hasPublisher) {
+        $errors += "Missing required property for Publisher rule: publisher"
+    }
+
+    # Check for hash (required for Hash rules)
+    if ($RuleType -eq 'Hash') {
+        $hasHash = $false
+        if ($Artifact.hash) { $hasHash = $true }
+        elseif ($Artifact.Hash) { $hasHash = $true }
+        elseif ($Artifact.SHA256) { $hasHash = $true }
+
+        if (-not $hasHash) {
+            $warnings += "Hash not provided - will be calculated from file"
+        }
+    }
+
+    # Check for name (recommended)
+    $hasName = $false
+    if ($Artifact.name) { $hasName = $true }
+    elseif ($Artifact.Name) { $hasName = $true }
+    elseif ($Artifact.FileName) { $hasName = $true }
+
+    if (-not $hasName -and $hasPath) {
+        # Name can be derived from path, so just a warning
+        $warnings += "Name not provided - will be derived from path"
+    }
+
+    return @{
+        success  = ($errors.Count -eq 0)
+        valid    = ($errors.Count -eq 0)
+        errors   = $errors
+        warnings = $warnings
+        canCreatePublisherRule = $hasPublisher
+        canCreatePathRule     = $hasPath
+        canCreateHashRule     = $hasPath
+    }
+}
 
 # ======================================================================
 # ASSEMBLY LOADING
@@ -522,6 +999,302 @@ function Test-PublisherName {
 }
 
 # ======================================================================
+# SECURITY FUNCTIONS - Phase 1 Critical Fixes
+# ======================================================================
+
+function ConvertTo-SafeString {
+    <#
+    .SYNOPSIS
+        Sanitize user input for display to prevent XSS and injection attacks
+    .DESCRIPTION
+        Removes or escapes potentially dangerous characters from user input
+    .PARAMETER InputString
+        The string to sanitize
+    .PARAMETER MaxLength
+        Maximum allowed length (default: 1000)
+    .OUTPUTS
+        Sanitized string safe for display
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$InputString,
+
+        [Parameter(Mandatory = $false)]
+        [int]$MaxLength = 1000
+    )
+
+    if ([string]::IsNullOrEmpty($InputString)) {
+        return ""
+    }
+
+    # Truncate to max length
+    if ($InputString.Length -gt $MaxLength) {
+        $InputString = $InputString.Substring(0, $MaxLength)
+    }
+
+    # Remove null bytes and control characters (except newline, tab, carriage return)
+    $sanitized = $InputString -replace '[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', ''
+
+    # Escape HTML entities (for display in web/html contexts)
+    $sanitized = $sanitized -replace '&', '&amp;'
+    $sanitized = $sanitized -replace '<', '&lt;'
+    $sanitized = $sanitized -replace '>', '&gt;'
+    $sanitized = $sanitized -replace '"', '&quot;'
+    $sanitized = $sanitized -replace '''', '&apos;'
+
+    # Remove potential script injection patterns
+    $sanitized = $sanitized -replace 'javascript:', ''
+    $sanitized = $sanitized -replace 'vbscript:', ''
+    $sanitized = $sanitized -replace 'on\w+\s*=', ''  # Remove onerror=, onload=, etc.
+
+    return $sanitized
+}
+
+function Write-AuditLog {
+    <#
+    .SYNOPSIS
+        Write security audit log entries
+    .DESCRIPTION
+        Logs security-relevant operations for compliance and forensic analysis
+    .PARAMETER Action
+        The action performed (e.g., 'GPO_CREATED', 'GPO_LINKED', 'POLICY_APPLIED')
+    .PARAMETER Target
+        The target object (e.g., GPO name, OU path)
+    .PARAMETER Result
+        Operation result: 'SUCCESS' or 'FAILURE'
+    .PARAMETER Details
+        Additional details about the operation
+    .PARAMETER UserName
+        User who performed the action (defaults to current user)
+    .PARAMETER ComputerName
+        Computer where action was performed (defaults to local computer)
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Action,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Target = '',
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('SUCCESS', 'FAILURE', 'ATTEMPT', 'CANCELLED')]
+        [string]$Result = 'SUCCESS',
+
+        [Parameter(Mandatory = $false)]
+        [string]$Details = '',
+
+        [Parameter(Mandatory = $false)]
+        [string]$UserName = '',
+
+        [Parameter(Mandatory = $false)]
+        [string]$ComputerName = $env:COMPUTERNAME
+    )
+
+    # Get current user if not specified
+    if ([string]::IsNullOrEmpty($UserName)) {
+        $UserName = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+    }
+
+    # Sanitize inputs for log
+    $Action = ConvertTo-SafeString -InputString $Action -MaxLength 100
+    $Target = ConvertTo-SafeString -InputString $Target -MaxLength 500
+    $Details = ConvertTo-SafeString -InputString $Details -MaxLength 2000
+
+    $timestamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss.fff'
+    $logEntry = "[$timestamp] [$Result] [$Action] Target=$Target User=$UserName Computer=$ComputerName Details=$Details"
+
+    # Write to audit log file
+    try {
+        $auditLogPath = 'C:\GA-AppLocker\logs\audit.log'
+        $auditLogDir = Split-Path -Parent $auditLogPath
+
+        if (-not (Test-Path $auditLogDir)) {
+            New-Item -ItemType Directory -Path $auditLogDir -Force | Out-Null
+        }
+
+        # Check log size - rotate if > 50MB (audit logs are important)
+        if (Test-Path $auditLogPath) {
+            $logFile = Get-Item $auditLogPath
+            if ($logFile.Length -gt 50MB) {
+                $archivePath = $auditLogPath -replace '\.log$', "_$(Get-Date -Format 'yyyyMMdd_HHmmss').log"
+                Move-Item -Path $auditLogPath -Destination $archivePath -Force
+            }
+        }
+
+        # Append to audit log
+        Add-Content -Path $auditLogPath -Value $logEntry
+
+        # Also write to Windows Event Log if available
+        try {
+            $eventSource = "GA-AppLocker"
+            $logName = "Security"
+
+            # Check if event source exists, create if not (requires admin)
+            if (-not [System.Diagnostics.EventLog]::SourceExists($eventSource)) {
+                try {
+                    [System.Diagnostics.EventLog]::CreateEventSource($eventSource, $logName)
+                } catch {
+                    # Silently fail if not admin
+                }
+            }
+
+            $eventID = switch ($Result) {
+                'SUCCESS'  { 1000 }
+                'FAILURE'  { 1001 }
+                'ATTEMPT'  { 1002 }
+                'CANCELLED' { 1003 }
+                default    { 1000 }
+            }
+
+            $eventEntryType = switch ($Result) {
+                'FAILURE'  { [System.Diagnostics.EventLogEntryType]::Warning }
+                'CANCELLED' { [System.Diagnostics.EventLogEntryType]::Warning }
+                default    { [System.Diagnostics.EventLogEntryType]::Information }
+            }
+
+            [System.Diagnostics.EventLog]::WriteEntry($eventSource, $logEntry, $eventID, $eventEntryType)
+        }
+        catch {
+            # Silently fail if event log writing fails
+        }
+    }
+    catch {
+        # Fail silently for audit logging errors to avoid breaking operations
+    }
+}
+
+function Show-ConfirmationDialog {
+    <#
+    .SYNOPSIS
+        Display confirmation dialog for destructive operations
+    .DESCRIPTION
+        Shows a standardized confirmation dialog using GitHub dark theme colors
+    .PARAMETER Title
+        Dialog title
+    .PARAMETER Message
+        Confirmation message
+    .PARAMETER TargetObject
+        The object being acted upon (e.g., GPO name)
+    .PARAMETER ActionType
+        Type of action (e.g., 'CREATE', 'DELETE', 'LINK', 'MODIFY')
+    .PARAMETER RequireTyping
+        If true, requires user to type "CONFIRM" to proceed
+    .OUTPUTS
+        Boolean: true if user confirmed, false otherwise
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Title,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
+
+        [Parameter(Mandatory = $false)]
+        [string]$TargetObject = '',
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('CREATE', 'DELETE', 'LINK', 'MODIFY', 'ENFORCE', 'DISABLE')]
+        [string]$ActionType = 'MODIFY',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$RequireTyping
+    )
+
+    # Build full message
+    $fullMessage = $Message
+
+    if (-not [string]::IsNullOrEmpty($TargetObject)) {
+        $fullMessage = "$fullMessage`n`nTarget: $TargetObject"
+    }
+
+    # Add warning based on action type
+    $warningText = switch ($ActionType) {
+        'DELETE'   { "This action cannot be easily undone." }
+        'ENFORCE'  { "Enforce mode will BLOCK applications that don't match rules." }
+        'CREATE'   { "This will create a new Group Policy Object." }
+        'LINK'     { "This will apply the policy to the target OU immediately." }
+        'DISABLE'  { "This will disable the policy link." }
+        default    { "Please confirm you want to proceed." }
+    }
+
+    $fullMessage = "$fullMessage`n`n$warningText"
+
+    if ($RequireTyping) {
+        $fullMessage = "$fullMessage`n`nType 'CONFIRM' to proceed or press Cancel to abort."
+    }
+
+    # Show dialog
+    $result = [System.Windows.MessageBox]::Show(
+        $fullMessage,
+        $Title,
+        if ($RequireTyping) {
+            [System.Windows.MessageBoxButton]::OKCancel
+        } else {
+            [System.Windows.MessageBoxButton]::YesNo
+        },
+        [System.Windows.MessageBoxImage]::Warning
+    )
+
+    # Log the confirmation attempt
+    if ($result -eq [System.Windows.MessageBoxResult]::Yes -or
+        $result -eq [System.Windows.MessageBoxResult]::OK) {
+        Write-AuditLog -Action "CONFIRMATION_$ActionType" -Target $TargetObject -Result 'SUCCESS' -Details "User confirmed operation"
+        return $true
+    }
+    else {
+        Write-AuditLog -Action "CONFIRMATION_$ActionType" -Target $TargetObject -Result 'CANCELLED' -Details "User cancelled operation"
+        return $false
+    }
+}
+
+function ConvertTo-HtmlEncoded {
+    <#
+    .SYNOPSIS
+        HTML encode a string for safe display
+    .DESCRIPTION
+        Escapes HTML special characters to prevent XSS
+    .PARAMETER Value
+        The string to encode
+    .OUTPUTS
+        HTML-encoded string
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param(
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    if ([string]::IsNullOrEmpty($Value)) {
+        return ''
+    }
+
+    # Use System.Web if available (most complete)
+    try {
+        Add-Type -AssemblyName System.Web -ErrorAction Stop
+        return [System.Web.HttpUtility]::HtmlEncode($Value)
+    }
+    catch {
+        # Fallback to manual encoding
+        $encoded = $Value -replace '&', '&amp;'
+        $encoded = $encoded -replace '<', '&lt;'
+        $encoded = $encoded -replace '>', '&gt;'
+        $encoded = $encoded -replace '"', '&quot;'
+        $encoded = $encoded -replace '''', '&apos;'
+        return $encoded
+    }
+}
+
+# ======================================================================
 # EXPORTS
 # ======================================================================
 
@@ -529,7 +1302,9 @@ Export-ModuleMember -Function Save-XmlDocAsUnicode, Save-AppLockerPolicyAsUnicod
                               Get-AppLockerFileInfo, ConvertFrom-SidCached,
                               ConvertTo-AppLockerGenericPath, New-AppLockerGuid,
                               Get-StandardSids, IsWin32Executable,
-                              Test-AppLockerPath, Test-PublisherName
+                              Test-AppLockerPath, Test-PublisherName,
+                              ConvertTo-SafeString, Write-AuditLog, Show-ConfirmationDialog,
+                              ConvertTo-HtmlEncoded
 
 Export-ModuleMember -Variable GetAlfiDefaultExts, NeverExecutableExts,
                               sNoPublisher, sUnsigned, sFiltered,

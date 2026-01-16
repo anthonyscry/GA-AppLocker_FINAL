@@ -6,6 +6,10 @@
 # Import Common library
 Import-Module (Join-Path $PSScriptRoot '..\lib\Common.psm1') -ErrorAction Stop
 
+# Import required modules at module level for performance
+# These imports are done once at module load instead of per function call
+Import-Module ActiveDirectory -ErrorAction SilentlyContinue -Verbose:$false
+
 # Import variables from Common module into local scope
 $script:UnsafeDir = (Get-Module Common).ExportedVariables['UnsafeDir'].Value
 $script:SafeDir = (Get-Module Common).ExportedVariables['SafeDir'].Value
@@ -42,16 +46,16 @@ function Get-DirectorySafetyClassification {
     $normalizedPath = $DirectoryPath.TrimEnd('\')
 
     # Unsafe directories - user-writable or temp locations (from AaronLocker)
-    # Use 4 backslashes in PowerShell single quotes to match literal backslash in regex
+    # Using [regex]::Escape for robust path matching
     $unsafePatterns = @(
-        'C:\\\\Users\\\\.*\\\\AppData\\\\Local\\\\Temp',
-        'C:\\\\Windows\\\\Temp',
-        'C:\\\\Temp',
-        'C:\\\\ProgramData\\\\.*\\\\Temp',
-        'C:\\\\Users\\\\.*\\\\Downloads',
-        'C:\\\\Users\\\\Public\\\\Downloads',
-        'C:\\\\Users\\\\.*\\\\Desktop',
-        '\\\\AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup'
+        [regex]::Escape('C:\Users') + '.+' + [regex]::Escape('\AppData\Local\Temp'),
+        [regex]::Escape('C:\Windows\Temp'),
+        [regex]::Escape('C:\Temp'),
+        [regex]::Escape('C:\ProgramData') + '.+' + [regex]::Escape('\Temp'),
+        [regex]::Escape('C:\Users') + '.+' + [regex]::Escape('\Downloads'),
+        [regex]::Escape('C:\Users\Public\Downloads'),
+        [regex]::Escape('C:\Users') + '.+' + [regex]::Escape('\Desktop'),
+        [regex]::Escape('\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup')
     )
 
     foreach ($pattern in $unsafePatterns) {
@@ -61,15 +65,16 @@ function Get-DirectorySafetyClassification {
     }
 
     # Safe directories - well-known locations (from AaronLocker)
+    # Using [regex]::Escape for robust path matching with wildcards
     $safePatterns = @(
-        '^C:\\\\Windows\\\\system32$',
-        '^C:\\\\Windows\\\\SysWOW64$',
-        '^C:\\\\Windows\\\\.*$',
-        '^C:\\\\Program Files\\\\.*$',
-        '^C:\\\\Program Files \\(x86\\)\\\\.*$',
-        '^C:\\\\Program Files\\\\WindowsApps\\\\.*$',
-        '^C:\\\\Program Files\\\\Common Files\\\\.*$',
-        '^C:\\\\Program Files \\(x86\\)\\\\Common Files\\\\.*$'
+        '^' + [regex]::Escape('C:\Windows\system32') + '$',
+        '^' + [regex]::Escape('C:\Windows\SysWOW64') + '$',
+        '^' + [regex]::Escape('C:\Windows') + '.*$',
+        '^' + [regex]::Escape('C:\Program Files') + '.*$',
+        '^' + [regex]::Escape('C:\Program Files (x86)') + '.*$',
+        '^' + [regex]::Escape('C:\Program Files\WindowsApps') + '.*$',
+        '^' + [regex]::Escape('C:\Program Files\Common Files') + '.*$',
+        '^' + [regex]::Escape('C:\Program Files (x86)\Common Files') + '.*$'
     )
 
     foreach ($pattern in $safePatterns) {
@@ -191,13 +196,11 @@ function Get-AllADComputers {
         [int]$MaxResults = 500
     )
 
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{
             success = $false
-            error = 'ActiveDirectory module not available'
+            error = 'ActiveDirectory module not available. This feature requires a Domain Controller or domain-joined computer with RSAT installed.'
             data = @()
         }
     }
@@ -258,13 +261,11 @@ function Get-ComputersByOU {
         }
     }
 
-    try {
-        Import-Module ActiveDirectory -ErrorAction Stop
-    }
-    catch {
+    # Check if ActiveDirectory module is available (imported at module level)
+    if (-not (Get-Module ActiveDirectory)) {
         return @{
             success = $false
-            error = 'ActiveDirectory module not available'
+            error = 'ActiveDirectory module not available. This feature requires a Domain Controller or domain-joined computer with RSAT installed.'
             data = @()
         }
     }
@@ -365,6 +366,24 @@ function Get-ExecutableArtifacts {
         [int]$MaxFiles = 500,
         [switch]$IncludeUnsafe
     )
+
+    # Validate target path for directory traversal attacks
+    if ($TargetPath -match '\.\.\\|\.\./|:|\x00') {
+        return @{
+            success = $false
+            error = 'Invalid target path: path traversal patterns detected'
+            data = @()
+        }
+    }
+
+    # Ensure path is absolute
+    if (-not [System.IO.Path]::IsPathRooted($TargetPath)) {
+        return @{
+            success = $false
+            error = 'Invalid target path: must be an absolute path'
+            data = @()
+        }
+    }
 
     if (-not (Test-Path $TargetPath)) {
         return @{

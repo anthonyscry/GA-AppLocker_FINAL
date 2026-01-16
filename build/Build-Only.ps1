@@ -147,7 +147,7 @@ pause
 # Step 4: Create quick release folder
 Write-BuildStep "Step 4: Creating release folder..."
 
-$version = "1.2.4"
+$version = "1.2.5"
 $releaseDir = "$OutputPath\release-$version"
 New-Item -ItemType Directory -Path $releaseDir -Force | Out-Null
 
