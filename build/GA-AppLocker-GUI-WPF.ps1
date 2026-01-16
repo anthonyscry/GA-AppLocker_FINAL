@@ -4804,75 +4804,81 @@ $xamlString = @"
                     </Border>
 
                     <!-- Export Button -->
-                    <Grid Margin="0,0,0,8">
-                        <Button x:Name="ExportEventsBtn" Content="Export Events to CSV" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" Width="180" MinHeight="32"/>
-                    </Grid>
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Button x:Name="ExportEventsBtn" Content="Export Events to CSV" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" MinWidth="200" Height="34" FontSize="11" Padding="14,0"/>
+                    </Border>
 
-                    <!-- Event Filters -->
-                    <Grid Margin="0,0,0,8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="50"/>
-                            <ColumnDefinition Width="4"/>
-                            <ColumnDefinition Width="65"/>
-                            <ColumnDefinition Width="4"/>
-                            <ColumnDefinition Width="65"/>
-                            <ColumnDefinition Width="4"/>
-                            <ColumnDefinition Width="50"/>
-                            <ColumnDefinition Width="12"/>
-                            <ColumnDefinition Width="35"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="30"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="40"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="90"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="55"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="90"/>
-                            <ColumnDefinition Width="8"/>
-                            <ColumnDefinition Width="70"/>
-                        </Grid.ColumnDefinitions>
+                    <!-- Event Filters - Row 1: Filter Type Buttons -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="12"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Column="0" Text="Filter:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="0" Text="Event Type:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            <Button x:Name="FilterAllBtn" Content="All" Style="{StaticResource SecondaryButton}" Grid.Column="2" Height="30" FontSize="11" Padding="14,0" MinWidth="60"/>
+                            <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Grid.Column="4" Height="30" FontSize="11" Padding="14,0" MinWidth="80"/>
+                            <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Grid.Column="6" Height="30" FontSize="11" Padding="14,0" MinWidth="80"/>
+                            <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Grid.Column="8" Height="30" FontSize="11" Padding="14,0" MinWidth="70"/>
+                        </Grid>
+                    </Border>
 
-                        <!-- Event Type Filter Buttons -->
-                        <Button x:Name="FilterAllBtn" Content="All" Style="{StaticResource SecondaryButton}" Grid.Column="2" Height="24" FontSize="10" Margin="0"/>
-                        <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Grid.Column="4" Height="24" FontSize="10" Margin="0"/>
-                        <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Grid.Column="6" Height="24" FontSize="10" Margin="0"/>
-                        <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Grid.Column="8" Height="24" FontSize="10" Margin="0"/>
+                    <!-- Event Filters - Row 2: Date Range and Search -->
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="35"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="25"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <!-- Date Range Pickers -->
-                        <TextBlock Grid.Column="10" Text="From:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" TextAlignment="Center"/>
-                        <DatePicker x:Name="EventsDateFrom" Grid.Column="12" Height="24" FontSize="10"
-                                   Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                   FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+                            <TextBlock Grid.Column="0" Text="From:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            <DatePicker x:Name="EventsDateFrom" Grid.Column="2" Height="30" FontSize="11"
+                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                       FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                        <TextBlock Grid.Column="14" Text="To:" FontSize="10" Foreground="#8B949E" VerticalAlignment="Center" TextAlignment="Center"/>
-                        <DatePicker x:Name="EventsDateTo" Grid.Column="16" Height="24" FontSize="10"
-                                   Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                   FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+                            <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
+                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                       FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                        <!-- Search Box -->
-                        <TextBox x:Name="EventsFilterSearch" Grid.Column="18" Height="24" FontSize="10" MinWidth="120"
-                                 Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                 Padding="5,2" Text="Search events..."/>
+                            <TextBlock Grid.Column="8" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <TextBox x:Name="EventsFilterSearch" Grid.Column="10" Height="30" FontSize="11" Width="160"
+                                     Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                     Padding="8,4" Text="Search events..."/>
 
-                        <!-- Clear Filter Button -->
-                        <Button x:Name="EventsClearFilterBtn" Content="Clear" Grid.Column="20"
-                                Style="{StaticResource SecondaryButton}" Height="24" FontSize="10" MinWidth="55"/>
+                            <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="13"
+                                    Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
 
-                        <!-- Filter Count -->
-                        <TextBlock x:Name="EventsFilterCount" Grid.Column="22" Text=""
-                                  FontSize="10" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="40"/>
+                            <TextBlock x:Name="EventsFilterCount" Grid.Column="15" Text=""
+                                      FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="100"/>
 
-                        <!-- Refresh Button -->
-                        <Button x:Name="RefreshEventsBtn" Content="Refresh" Style="{StaticResource PrimaryButton}" Grid.Column="24" Height="24" FontSize="10" MinWidth="70"/>
-                    </Grid>
+                            <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="17" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
+                        </Grid>
+                    </Border>
 
                     <!-- Events Output -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
