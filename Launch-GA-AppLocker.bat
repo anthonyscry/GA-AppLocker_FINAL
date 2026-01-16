@@ -76,6 +76,29 @@ exit /b 1
 echo  Launching: %GUISCRIPT%
 echo.
 
+REM Ensure AaronLocker is available
+if exist "AaronLocker-main\AaronLocker" (
+    echo  [OK] AaronLocker found in local directory
+    REM Copy to C:\GA-AppLocker if running from source and it doesn't exist there
+    if not exist "C:\GA-AppLocker\AaronLocker-main" (
+        echo  [*] Copying AaronLocker to C:\GA-AppLocker...
+        if not exist "C:\GA-AppLocker" mkdir "C:\GA-AppLocker"
+        xcopy /E /I /Y "AaronLocker-main" "C:\GA-AppLocker\AaronLocker-main" >nul 2>&1
+        if %ERRORLEVEL% EQU 0 (
+            echo  [OK] AaronLocker copied successfully
+        ) else (
+            echo  [!] Could not copy AaronLocker - run as admin to enable AaronLocker Tools
+        )
+    )
+) else if exist "C:\GA-AppLocker\AaronLocker-main\AaronLocker" (
+    echo  [OK] AaronLocker found at C:\GA-AppLocker
+) else (
+    echo  [!] WARNING: AaronLocker not found
+    echo      AaronLocker Tools page will not work until you copy
+    echo      the AaronLocker-main folder to C:\GA-AppLocker\
+)
+echo.
+
 REM Try PowerShell 7 (pwsh) first for better performance
 where pwsh >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
