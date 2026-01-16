@@ -187,163 +187,165 @@ $xamlString = @"
         <!-- Main Content -->
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
             <StackPanel>
-                <!-- Scanning Section -->
+                <!-- STEP 1: Customization Inputs -->
                 <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="Scanning &amp; Analysis" FontSize="16" FontWeight="Bold" Foreground="#58A6FF" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,4">
+                            <TextBlock Text="1" FontSize="14" FontWeight="Bold" Foreground="#0D1117" Background="#8B949E" Padding="6,2" Margin="0,0,8,0"/>
+                            <TextBlock Text="Configure Inputs" FontSize="16" FontWeight="Bold" Foreground="#8B949E"/>
+                        </StackPanel>
+                        <TextBlock Text="Edit these files BEFORE scanning/creating policies:" FontSize="11" Foreground="#6E7681" Margin="0,0,0,12"/>
+                        <WrapPanel>
+                            <Button x:Name="BtnEditTrustedSigners" Content="Trusted Signers" Style="{StaticResource SmallButton}" Margin="0,0,8,8" ToolTip="Publishers to allow"/>
+                            <Button x:Name="BtnEditSafePaths" Content="Safe Paths" Style="{StaticResource SmallButton}" Margin="0,0,8,8" ToolTip="Paths to whitelist"/>
+                            <Button x:Name="BtnEditUnsafePaths" Content="Unsafe Paths" Style="{StaticResource SmallButton}" Margin="0,0,8,8" ToolTip="User-writable paths needing rules"/>
+                            <Button x:Name="BtnEditDenyList" Content="Deny List" Style="{StaticResource SmallButton}" Margin="0,0,8,8" ToolTip="Executables to block"/>
+                            <Button x:Name="BtnEditHashRules" Content="Hash Rules" Style="{StaticResource SmallButton}" Margin="0,0,8,8" ToolTip="Specific file hashes"/>
+                            <Button x:Name="BtnEditKnownAdmins" Content="Known Admins" Style="{StaticResource SmallButton}" Margin="0,0,8,8" ToolTip="Admin accounts to exempt"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
 
-                        <!-- Scan Directories -->
-                        <Border Background="#21262D" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                <!-- STEP 2: Scan -->
+                <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="2" FontSize="14" FontWeight="Bold" Foreground="#0D1117" Background="#58A6FF" Padding="6,2" Margin="0,0,8,0"/>
+                            <TextBlock Text="Scan System" FontSize="16" FontWeight="Bold" Foreground="#58A6FF"/>
+                        </StackPanel>
+                        <Border Background="#21262D" CornerRadius="6" Padding="12">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Scan Directories" FontWeight="SemiBold" Foreground="#E6EDF3"/>
-                                    <TextBlock Text="Scan for files that might need AppLocker rules" FontSize="11" Foreground="#8B949E" TextWrapping="Wrap"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                        <CheckBox x:Name="ScanWritableWindir" Content="Writable Windir" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="ScanWritablePF" Content="Writable ProgramFiles" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="ScanProgramData" Content="ProgramData" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="ScanUserProfile" Content="User Profile" IsChecked="True" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="ScanAllProfiles" Content="All User Profiles"/>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                        <CheckBox x:Name="ScanNonDefaultRoot" Content="Non-Default Root Dirs" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="ScanExcel" Content="Output to Excel" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="ScanGridView" Content="Show GridView"/>
-                                    </StackPanel>
+                                    <TextBlock Text="Scan for files that need AppLocker rules" FontSize="11" Foreground="#8B949E" Margin="0,0,0,8"/>
+                                    <WrapPanel>
+                                        <CheckBox x:Name="ScanUserProfile" Content="User Profile" IsChecked="True" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="ScanAllProfiles" Content="All Profiles" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="ScanProgramData" Content="ProgramData" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="ScanWritableWindir" Content="Writable Windir" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="ScanWritablePF" Content="Writable ProgramFiles" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="ScanNonDefaultRoot" Content="Non-Default Root" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="ScanExcel" Content="Excel" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="ScanGridView" Content="GridView"/>
+                                    </WrapPanel>
                                 </StackPanel>
-                                <Button x:Name="BtnScanDirectories" Content="Run Scan" Style="{StaticResource PrimaryButton}"
-                                        Grid.Column="1" VerticalAlignment="Center" MinWidth="100"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- Get AppLocker Events -->
-                        <Border Background="#21262D" CornerRadius="6" Padding="12" Margin="0,0,0,8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Get AppLocker Events" FontWeight="SemiBold" Foreground="#E6EDF3"/>
-                                    <TextBlock Text="Retrieve AppLocker events from Windows Event Log" FontSize="11" Foreground="#8B949E"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                        <CheckBox x:Name="EventsWarningOnly" Content="Warning Only" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="EventsErrorOnly" Content="Error Only" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="EventsAllowedOnly" Content="Allowed Only" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="EventsAll" Content="All Events" IsChecked="True"/>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                        <CheckBox x:Name="EventsExcel" Content="Output to Excel" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="EventsGridView" Content="Show GridView"/>
-                                    </StackPanel>
-                                </StackPanel>
-                                <Button x:Name="BtnGetEvents" Content="Get Events" Style="{StaticResource PrimaryButton}"
-                                        Grid.Column="1" VerticalAlignment="Center" MinWidth="100"/>
-                            </Grid>
-                        </Border>
-
-                        <!-- Compare Policies -->
-                        <Border Background="#21262D" CornerRadius="6" Padding="12" Margin="0,0,0,8">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Compare Policies" FontWeight="SemiBold" Foreground="#E6EDF3"/>
-                                    <TextBlock Text="Compare two AppLocker policy XML files for differences" FontSize="11" Foreground="#8B949E"/>
-                                </StackPanel>
-                                <Button x:Name="BtnComparePolicies" Content="Compare..." Style="{StaticResource SecondaryButton}"
-                                        Grid.Column="1" VerticalAlignment="Center" MinWidth="100"/>
+                                <Button x:Name="BtnScanDirectories" Content="Scan" Style="{StaticResource PrimaryButton}"
+                                        Grid.Column="1" VerticalAlignment="Center" MinWidth="80"/>
                             </Grid>
                         </Border>
                     </StackPanel>
                 </Border>
 
-                <!-- Policy Creation Section -->
+                <!-- STEP 3: Create Policies -->
                 <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="Policy Creation" FontSize="16" FontWeight="Bold" Foreground="#3FB950" Margin="0,0,0,12"/>
-
-                        <!-- Create Policies -->
-                        <Border Background="#21262D" CornerRadius="6" Padding="12" Margin="0,0,0,8">
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="3" FontSize="14" FontWeight="Bold" Foreground="#0D1117" Background="#3FB950" Padding="6,2" Margin="0,0,8,0"/>
+                            <TextBlock Text="Create Policies" FontSize="16" FontWeight="Bold" Foreground="#3FB950"/>
+                        </StackPanel>
+                        <Border Background="#21262D" CornerRadius="6" Padding="12">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0">
-                                    <TextBlock Text="Create Policies" FontWeight="SemiBold" Foreground="#E6EDF3"/>
-                                    <TextBlock Text="Build comprehensive AppLocker and/or WDAC policies" FontSize="11" Foreground="#8B949E"/>
-                                    <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
-                                        <TextBlock Text="Policy Type:" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                        <ComboBox x:Name="PolicyType" Width="120" SelectedIndex="0">
+                                    <TextBlock Text="Generate policies from scan results and customization inputs" FontSize="11" Foreground="#8B949E" Margin="0,0,0,8"/>
+                                    <WrapPanel>
+                                        <TextBlock Text="Type:" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                                        <ComboBox x:Name="PolicyType" Width="100" SelectedIndex="0" Margin="0,0,12,4">
                                             <ComboBoxItem Content="Both"/>
                                             <ComboBoxItem Content="AppLocker"/>
                                             <ComboBoxItem Content="WDAC"/>
                                         </ComboBox>
-                                        <CheckBox x:Name="PolicyRescan" Content="Force Rescan" Margin="16,0,12,0"/>
-                                        <CheckBox x:Name="PolicyExcel" Content="Output to Excel"/>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                        <CheckBox x:Name="PolicyWDACManagedInstallers" Content="WDAC: Trust Managed Installers" IsChecked="True" Margin="0,0,12,0"/>
-                                        <CheckBox x:Name="PolicyWDACISG" Content="WDAC: Trust ISG"/>
-                                    </StackPanel>
+                                        <CheckBox x:Name="PolicyRescan" Content="Rescan" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="PolicyExcel" Content="Excel" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="PolicyWDACManagedInstallers" Content="WDAC: Managed Installers" IsChecked="True" Margin="0,0,12,4"/>
+                                        <CheckBox x:Name="PolicyWDACISG" Content="WDAC: ISG"/>
+                                    </WrapPanel>
                                 </StackPanel>
-                                <Button x:Name="BtnCreatePolicies" Content="Create Policies" Style="{StaticResource PrimaryButton}"
-                                        Grid.Column="1" VerticalAlignment="Center" MinWidth="120"/>
+                                <Button x:Name="BtnCreatePolicies" Content="Create" Style="{StaticResource PrimaryButton}"
+                                        Grid.Column="1" VerticalAlignment="Center" MinWidth="80"/>
                             </Grid>
                         </Border>
                     </StackPanel>
                 </Border>
 
-                <!-- Export Section -->
+                <!-- STEP 4: Deploy -->
                 <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="Export &amp; Reporting" FontSize="16" FontWeight="Bold" Foreground="#A371F7" Margin="0,0,0,12"/>
-                        <WrapPanel>
-                            <Button x:Name="BtnExportToExcel" Content="Export Policy to Excel" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnGenerateEventWorkbook" Content="Generate Event Workbook" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
-                        </WrapPanel>
-                    </StackPanel>
-                </Border>
-
-                <!-- Local Configuration Section -->
-                <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
-                    <StackPanel>
-                        <TextBlock Text="Local Configuration" FontSize="16" FontWeight="Bold" Foreground="#F0883E" Margin="0,0,0,12"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                            <TextBlock Text="4" FontSize="14" FontWeight="Bold" Foreground="#0D1117" Background="#F0883E" Padding="6,2" Margin="0,0,8,0"/>
+                            <TextBlock Text="Deploy Policies" FontSize="16" FontWeight="Bold" Foreground="#F0883E"/>
+                        </StackPanel>
                         <WrapPanel>
                             <Button x:Name="BtnApplyToLocalGPO" Content="Apply to Local GPO" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnSetGPOPolicy" Content="Set Domain GPO Policy" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnClearLocalPolicy" Content="Clear Local Policy" Style="{StaticResource DangerButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnClearLogs" Content="Clear AppLocker Logs" Style="{StaticResource DangerButton}" Margin="0,0,8,8"/>
+                            <Button x:Name="BtnSetGPOPolicy" Content="Set Domain GPO" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
                         </WrapPanel>
                     </StackPanel>
                 </Border>
 
-                <!-- Customization Inputs Section -->
+                <!-- Tools & Utilities -->
                 <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
                     <StackPanel>
-                        <TextBlock Text="Customization Inputs" FontSize="16" FontWeight="Bold" Foreground="#8B949E" Margin="0,0,0,4"/>
-                        <TextBlock Text="Edit these files to customize policy generation:" FontSize="11" Foreground="#6E7681" Margin="0,0,0,12"/>
-                        <WrapPanel>
-                            <Button x:Name="BtnEditTrustedSigners" Content="Trusted Signers" Style="{StaticResource SmallButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnEditSafePaths" Content="Safe Paths" Style="{StaticResource SmallButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnEditUnsafePaths" Content="Unsafe Paths" Style="{StaticResource SmallButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnEditDenyList" Content="Deny List" Style="{StaticResource SmallButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnEditHashRules" Content="Hash Rules" Style="{StaticResource SmallButton}" Margin="0,0,8,8"/>
-                            <Button x:Name="BtnEditKnownAdmins" Content="Known Admins" Style="{StaticResource SmallButton}" Margin="0,0,8,8"/>
-                        </WrapPanel>
-                        <WrapPanel Margin="0,8,0,0">
-                            <Button x:Name="BtnOpenOutputs" Content="Open Outputs Folder" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
-                            <Button x:Name="BtnOpenScanResults" Content="Open ScanResults Folder" Style="{StaticResource SecondaryButton}" Margin="0,0,8,0"/>
-                            <Button x:Name="BtnOpenAaronLocker" Content="Open AaronLocker Folder" Style="{StaticResource SecondaryButton}"/>
-                        </WrapPanel>
+                        <TextBlock Text="Tools &amp; Utilities" FontSize="14" FontWeight="Bold" Foreground="#A371F7" Margin="0,0,0,12"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="Analysis" FontSize="11" Foreground="#6E7681" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button x:Name="BtnGetEvents" Content="Get Events" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
+                                    <Button x:Name="BtnComparePolicies" Content="Compare Policies" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
+                                </WrapPanel>
+                                <WrapPanel Margin="0,4,0,0">
+                                    <CheckBox x:Name="EventsAll" Content="All" IsChecked="True" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="EventsWarningOnly" Content="Warn" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="EventsErrorOnly" Content="Error" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="EventsAllowedOnly" Content="Allowed" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="EventsExcel" Content="Excel" Margin="0,0,8,0"/>
+                                    <CheckBox x:Name="EventsGridView" Content="Grid"/>
+                                </WrapPanel>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Export" FontSize="11" Foreground="#6E7681" Margin="0,0,0,6"/>
+                                <WrapPanel>
+                                    <Button x:Name="BtnExportToExcel" Content="Policy to Excel" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
+                                    <Button x:Name="BtnGenerateEventWorkbook" Content="Event Workbook" Style="{StaticResource SecondaryButton}" Margin="0,0,8,8"/>
+                                </WrapPanel>
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
+                </Border>
+
+                <!-- Folders & Maintenance -->
+                <Border Background="#161B22" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16" Margin="0,0,0,16">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Folders" FontSize="11" Foreground="#6E7681" Margin="0,0,0,6"/>
+                            <WrapPanel>
+                                <Button x:Name="BtnOpenOutputs" Content="Outputs" Style="{StaticResource SmallButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnOpenScanResults" Content="ScanResults" Style="{StaticResource SmallButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnOpenAaronLocker" Content="AaronLocker" Style="{StaticResource SmallButton}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1">
+                            <TextBlock Text="Maintenance" FontSize="11" Foreground="#6E7681" Margin="0,0,0,6"/>
+                            <WrapPanel>
+                                <Button x:Name="BtnClearLocalPolicy" Content="Clear Policy" Style="{StaticResource DangerButton}" Margin="0,0,8,0"/>
+                                <Button x:Name="BtnClearLogs" Content="Clear Logs" Style="{StaticResource DangerButton}"/>
+                            </WrapPanel>
+                        </StackPanel>
+                    </Grid>
                 </Border>
 
                 <!-- Output Console -->
@@ -468,6 +470,7 @@ function Test-AaronLockerExists {
     return $true
 }
 
+# Launch script in its own visible console window
 function Invoke-AaronLockerScript {
     param(
         [string]$ScriptName,
@@ -482,34 +485,13 @@ function Invoke-AaronLockerScript {
         return
     }
 
-    Write-Console "=== $ScriptName ===`n`nRunning: $ScriptPath`nParameters: $Parameters`n`nPlease wait..."
+    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters`n`nA new PowerShell window will open..."
 
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
-    $runspace.SessionStateProxy.SetVariable("scriptPath", $ScriptPath)
-    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
-    $runspace.SessionStateProxy.SetVariable("params", $Parameters)
-    $runspace.SessionStateProxy.SetVariable("outputConsole", $OutputConsole)
-    $runspace.SessionStateProxy.SetVariable("window", $window)
-    $runspace.SessionStateProxy.SetVariable("scriptName", $ScriptName)
+    # Build the command to run in the new window
+    $cmd = "Set-Location '$($script:AaronLockerRoot)'; Write-Host '=== $ScriptName ===' -ForegroundColor Cyan; Write-Host ''; . '$ScriptPath' $Parameters; Write-Host ''; Write-Host '=== COMPLETE ===' -ForegroundColor Green; Write-Host 'Press any key to close...'; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')"
 
-    $ps = [powershell]::Create().AddScript({
-        try {
-            $cmd = "& { Set-Location '$rootDir'; . '$scriptPath' $params }"
-            $output = powershell.exe -NoProfile -ExecutionPolicy Bypass -Command $cmd 2>&1
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== $scriptName ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
-                $outputConsole.ScrollToEnd()
-            })
-        } catch {
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== $scriptName ===`n`nERROR: $($_.Exception.Message)"
-                $outputConsole.ScrollToEnd()
-            })
-        }
-    })
-    $ps.Runspace = $runspace
-    $ps.BeginInvoke() | Out-Null
+    # Launch in a new visible console window
+    Start-Process powershell.exe -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-NoExit", "-Command", $cmd
 }
 
 # ============================================================

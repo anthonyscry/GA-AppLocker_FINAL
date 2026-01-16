@@ -17458,6 +17458,26 @@ $AL_ClearConsole.Add_Click({
 }
 
 # === SCANNING & ANALYSIS ===
+# Helper function to launch AaronLocker scripts in their own console window
+function Start-AaronLockerScript {
+    param(
+        [string]$ScriptName,
+        [string]$ScriptPath,
+        [string]$Parameters = ""
+    )
+
+    if (-not (Test-Path $ScriptPath)) {
+        $AL_OutputConsole.Text = "ERROR: Script not found: $ScriptPath"
+        return
+    }
+
+    $AL_OutputConsole.Text = "Launching: $ScriptName`nParameters: $Parameters`n`nA new PowerShell window will open..."
+
+    # Build command to run in new window
+    $cmd = "Set-Location '$($script:AaronLockerRoot)'; Write-Host '=== $ScriptName ===' -ForegroundColor Cyan; Write-Host 'Parameters: $Parameters' -ForegroundColor Gray; Write-Host ''; . '$ScriptPath' $Parameters; Write-Host ''; Write-Host '=== COMPLETE ===' -ForegroundColor Green; Write-Host 'Press any key to close...'; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')"
+
+    Start-Process powershell.exe -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd
+}
 
 # Scan Directories - Scans writable directories for potential policy bypasses
 if ($null -ne $AL_ScanDirectories) {
@@ -17478,38 +17498,11 @@ $AL_ScanDirectories.Add_Click({
     # Need at least one scan location
     $scanParams = $params | Where-Object { $_ -notin @("-Excel", "-GridView") }
     if ($scanParams.Count -eq 0) {
-        $AL_OutputConsole.Text = "=== Scan Directories ===`n`nPlease select at least one directory to scan (User Profile, ProgramData, etc.)"
+        $AL_OutputConsole.Text = "Please select at least one directory to scan (User Profile, ProgramData, etc.)"
         return
     }
 
-    $paramString = $params -join " "
-    $AL_OutputConsole.Text = "=== Scan Directories ===`n`nParameters: $paramString`n`nRunning..."
-
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
-    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
-    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
-    $runspace.SessionStateProxy.SetVariable("paramString", $paramString)
-    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
-    $runspace.SessionStateProxy.SetVariable("window", $window)
-
-    $ps = [powershell]::Create().AddScript({
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                Set-Location '$rootDir'
-                . '$scriptPath' $paramString
-            }" 2>&1
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== Scan Directories ===`n`n$($output -join "`n")`n`n=== SCAN COMPLETE ===`n`nCheck ScanResults folder for output files."
-            })
-        } catch {
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
-            })
-        }
-    })
-    $ps.Runspace = $runspace
-    $ps.BeginInvoke() | Out-Null
+    Start-AaronLockerScript -ScriptName "Scan Directories" -ScriptPath $scriptPath -Parameters ($params -join " ")
 })
 }
 
@@ -17528,41 +17521,14 @@ $AL_GetEvents.Add_Click({
     if ($AL_EventsExcel -and $AL_EventsExcel.IsChecked) { $params += "-Excel" }
     if ($AL_EventsGridView -and $AL_EventsGridView.IsChecked) { $params += "-GridView" }
 
-    $paramString = $params -join " "
-    $AL_OutputConsole.Text = "=== Get AppLocker Events ===`n`nParameters: $paramString`n`nRunning..."
-
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
-    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
-    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
-    $runspace.SessionStateProxy.SetVariable("paramString", $paramString)
-    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
-    $runspace.SessionStateProxy.SetVariable("window", $window)
-
-    $ps = [powershell]::Create().AddScript({
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                Set-Location '$rootDir'
-                . '$scriptPath' $paramString
-            }" 2>&1
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== Get AppLocker Events ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
-            })
-        } catch {
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
-            })
-        }
-    })
-    $ps.Runspace = $runspace
-    $ps.BeginInvoke() | Out-Null
+    Start-AaronLockerScript -ScriptName "Get AppLocker Events" -ScriptPath $scriptPath -Parameters ($params -join " ")
 })
 }
 
 # Compare Policies - Compares two AppLocker policy XML files for differences
 if ($null -ne $AL_ComparePolicies) {
 $AL_ComparePolicies.Add_Click({
-    $AL_OutputConsole.Text = "=== Compare Policies ===`n`nSelect two AppLocker policy XML files to compare.`n`nOpening file dialogs..."
+    $AL_OutputConsole.Text = "Select two policy files to compare..."
 
     $openDialog1 = New-Object System.Windows.Forms.OpenFileDialog
     $openDialog1.Filter = "XML Files (*.xml)|*.xml"
@@ -17580,18 +17546,7 @@ $AL_ComparePolicies.Add_Click({
         if ($openDialog2.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $policy2 = $openDialog2.FileName
             $scriptPath = Join-Path $script:AaronLockerRoot "Compare-Policies.ps1"
-
-            $AL_OutputConsole.Text = "=== Compare Policies ===`n`nComparing:`n  Policy 1: $policy1`n  Policy 2: $policy2`n`nRunning..."
-
-            try {
-                $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                    `$rootDir = '$($script:AaronLockerRoot)'
-                    . '$scriptPath' -Policy1Path '$policy1' -Policy2Path '$policy2'
-                }" 2>&1
-                $AL_OutputConsole.Text = "=== Compare Policies ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
-            } catch {
-                $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-            }
+            Start-AaronLockerScript -ScriptName "Compare Policies" -ScriptPath $scriptPath -Parameters "-Policy1Path `"$policy1`" -Policy2Path `"$policy2`""
         }
     }
 })
@@ -17601,32 +17556,7 @@ $AL_ComparePolicies.Add_Click({
 if ($null -ne $AL_EnumWritableDirs) {
 $AL_EnumWritableDirs.Add_Click({
     $scriptPath = Join-Path $script:AaronLockerRoot "Support\Enum-WritableDirs.ps1"
-    $AL_OutputConsole.Text = "=== Enumerate Writable Directories ===`n`nScans Windows and Program Files for user-writable directories.`nThis can take several minutes.`n`nRunning..."
-
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
-    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
-    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
-    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
-    $runspace.SessionStateProxy.SetVariable("window", $window)
-
-    $ps = [powershell]::Create().AddScript({
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$rootDir'
-                . '$scriptPath'
-            }" 2>&1
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== Enumerate Writable Directories ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
-            })
-        } catch {
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
-            })
-        }
-    })
-    $ps.Runspace = $runspace
-    $ps.BeginInvoke() | Out-Null
+    Start-AaronLockerScript -ScriptName "Enumerate Writable Directories" -ScriptPath $scriptPath
 })
 }
 
@@ -17653,34 +17583,7 @@ $AL_CreatePolicies.Add_Click({
     if ($AL_PolicyWDACMI -and $AL_PolicyWDACMI.IsChecked) { $params += "-WDACTrustManagedInstallers" }
     if ($AL_PolicyWDACISG -and $AL_PolicyWDACISG.IsChecked) { $params += "-WDACTrustISG" }
 
-    $paramString = $params -join " "
-    $AL_OutputConsole.Text = "=== Create Policies ===`n`nParameters: $paramString`n`nGenerates Audit and Enforce policies based on:`n  - Scan results`n  - Trusted signers`n  - Safe paths`n  - Hash rules`n`nOutput saved to Outputs folder.`n`nRunning..."
-
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
-    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
-    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
-    $runspace.SessionStateProxy.SetVariable("paramString", $paramString)
-    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
-    $runspace.SessionStateProxy.SetVariable("window", $window)
-
-    $ps = [powershell]::Create().AddScript({
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                Set-Location '$rootDir'
-                . '$scriptPath' $paramString
-            }" 2>&1
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== Create Policies ===`n`n$($output -join "`n")`n`n=== POLICIES CREATED ===`n`nCheck Outputs folder for policy XML files."
-            })
-        } catch {
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
-            })
-        }
-    })
-    $ps.Runspace = $runspace
-    $ps.BeginInvoke() | Out-Null
+    Start-AaronLockerScript -ScriptName "Create Policies" -ScriptPath $scriptPath -Parameters ($params -join " ")
 })
 }
 
@@ -17688,33 +17591,7 @@ $AL_CreatePolicies.Add_Click({
 if ($null -ne $AL_BuildWritableRules) {
 $AL_BuildWritableRules.Add_Click({
     $scriptPath = Join-Path $script:AaronLockerRoot "Support\BuildRulesForFilesInWritableDirectories.ps1"
-    $AL_OutputConsole.Text = "=== Build Rules for Writable Directories ===`n`nCreates hash/publisher rules for executables found in writable directories.`nThis allows legitimate apps in user-writable locations.`n`nRunning..."
-
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
-    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
-    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
-    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
-    $runspace.SessionStateProxy.SetVariable("window", $window)
-
-    $ps = [powershell]::Create().AddScript({
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$rootDir'
-                . '$rootDir\Support\Config.ps1'
-                . '$scriptPath'
-            }" 2>&1
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== Build Rules for Writable Directories ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
-            })
-        } catch {
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
-            })
-        }
-    })
-    $ps.Runspace = $runspace
-    $ps.BeginInvoke() | Out-Null
+    Start-AaronLockerScript -ScriptName "Build Rules for Writable Directories" -ScriptPath $scriptPath
 })
 }
 
@@ -17729,20 +17606,8 @@ $AL_ExportToCsv.Add_Click({
     $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
 
     if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $policyPath = $openDialog.FileName
         $scriptPath = Join-Path $script:AaronLockerRoot "Support\ExportPolicy-ToCsv.ps1"
-
-        $AL_OutputConsole.Text = "=== Export Policy to CSV ===`n`nExporting: $policyPath`n`nRunning..."
-
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$($script:AaronLockerRoot)'
-                . '$scriptPath' -AppLockerXML '$policyPath'
-            }" 2>&1
-            $AL_OutputConsole.Text = "=== Export Policy to CSV ===`n`n$($output -join "`n")`n`n=== EXPORTED ==="
-        } catch {
-            $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-        }
+        Start-AaronLockerScript -ScriptName "Export Policy to CSV" -ScriptPath $scriptPath -Parameters "-AppLockerXML `"$($openDialog.FileName)`""
     }
 })
 }
@@ -17756,20 +17621,8 @@ $AL_ExportToExcel.Add_Click({
     $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
 
     if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $policyPath = $openDialog.FileName
         $scriptPath = Join-Path $script:AaronLockerRoot "ExportPolicy-ToExcel.ps1"
-
-        $AL_OutputConsole.Text = "=== Export Policy to Excel ===`n`nExporting: $policyPath`nRequires Excel installed.`n`nRunning..."
-
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$($script:AaronLockerRoot)'
-                . '$scriptPath' -AppLockerXML '$policyPath'
-            }" 2>&1
-            $AL_OutputConsole.Text = "=== Export Policy to Excel ===`n`n$($output -join "`n")`n`n=== EXPORTED ==="
-        } catch {
-            $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-        }
+        Start-AaronLockerScript -ScriptName "Export Policy to Excel" -ScriptPath $scriptPath -Parameters "-AppLockerXML `"$($openDialog.FileName)`""
     }
 })
 }
@@ -17778,17 +17631,7 @@ $AL_ExportToExcel.Add_Click({
 if ($null -ne $AL_GenerateEventWorkbook) {
 $AL_GenerateEventWorkbook.Add_Click({
     $scriptPath = Join-Path $script:AaronLockerRoot "Generate-EventWorkbook.ps1"
-    $AL_OutputConsole.Text = "=== Generate Event Workbook ===`n`nCreates an Excel workbook from AppLocker events.`nRequires Excel installed.`n`nRunning..."
-
-    try {
-        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-            `$rootDir = '$($script:AaronLockerRoot)'
-            . '$scriptPath'
-        }" 2>&1
-        $AL_OutputConsole.Text = "=== Generate Event Workbook ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
-    } catch {
-        $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-    }
+    Start-AaronLockerScript -ScriptName "Generate Event Workbook" -ScriptPath $scriptPath
 })
 }
 
@@ -17798,17 +17641,7 @@ $AL_GenerateEventWorkbook.Add_Click({
 if ($null -ne $AL_ConfigureForAppLocker) {
 $AL_ConfigureForAppLocker.Add_Click({
     $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ConfigureForAppLocker.ps1"
-    $AL_OutputConsole.Text = "=== Configure for AppLocker ===`n`nConfigures local system for AppLocker:`n  - Enables AppIDSvc service`n  - Sets service to Automatic`n  - Configures event logging`n`nRunning..."
-
-    try {
-        $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-            `$rootDir = '$($script:AaronLockerRoot)'
-            . '$scriptPath'
-        }" 2>&1
-        $AL_OutputConsole.Text = "=== Configure for AppLocker ===`n`n$($output -join "`n")`n`n=== CONFIGURED ==="
-    } catch {
-        $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-    }
+    Start-AaronLockerScript -ScriptName "Configure for AppLocker" -ScriptPath $scriptPath
 })
 }
 
@@ -17821,28 +17654,16 @@ $AL_ApplyToLocalGPO.Add_Click({
     $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
 
     if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $policyPath = $openDialog.FileName
-        $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
-
         $result = [System.Windows.MessageBox]::Show(
-            "Apply policy to LOCAL GPO?`n`nPolicy: $policyPath`n`nThis will modify the local Group Policy.",
+            "Apply policy to LOCAL GPO?`n`nPolicy: $($openDialog.FileName)`n`nThis will modify the local Group Policy.",
             "Confirm Apply to Local GPO",
             [System.Windows.MessageBoxButton]::YesNo,
             [System.Windows.MessageBoxImage]::Warning
         )
 
         if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
-            $AL_OutputConsole.Text = "=== Apply to Local GPO ===`n`nApplying: $policyPath`n`nRunning..."
-
-            try {
-                $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                    `$rootDir = '$($script:AaronLockerRoot)'
-                    . '$scriptPath' -PolicyPath '$policyPath'
-                }" 2>&1
-                $AL_OutputConsole.Text = "=== Apply to Local GPO ===`n`n$($output -join "`n")`n`n=== APPLIED ==="
-            } catch {
-                $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-            }
+            $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
+            Start-AaronLockerScript -ScriptName "Apply to Local GPO" -ScriptPath $scriptPath -Parameters "-PolicyPath `"$($openDialog.FileName)`""
         }
     }
 })
@@ -17857,23 +17678,10 @@ $AL_SetGPOPolicy.Add_Click({
     $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
 
     if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $policyPath = $openDialog.FileName
-        $scriptPath = Join-Path $script:AaronLockerRoot "GPOConfiguration\Set-GPOAppLockerPolicy.ps1"
-
-        # Ask for GPO name
         $inputBox = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the GPO name:", "Set GPO AppLocker Policy", "AppLocker Policy")
         if ($inputBox) {
-            $AL_OutputConsole.Text = "=== Set GPO AppLocker Policy ===`n`nGPO: $inputBox`nPolicy: $policyPath`n`nRunning..."
-
-            try {
-                $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                    `$rootDir = '$($script:AaronLockerRoot)'
-                    . '$scriptPath' -GpoName '$inputBox' -AppLockerXml '$policyPath'
-                }" 2>&1
-                $AL_OutputConsole.Text = "=== Set GPO AppLocker Policy ===`n`n$($output -join "`n")`n`n=== GPO UPDATED ==="
-            } catch {
-                $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-            }
+            $scriptPath = Join-Path $script:AaronLockerRoot "GPOConfiguration\Set-GPOAppLockerPolicy.ps1"
+            Start-AaronLockerScript -ScriptName "Set GPO AppLocker Policy" -ScriptPath $scriptPath -Parameters "-GpoName `"$inputBox`" -AppLockerXml `"$($openDialog.FileName)`""
         }
     }
 })
@@ -17891,17 +17699,7 @@ $AL_ClearLocalPolicy.Add_Click({
 
     if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
         $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ClearLocalAppLockerPolicy.ps1"
-        $AL_OutputConsole.Text = "=== Clear Local Policy ===`n`nClearing local AppLocker policy...`n`nRunning..."
-
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$($script:AaronLockerRoot)'
-                . '$scriptPath'
-            }" 2>&1
-            $AL_OutputConsole.Text = "=== Clear Local Policy ===`n`n$($output -join "`n")`n`n=== POLICY CLEARED ==="
-        } catch {
-            $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-        }
+        Start-AaronLockerScript -ScriptName "Clear Local Policy" -ScriptPath $scriptPath
     }
 })
 }
@@ -17918,17 +17716,7 @@ $AL_ClearLogs.Add_Click({
 
     if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
         $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ClearApplockerLogs.ps1"
-        $AL_OutputConsole.Text = "=== Clear AppLocker Logs ===`n`nClearing AppLocker event logs...`n`nRunning..."
-
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$($script:AaronLockerRoot)'
-                . '$scriptPath'
-            }" 2>&1
-            $AL_OutputConsole.Text = "=== Clear AppLocker Logs ===`n`n$($output -join "`n")`n`n=== LOGS CLEARED ==="
-        } catch {
-            $AL_OutputConsole.Text = "ERROR: $($_.Exception.Message)"
-        }
+        Start-AaronLockerScript -ScriptName "Clear AppLocker Logs" -ScriptPath $scriptPath
     }
 })
 }
