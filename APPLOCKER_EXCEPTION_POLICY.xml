@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  AppLocker Exception Policy for GA-AppLocker Dashboard Development
+
+  PURPOSE: Allow execution of GA-AppLocker development and deployment scripts
+  SCOPE: Development folder only (C:\Dev\GA-AppLocker\*)
+  RISK: Low - Restricts to specific folder and can be scoped to specific users
+
+  DEPLOYMENT INSTRUCTIONS:
+  1. Save this file as GA-AppLocker-DevException.xml
+  2. Import via Group Policy:
+     - Open GPME.msc
+     - Navigate to: Computer Configuration > Windows Settings > Security Settings > Application Control Policies > AppLocker
+     - Right-click "Script Rules" > Import Policy
+     - Select this file
+  3. Or import via PowerShell:
+     Set-AppLockerPolicy -XmlPolicy GA-AppLocker-DevException.xml -Merge
+  4. Run gpupdate /force on target machines
+
+  CUSTOMIZATION:
+  - Replace "S-1-5-21-XXXXXXXXXX" with your user/group SID
+  - Replace "C:\Dev\GA-AppLocker\" with your actual development path
+  - Adjust to allow only specific users/groups
+-->
+<AppLockerPolicy Version="1">
+
+  <!-- EXECUTABLE RULES -->
+  <RuleCollection Type="Exe" EnforcementMode="NotConfigured">
+    <!-- Allow GA-AppLocker executables from dev folder -->
+    <FilePathRule Id="a9e6c1b2-89e3-4d5f-a8b1-1c2d3e4f5a6b"
+                  Name="GA-AppLocker Dev Folder - EXE"
+                  Description="Allow executables in GA-AppLocker development folder"
+                  UserOrGroupSid="S-1-1-0"
+                  Action="Allow">
+      <Conditions>
+        <FilePathCondition Path="C:\Dev\GA-AppLocker\*" />
+      </Conditions>
+    </FilePathRule>
+  </RuleCollection>
+
+  <!-- DLL RULES -->
+  <RuleCollection Type="Dll" EnforcementMode="NotConfigured">
+    <!-- Allow GA-AppLocker DLLs from dev folder -->
+    <FilePathRule Id="b1c2d3e4-f5a6-7b8c-9d0e-1f2a3b4c5d6e"
+                  Name="GA-AppLocker Dev Folder - DLL"
+                  Description="Allow DLLs in GA-AppLocker development folder"
+                  UserOrGroupSid="S-1-1-0"
+                  Action="Allow">
+      <Conditions>
+        <FilePathCondition Path="C:\Dev\GA-AppLocker\*" />
+      </Conditions>
+    </FilePathRule>
+  </RuleCollection>
+
+  <!-- SCRIPT RULES (PowerShell) -->
+  <RuleCollection Type="Script" EnforcementMode="NotConfigured">
+    <!-- Allow GA-AppLocker PowerShell scripts from dev folder -->
+    <FilePathRule Id="c2d3e4f5-a6b7-8c9d-0e1f-2a3b4c5d6e7f"
+                  Name="GA-AppLocker Dev Folder - Scripts"
+                  Description="Allow PowerShell scripts in GA-AppLocker development folder"
+                  UserOrGroupSid="S-1-1-0"
+                  Action="Allow">
+      <Conditions>
+        <FilePathCondition Path="C:\Dev\GA-AppLocker\*" />
+      </Conditions>
+    </FilePathRule>
+
+    <!-- Allow signed GA-AppLocker scripts from any location (after code signing) -->
+    <FilePublisherRule Id="d3e4f5a6-b7c8-9d0e-1f2a-3b4c5d6e7f8a"
+                       Name="GA-AppLocker Signed Scripts"
+                       Description="Allow GA-AppLocker scripts signed by corporate CA"
+                       UserOrGroupSid="S-1-1-0"
+                       Action="Allow">
+      <Conditions>
+        <FilePublisherCondition PublisherName="O=YourCompany, CN=YourCompany Code Signing CA"
+                                ProductName="*"
+                                BinaryName="*">
+          <BinaryVersionRange LowSection="*" HighSection="*" />
+        </FilePublisherCondition>
+      </Conditions>
+    </FilePublisherRule>
+  </RuleCollection>
+
+  <!-- MSI/INSTALLER RULES -->
+  <RuleCollection Type="Msi" EnforcementMode="NotConfigured">
+    <!-- Allow installers from GA-AppLocker dev folder -->
+    <FilePathRule Id="e4f5a6b7-c8d9-0e1f-2a3b-4c5d6e7f8a9b"
+                  Name="GA-AppLocker Dev Folder - MSI"
+                  Description="Allow installers in GA-AppLocker development folder"
+                  UserOrGroupSid="S-1-1-0"
+                  Action="Allow">
+      <Conditions>
+        <FilePathCondition Path="C:\Dev\GA-AppLocker\*" />
+      </Conditions>
+    </FilePathRule>
+  </RuleCollection>
+
+</AppLockerPolicy>

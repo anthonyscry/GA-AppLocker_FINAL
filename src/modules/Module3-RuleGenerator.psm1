@@ -1451,9 +1451,13 @@ function Import-RulesFromXml {
         $xmlReaderSettings.XmlResolver = $null
 
         $xmlReader = [System.Xml.XmlReader]::Create($XmlPath, $xmlReaderSettings)
-        $xml = New-Object System.Xml.XmlDocument
-        $xml.Load($xmlReader)
-        $xmlReader.Close()
+        try {
+            $xml = New-Object System.Xml.XmlDocument
+            $xml.Load($xmlReader)
+        }
+        finally {
+            $xmlReader.Close()
+        }
 
         $rules = @()
 

@@ -285,7 +285,15 @@ function Set-GPOAppLockerPolicy {
 
         # Better LDAP path construction (from AaronLocker)
         # Note: Correct namespace capitalization is critical - DirectoryServices.ActiveDirectory
-        $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
+        try {
+            $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
+        }
+        catch {
+            return @{
+                success = $false
+                error = "Unable to retrieve domain information. This operation requires a domain-joined computer: $($_.Exception.Message)"
+            }
+        }
         $ldapPath = "LDAP://{0}" -f $gpo.Path.Replace("LDAP://", "")
 
         Write-Verbose "Applying policy to GPO '$GpoName' in domain '$($domain.Name)'"
@@ -380,7 +388,15 @@ function Set-LatestAppLockerPolicy {
     }
 
     # Note: Correct namespace capitalization is critical - DirectoryServices.ActiveDirectory
-    $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
+    try {
+        $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
+    }
+    catch {
+        return @{
+            success = $false
+            error = "Unable to retrieve domain information. This operation requires a domain-joined computer: $($_.Exception.Message)"
+        }
+    }
 
     if ($PSCmdlet.ShouldProcess($gpo.DisplayName, "Set AppLocker policy using $($latestPolicy.Name)")) {
         $policy = [Microsoft.Security.ApplicationId.PolicyManagement.PolicyModel.AppLockerPolicy]::Load($latestPolicy.FullName)
