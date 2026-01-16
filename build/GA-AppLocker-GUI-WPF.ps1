@@ -17498,9 +17498,11 @@ function Start-AaronLockerScript {
         return
     }
 
-    # Build the command to run - verify PS version first, then run script
+    # Build the command to run - verify PS version and language mode first, then run script
     $cmd = @"
 `$Host.UI.RawUI.WindowTitle = 'AaronLocker - $ScriptName'
+
+# Check PowerShell version
 if (`$PSVersionTable.PSVersion.Major -ne 5) {
     Write-Host 'ERROR: This script requires Windows PowerShell 5.1' -ForegroundColor Red
     Write-Host "Current version: `$(`$PSVersionTable.PSVersion)" -ForegroundColor Red
@@ -17508,11 +17510,41 @@ if (`$PSVersionTable.PSVersion.Major -ne 5) {
     `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
     exit 1
 }
-Set-Location '$($script:AaronLockerRoot)'
+
+# Check Language Mode - Constrained Language Mode breaks -Encoding Byte
+`$langMode = `$ExecutionContext.SessionState.LanguageMode
 Write-Host '=== $ScriptName ===' -ForegroundColor Cyan
 Write-Host "PowerShell Version: `$(`$PSVersionTable.PSVersion)" -ForegroundColor DarkGray
+Write-Host "Language Mode: `$langMode" -ForegroundColor DarkGray
 Write-Host "Parameters: $Parameters" -ForegroundColor Gray
+
+if (`$langMode -ne 'FullLanguage') {
+    Write-Host ''
+    Write-Host 'WARNING: PowerShell is running in Constrained Language Mode!' -ForegroundColor Yellow
+    Write-Host 'This may cause AaronLocker scripts to fail.' -ForegroundColor Yellow
+    Write-Host ''
+    Write-Host 'Possible causes:' -ForegroundColor Yellow
+    Write-Host '  - AppLocker/WDAC policies restricting PowerShell' -ForegroundColor Gray
+    Write-Host '  - Device Guard enabled' -ForegroundColor Gray
+    Write-Host '  - Group Policy restrictions' -ForegroundColor Gray
+    Write-Host ''
+    Write-Host 'Try running from an elevated Admin PowerShell or check policies.' -ForegroundColor Yellow
+    Write-Host ''
+}
+
+# Verify Get-Content supports -Encoding Byte (diagnostic)
+try {
+    `$testParams = (Get-Command Microsoft.PowerShell.Management\Get-Content).Parameters
+    if (-not `$testParams.ContainsKey('Encoding')) {
+        Write-Host 'ERROR: Get-Content cmdlet is missing -Encoding parameter!' -ForegroundColor Red
+        Write-Host 'This indicates a restricted PowerShell environment.' -ForegroundColor Red
+    }
+} catch {
+    Write-Host "Warning: Could not verify Get-Content parameters: `$_" -ForegroundColor Yellow
+}
+
 Write-Host ''
+Set-Location '$($script:AaronLockerRoot)'
 . '$ScriptPath' $Parameters
 Write-Host ''
 Write-Host '=== COMPLETE ===' -ForegroundColor Green
