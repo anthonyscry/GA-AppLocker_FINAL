@@ -6027,30 +6027,64 @@ $xamlString = @"
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,15">
                         <StackPanel>
                             <TextBlock Text="Scanning &amp; Analysis" FontSize="14" FontWeight="Bold" Foreground="#58A6FF" Margin="0,0,0,12"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
 
-                                <Button x:Name="AL_ScanDirectories" Content="Scan Directories" Style="{StaticResource PrimaryButton}"
-                                        Grid.Column="0" Grid.Row="0" Margin="0,0,8,8" MinHeight="36"
-                                        ToolTip="Scan for writable directories that need AppLocker rules"/>
-                                <Button x:Name="AL_GetEvents" Content="Get AppLocker Events" Style="{StaticResource SecondaryButton}"
-                                        Grid.Column="1" Grid.Row="0" Margin="0,0,8,8" MinHeight="36"
-                                        ToolTip="Retrieve and analyze AppLocker events from event logs"/>
+                            <!-- Scan Directories with Parameters -->
+                            <Border Background="#161B22" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Scan Directories" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                        <TextBlock Text="Scan for files that might need AppLocker rules" FontSize="11" Foreground="#6E7681"/>
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <CheckBox x:Name="AL_ScanWritableWindir" Content="Writable Windir" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_ScanWritablePF" Content="Writable ProgramFiles" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_ScanProgramData" Content="ProgramData" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_ScanUserProfile" Content="User Profile" Foreground="#C9D1D9" IsChecked="True" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_ScanAllProfiles" Content="All Profiles" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_ScanNonDefaultRoot" Content="Non-Default Root" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_ScanExcel" Content="Excel Output" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_ScanGridView" Content="GridView" Foreground="#C9D1D9"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                    <Button x:Name="AL_ScanDirectories" Content="Run Scan" Style="{StaticResource PrimaryButton}"
+                                            Grid.Column="1" VerticalAlignment="Center" MinWidth="90"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Get Events with Parameters -->
+                            <Border Background="#161B22" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Get AppLocker Events" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                        <TextBlock Text="Retrieve AppLocker events from Windows Event Log" FontSize="11" Foreground="#6E7681"/>
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <CheckBox x:Name="AL_EventsWarningOnly" Content="Warning Only" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_EventsErrorOnly" Content="Error Only" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_EventsAllowedOnly" Content="Allowed Only" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_EventsAll" Content="All Events" Foreground="#C9D1D9" IsChecked="True" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_EventsExcel" Content="Excel Output" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_EventsGridView" Content="GridView" Foreground="#C9D1D9"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                    <Button x:Name="AL_GetEvents" Content="Get Events" Style="{StaticResource PrimaryButton}"
+                                            Grid.Column="1" VerticalAlignment="Center" MinWidth="90"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Other Scanning Tools -->
+                            <WrapPanel>
                                 <Button x:Name="AL_ComparePolicies" Content="Compare Policies" Style="{StaticResource SecondaryButton}"
-                                        Grid.Column="2" Grid.Row="0" Margin="0,0,0,8" MinHeight="36"
-                                        ToolTip="Compare two AppLocker policies for differences"/>
+                                        Margin="0,0,8,0" MinHeight="32" ToolTip="Compare two AppLocker policies"/>
                                 <Button x:Name="AL_EnumWritableDirs" Content="Enum Writable Dirs" Style="{StaticResource SecondaryButton}"
-                                        Grid.Column="0" Grid.Row="1" Margin="0,0,8,0" MinHeight="36"
-                                        ToolTip="Enumerate writable directories in protected paths"/>
-                            </Grid>
+                                        MinHeight="32" ToolTip="Enumerate writable directories in protected paths"/>
+                            </WrapPanel>
                         </StackPanel>
                     </Border>
 
@@ -6058,23 +6092,40 @@ $xamlString = @"
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="15" Margin="0,0,0,15">
                         <StackPanel>
                             <TextBlock Text="Policy Creation" FontSize="14" FontWeight="Bold" Foreground="#3FB950" Margin="0,0,0,12"/>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
 
-                                <Button x:Name="AL_CreatePolicies" Content="Create AppLocker Policies" Style="{StaticResource PrimaryButton}"
-                                        Grid.Column="0" Margin="0,0,8,0" MinHeight="36"
-                                        ToolTip="Generate AppLocker policies from scan results and customization inputs"/>
-                                <Button x:Name="AL_CreateWDACPolicies" Content="Create WDAC Policies" Style="{StaticResource SecondaryButton}"
-                                        Grid.Column="1" Margin="0,0,8,0" MinHeight="36"
-                                        ToolTip="Generate Windows Defender Application Control policies"/>
+                            <!-- Create Policies with Parameters -->
+                            <Border Background="#161B22" CornerRadius="6" Padding="12" Margin="0,0,0,10">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Create Policies" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                        <TextBlock Text="Build comprehensive AppLocker and/or WDAC policies" FontSize="11" Foreground="#6E7681"/>
+                                        <WrapPanel Margin="0,8,0,0">
+                                            <TextBlock Text="Type:" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,6,4"/>
+                                            <ComboBox x:Name="AL_PolicyType" Width="100" SelectedIndex="0" Margin="0,0,12,4">
+                                                <ComboBoxItem Content="Both"/>
+                                                <ComboBoxItem Content="AppLocker"/>
+                                                <ComboBoxItem Content="WDAC"/>
+                                            </ComboBox>
+                                            <CheckBox x:Name="AL_PolicyRescan" Content="Force Rescan" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_PolicyExcel" Content="Excel Output" Foreground="#C9D1D9" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_PolicyWDACMI" Content="WDAC: Managed Installers" Foreground="#C9D1D9" IsChecked="True" Margin="0,0,12,4"/>
+                                            <CheckBox x:Name="AL_PolicyWDACISG" Content="WDAC: ISG" Foreground="#C9D1D9"/>
+                                        </WrapPanel>
+                                    </StackPanel>
+                                    <Button x:Name="AL_CreatePolicies" Content="Create" Style="{StaticResource PrimaryButton}"
+                                            Grid.Column="1" VerticalAlignment="Center" MinWidth="90"/>
+                                </Grid>
+                            </Border>
+
+                            <!-- Other Policy Tools -->
+                            <WrapPanel>
                                 <Button x:Name="AL_BuildWritableRules" Content="Build Writable Dir Rules" Style="{StaticResource SecondaryButton}"
-                                        Grid.Column="2" Margin="0,0,0,0" MinHeight="36"
-                                        ToolTip="Build rules for files found in writable directories"/>
-                            </Grid>
+                                        MinHeight="32" ToolTip="Build rules for files in writable directories"/>
+                            </WrapPanel>
                         </StackPanel>
                     </Border>
 
@@ -6365,7 +6416,6 @@ $AL_GetEvents = $window.FindName("AL_GetEvents")
 $AL_ComparePolicies = $window.FindName("AL_ComparePolicies")
 $AL_EnumWritableDirs = $window.FindName("AL_EnumWritableDirs")
 $AL_CreatePolicies = $window.FindName("AL_CreatePolicies")
-$AL_CreateWDACPolicies = $window.FindName("AL_CreateWDACPolicies")
 $AL_BuildWritableRules = $window.FindName("AL_BuildWritableRules")
 $AL_ExportToCsv = $window.FindName("AL_ExportToCsv")
 $AL_ExportToExcel = $window.FindName("AL_ExportToExcel")
@@ -6383,6 +6433,28 @@ $AL_EditHashRules = $window.FindName("AL_EditHashRules")
 $AL_EditKnownAdmins = $window.FindName("AL_EditKnownAdmins")
 $AL_OpenOutputs = $window.FindName("AL_OpenOutputs")
 $AL_OpenScanResults = $window.FindName("AL_OpenScanResults")
+# AaronLocker parameter controls - Scan Directories
+$AL_ScanWritableWindir = $window.FindName("AL_ScanWritableWindir")
+$AL_ScanWritablePF = $window.FindName("AL_ScanWritablePF")
+$AL_ScanProgramData = $window.FindName("AL_ScanProgramData")
+$AL_ScanUserProfile = $window.FindName("AL_ScanUserProfile")
+$AL_ScanAllProfiles = $window.FindName("AL_ScanAllProfiles")
+$AL_ScanNonDefaultRoot = $window.FindName("AL_ScanNonDefaultRoot")
+$AL_ScanExcel = $window.FindName("AL_ScanExcel")
+$AL_ScanGridView = $window.FindName("AL_ScanGridView")
+# AaronLocker parameter controls - Get Events
+$AL_EventsWarningOnly = $window.FindName("AL_EventsWarningOnly")
+$AL_EventsErrorOnly = $window.FindName("AL_EventsErrorOnly")
+$AL_EventsAllowedOnly = $window.FindName("AL_EventsAllowedOnly")
+$AL_EventsAll = $window.FindName("AL_EventsAll")
+$AL_EventsExcel = $window.FindName("AL_EventsExcel")
+$AL_EventsGridView = $window.FindName("AL_EventsGridView")
+# AaronLocker parameter controls - Create Policies
+$AL_PolicyType = $window.FindName("AL_PolicyType")
+$AL_PolicyRescan = $window.FindName("AL_PolicyRescan")
+$AL_PolicyExcel = $window.FindName("AL_PolicyExcel")
+$AL_PolicyWDACMI = $window.FindName("AL_PolicyWDACMI")
+$AL_PolicyWDACISG = $window.FindName("AL_PolicyWDACISG")
 $PanelAbout = $window.FindName("PanelAbout")
 if ($null -eq $PanelAbout) { Write-Log "WARNING: Control 'PanelAbout' not found in XAML" -Level "WARNING" }
 
@@ -17391,20 +17463,41 @@ $AL_ClearConsole.Add_Click({
 if ($null -ne $AL_ScanDirectories) {
 $AL_ScanDirectories.Add_Click({
     $scriptPath = Join-Path $script:AaronLockerRoot "Scan-Directories.ps1"
-    $AL_OutputConsole.Text = "=== Scan Directories ===`n`nThis script scans the system for writable directories that could bypass AppLocker.`nResults are saved to ScanResults folder.`n`nRunning..."
+
+    # Build parameters from checkboxes
+    $params = @()
+    if ($AL_ScanWritableWindir -and $AL_ScanWritableWindir.IsChecked) { $params += "-WritableWindir" }
+    if ($AL_ScanWritablePF -and $AL_ScanWritablePF.IsChecked) { $params += "-WritablePF" }
+    if ($AL_ScanProgramData -and $AL_ScanProgramData.IsChecked) { $params += "-SearchProgramData" }
+    if ($AL_ScanUserProfile -and $AL_ScanUserProfile.IsChecked) { $params += "-SearchOneUserProfile" }
+    if ($AL_ScanAllProfiles -and $AL_ScanAllProfiles.IsChecked) { $params += "-SearchAllUserProfiles" }
+    if ($AL_ScanNonDefaultRoot -and $AL_ScanNonDefaultRoot.IsChecked) { $params += "-SearchNonDefaultRootDirs" }
+    if ($AL_ScanExcel -and $AL_ScanExcel.IsChecked) { $params += "-Excel" }
+    if ($AL_ScanGridView -and $AL_ScanGridView.IsChecked) { $params += "-GridView" }
+
+    # Need at least one scan location
+    $scanParams = $params | Where-Object { $_ -notin @("-Excel", "-GridView") }
+    if ($scanParams.Count -eq 0) {
+        $AL_OutputConsole.Text = "=== Scan Directories ===`n`nPlease select at least one directory to scan (User Profile, ProgramData, etc.)"
+        return
+    }
+
+    $paramString = $params -join " "
+    $AL_OutputConsole.Text = "=== Scan Directories ===`n`nParameters: $paramString`n`nRunning..."
 
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.Open()
     $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
     $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("paramString", $paramString)
     $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
     $runspace.SessionStateProxy.SetVariable("window", $window)
 
     $ps = [powershell]::Create().AddScript({
         try {
             $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$rootDir'
-                . '$scriptPath'
+                Set-Location '$rootDir'
+                . '$scriptPath' $paramString
             }" 2>&1
             $window.Dispatcher.Invoke([action]{
                 $outputConsole.Text = "=== Scan Directories ===`n`n$($output -join "`n")`n`n=== SCAN COMPLETE ===`n`nCheck ScanResults folder for output files."
@@ -17424,20 +17517,33 @@ $AL_ScanDirectories.Add_Click({
 if ($null -ne $AL_GetEvents) {
 $AL_GetEvents.Add_Click({
     $scriptPath = Join-Path $script:AaronLockerRoot "Get-AppLockerEvents.ps1"
-    $AL_OutputConsole.Text = "=== Get AppLocker Events ===`n`nRetrieves AppLocker events from the Windows Event Log.`nShows allowed, audited, and blocked execution events.`n`nRunning..."
+
+    # Build parameters from checkboxes
+    $params = @()
+    if ($AL_EventsWarningOnly -and $AL_EventsWarningOnly.IsChecked) { $params += "-WarningOnly" }
+    elseif ($AL_EventsErrorOnly -and $AL_EventsErrorOnly.IsChecked) { $params += "-ErrorOnly" }
+    elseif ($AL_EventsAllowedOnly -and $AL_EventsAllowedOnly.IsChecked) { $params += "-AllowedOnly" }
+    elseif ($AL_EventsAll -and $AL_EventsAll.IsChecked) { $params += "-AllEvents" }
+
+    if ($AL_EventsExcel -and $AL_EventsExcel.IsChecked) { $params += "-Excel" }
+    if ($AL_EventsGridView -and $AL_EventsGridView.IsChecked) { $params += "-GridView" }
+
+    $paramString = $params -join " "
+    $AL_OutputConsole.Text = "=== Get AppLocker Events ===`n`nParameters: $paramString`n`nRunning..."
 
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.Open()
     $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
     $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("paramString", $paramString)
     $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
     $runspace.SessionStateProxy.SetVariable("window", $window)
 
     $ps = [powershell]::Create().AddScript({
         try {
             $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$rootDir'
-                . '$scriptPath'
+                Set-Location '$rootDir'
+                . '$scriptPath' $paramString
             }" 2>&1
             $window.Dispatcher.Invoke([action]{
                 $outputConsole.Text = "=== Get AppLocker Events ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
@@ -17526,62 +17632,46 @@ $AL_EnumWritableDirs.Add_Click({
 
 # === POLICY CREATION ===
 
-# Create AppLocker Policies - Generates AppLocker policies from scan results
+# Create Policies - Generates AppLocker and/or WDAC policies from scan results
 if ($null -ne $AL_CreatePolicies) {
 $AL_CreatePolicies.Add_Click({
-    $scriptPath = Join-Path $script:AaronLockerRoot "Support\Create-Policies-AppLocker.ps1"
-    $AL_OutputConsole.Text = "=== Create AppLocker Policies ===`n`nGenerates Audit and Enforce AppLocker policies based on:`n  - Scan results`n  - Trusted signers`n  - Safe paths`n  - Hash rules`n`nOutput saved to Outputs folder.`n`nRunning..."
+    $scriptPath = Join-Path $script:AaronLockerRoot "Create-Policies.ps1"
 
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.Open()
-    $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
-    $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
-    $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
-    $runspace.SessionStateProxy.SetVariable("window", $window)
+    # Build parameters from checkboxes
+    $params = @()
 
-    $ps = [powershell]::Create().AddScript({
-        try {
-            $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$rootDir'
-                . '$rootDir\Support\Config.ps1'
-                . '$scriptPath'
-            }" 2>&1
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== Create AppLocker Policies ===`n`n$($output -join "`n")`n`n=== POLICIES CREATED ===`n`nCheck Outputs folder for policy XML files."
-            })
-        } catch {
-            $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "ERROR: $($_.Exception.Message)"
-            })
+    # Policy type from combobox
+    if ($AL_PolicyType -and $AL_PolicyType.SelectedItem) {
+        $policyType = $AL_PolicyType.SelectedItem.Content
+        if ($policyType -ne "Both") {
+            $params += "-AppLockerOrWDAC $policyType"
         }
-    })
-    $ps.Runspace = $runspace
-    $ps.BeginInvoke() | Out-Null
-})
-}
+    }
 
-# Create WDAC Policies - Generates Windows Defender Application Control policies
-if ($null -ne $AL_CreateWDACPolicies) {
-$AL_CreateWDACPolicies.Add_Click({
-    $scriptPath = Join-Path $script:AaronLockerRoot "Support\Create-Policies-WDAC.ps1"
-    $AL_OutputConsole.Text = "=== Create WDAC Policies ===`n`nGenerates Windows Defender Application Control (WDAC) policies.`nWDAC provides kernel-mode code integrity protection.`n`nRunning..."
+    if ($AL_PolicyRescan -and $AL_PolicyRescan.IsChecked) { $params += "-Rescan" }
+    if ($AL_PolicyExcel -and $AL_PolicyExcel.IsChecked) { $params += "-Excel" }
+    if ($AL_PolicyWDACMI -and $AL_PolicyWDACMI.IsChecked) { $params += "-WDACTrustManagedInstallers" }
+    if ($AL_PolicyWDACISG -and $AL_PolicyWDACISG.IsChecked) { $params += "-WDACTrustISG" }
+
+    $paramString = $params -join " "
+    $AL_OutputConsole.Text = "=== Create Policies ===`n`nParameters: $paramString`n`nGenerates Audit and Enforce policies based on:`n  - Scan results`n  - Trusted signers`n  - Safe paths`n  - Hash rules`n`nOutput saved to Outputs folder.`n`nRunning..."
 
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.Open()
     $runspace.SessionStateProxy.SetVariable("scriptPath", $scriptPath)
     $runspace.SessionStateProxy.SetVariable("rootDir", $script:AaronLockerRoot)
+    $runspace.SessionStateProxy.SetVariable("paramString", $paramString)
     $runspace.SessionStateProxy.SetVariable("outputConsole", $AL_OutputConsole)
     $runspace.SessionStateProxy.SetVariable("window", $window)
 
     $ps = [powershell]::Create().AddScript({
         try {
             $output = & powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "& {
-                `$rootDir = '$rootDir'
-                . '$rootDir\Support\Config.ps1'
-                . '$scriptPath'
+                Set-Location '$rootDir'
+                . '$scriptPath' $paramString
             }" 2>&1
             $window.Dispatcher.Invoke([action]{
-                $outputConsole.Text = "=== Create WDAC Policies ===`n`n$($output -join "`n")`n`n=== COMPLETE ==="
+                $outputConsole.Text = "=== Create Policies ===`n`n$($output -join "`n")`n`n=== POLICIES CREATED ===`n`nCheck Outputs folder for policy XML files."
             })
         } catch {
             $window.Dispatcher.Invoke([action]{
