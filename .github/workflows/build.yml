@@ -162,13 +162,33 @@ jobs:
           if (Test-Path "./AaronLocker-main") {
             Copy-Item -Path "./AaronLocker-main" -Destination "./output/AaronLocker-main" -Recurse -Force
             Write-Host "Copied AaronLocker scripts" -ForegroundColor Green
+
+            # Create required subdirectories that may not exist in git
+            $aaronLockerPath = "./output/AaronLocker-main/AaronLocker"
+            @("Outputs", "ScanResults") | ForEach-Object {
+              $subDir = Join-Path $aaronLockerPath $_
+              if (-not (Test-Path $subDir)) {
+                New-Item -ItemType Directory -Path $subDir -Force | Out-Null
+                Write-Host "Created directory: $_" -ForegroundColor Cyan
+              }
+            }
           } else {
             Write-Host "WARNING: AaronLocker-main not found - AaronLocker Tools page will not work" -ForegroundColor Yellow
           }
 
-      - name: Create batch launcher
+      - name: Copy AaronLocker GUI
         shell: pwsh
         run: |
+          $aaronLockerGui = "./build/AaronLocker-GUI.ps1"
+          if (Test-Path $aaronLockerGui) {
+            Copy-Item -Path $aaronLockerGui -Destination "./output/AaronLocker-GUI.ps1" -Force
+            Write-Host "Copied AaronLocker GUI" -ForegroundColor Green
+          }
+
+      - name: Create batch launchers
+        shell: pwsh
+        run: |
+          # Main GA-AppLocker launcher
           @'
           @echo off
           title GA-AppLocker Dashboard
@@ -181,7 +201,20 @@ jobs:
             pause
           )
           '@ | Out-File -FilePath "./output/Launch-GA-AppLocker.bat" -Encoding ASCII
-          Write-Host "Created batch launcher" -ForegroundColor Green
+          Write-Host "Created GA-AppLocker launcher" -ForegroundColor Green
+
+          # AaronLocker GUI launcher
+          @'
+          @echo off
+          title AaronLocker Tools
+          if exist "%~dp0AaronLocker-GUI.ps1" (
+            powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0AaronLocker-GUI.ps1"
+          ) else (
+            echo ERROR: AaronLocker-GUI.ps1 not found!
+            pause
+          )
+          '@ | Out-File -FilePath "./output/Launch-AaronLocker.bat" -Encoding ASCII
+          Write-Host "Created AaronLocker launcher" -ForegroundColor Green
 
       - name: Copy documentation
         shell: pwsh
