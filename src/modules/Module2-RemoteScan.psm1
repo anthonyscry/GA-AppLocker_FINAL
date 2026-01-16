@@ -356,144 +356,152 @@ function Test-ComputerOnline {
 .SYNOPSIS
     Scan Local Path for Executables
 .DESCRIPTION
-    Finds all EXE files in a folder and collects file information with PE detection (from AaronLocker)
+    Finds executable files in a folder using Get-AppLockerFileInformation (like AaronLocker).
+    Scans for EXE, DLL, MSI, and script files.
 .PARAMETER TargetPath
     The directory path to scan
 .PARAMETER MaxFiles
     Maximum number of files to return
 .PARAMETER IncludeUnsafe
     Include files from unsafe directories
+.PARAMETER Recurse
+    Recurse into subdirectories (default: true)
 #>
 function Get-ExecutableArtifacts {
     [CmdletBinding()]
     param(
+        [Alias('Path')]
         [string]$TargetPath = 'C:\Program Files',
         [int]$MaxFiles = 500,
-        [switch]$IncludeUnsafe
+        [switch]$IncludeUnsafe,
+        [switch]$Recurse = $true
     )
 
-    # Validate target path for directory traversal attacks
-    if ($TargetPath -match '\.\.\\|\.\./|:|\x00') {
-        return @{
-            success = $false
-            error = 'Invalid target path: path traversal patterns detected'
-            data = @()
-        }
-    }
-
-    # Ensure path is absolute
-    if (-not [System.IO.Path]::IsPathRooted($TargetPath)) {
-        return @{
-            success = $false
-            error = 'Invalid target path: must be an absolute path'
-            data = @()
-        }
+    # Validate target path
+    if ([string]::IsNullOrWhiteSpace($TargetPath)) {
+        return @()
     }
 
     if (-not (Test-Path $TargetPath)) {
-        return @{
-            success = $false
-            error = "Path not found: $TargetPath"
-            data = @()
-        }
+        return @()
     }
 
-    # Check directory safety classification (from AaronLocker)
-    $safetyClass = Get-DirectorySafetyClassification -DirectoryPath $TargetPath
-    if ($safetyClass -eq $script:UnsafeDir -and -not $IncludeUnsafe) {
-        return @{
-            success = $false
-            error = "Path is in unsafe directory: $TargetPath. Use -IncludeUnsafe to scan anyway."
-            data = @()
-            safetyClassification = $safetyClass
-        }
-    }
+    # File extensions to scan (from AaronLocker)
+    $executableExtensions = @('.exe', '.dll', '.com', '.ocx', '.msi', '.msp', '.mst', '.bat', '.cmd', '.ps1', '.vbs', '.js')
+
+    $results = @()
 
     try {
-        # Use safe directory scanning with junction handling (from AaronLocker)
-        $files = Get-DirectoryFilesSafe -Path $TargetPath -Extension @('.exe') -MaxFiles $MaxFiles
+        # Get files with executable extensions
+        $getChildParams = @{
+            Path = $TargetPath
+            File = $true
+            ErrorAction = 'SilentlyContinue'
+        }
+        if ($Recurse) {
+            $getChildParams.Recurse = $true
+        }
+
+        $files = Get-ChildItem @getChildParams | Where-Object {
+            $executableExtensions -contains $_.Extension.ToLower()
+        } | Select-Object -First $MaxFiles
 
         if (-not $files -or $files.Count -eq 0) {
-            return @{
-                success = $true
-                data = @()
-                message = "No executables found in $TargetPath"
-                safetyClassification = $safetyClass
-            }
+            return @()
         }
-
-        $results = @()
-        $filteredOut = 0
 
         foreach ($file in $files) {
+            if ($results.Count -ge $MaxFiles) { break }
+
             $filePath = $file.FullName
             $fileName = $file.Name
-            $parentDir = Split-Path -Parent $filePath
 
-            # Check parent directory safety
-            $parentSafety = Get-DirectorySafetyClassification -DirectoryPath $parentDir
-            if ($parentSafety -eq $script:UnsafeDir -and -not $IncludeUnsafe) {
-                $filteredOut++
-                continue
-            }
+            # Skip zero-length files (Get-AppLockerFileInformation fails on them)
+            if ($file.Length -eq 0) { continue }
 
-            # Use PE detection from AaronLocker to verify it's a real executable
-            $peType = IsWin32Executable -filename $filePath
-            if ($peType -ne 'EXE') {
-                # Skip non-EXE files (even if they have .exe extension)
-                continue
-            }
+            try {
+                # Use Get-AppLockerFileInformation like AaronLocker does
+                $alfi = Get-AppLockerFileInformation -Path $filePath -ErrorAction SilentlyContinue
 
-            # Get file hash
-            $hashResult = Get-FileHash -Path $filePath -Algorithm SHA256 -ErrorAction Stop
-            $hash = if ($hashResult) { $hashResult.Hash } else { '' }
+                $publisher = 'Unknown'
+                $productName = ''
+                $binaryName = ''
+                $version = ''
+                $hash = ''
 
-            # Get signature
-            $signature = Get-AuthenticodeSignature -FilePath $filePath -ErrorAction Stop
-            $publisher = 'Unknown'
-            $isSigned = $false
-            if ($signature -and $signature.SignerCertificate) {
-                $subject = $signature.SignerCertificate.Subject
-                if ($subject -match 'CN=([^,]+)') {
-                    $publisher = $matches[1]
+                if ($alfi) {
+                    # Get publisher info
+                    if ($alfi.Publisher) {
+                        $publisher = $alfi.Publisher.PublisherName
+                        $productName = $alfi.Publisher.ProductName
+                        $binaryName = $alfi.Publisher.BinaryName
+                        $version = if ($alfi.Publisher.BinaryVersion) { $alfi.Publisher.BinaryVersion.ToString() } else { '' }
+                    }
+                    # Get hash
+                    if ($alfi.Hash -and $alfi.Hash.HashDataString) {
+                        $hash = $alfi.Hash.HashDataString
+                    }
                 }
-                $isSigned = ($signature.Status -eq 'Valid')
+
+                # Fallback to manual methods if Get-AppLockerFileInformation didn't get everything
+                if ([string]::IsNullOrEmpty($hash)) {
+                    $hashResult = Get-FileHash -Path $filePath -Algorithm SHA256 -ErrorAction SilentlyContinue
+                    if ($hashResult) { $hash = $hashResult.Hash }
+                }
+
+                if ($publisher -eq 'Unknown' -or [string]::IsNullOrEmpty($publisher)) {
+                    $sig = Get-AuthenticodeSignature -FilePath $filePath -ErrorAction SilentlyContinue
+                    if ($sig -and $sig.SignerCertificate -and $sig.SignerCertificate.Subject) {
+                        if ($sig.SignerCertificate.Subject -match 'CN=([^,]+)') {
+                            $publisher = $matches[1]
+                        }
+                    }
+                }
+
+                if ([string]::IsNullOrEmpty($version)) {
+                    $version = $file.VersionInfo.FileVersion
+                }
+
+                # Determine file type
+                $fileType = switch ($file.Extension.ToLower()) {
+                    '.exe' { 'EXE' }
+                    '.dll' { 'DLL' }
+                    '.com' { 'EXE' }
+                    '.ocx' { 'DLL' }
+                    '.msi' { 'MSI' }
+                    '.msp' { 'MSI' }
+                    '.mst' { 'MSI' }
+                    '.bat' { 'Script' }
+                    '.cmd' { 'Script' }
+                    '.ps1' { 'Script' }
+                    '.vbs' { 'Script' }
+                    '.js'  { 'Script' }
+                    default { 'Unknown' }
+                }
+
+                $results += [PSCustomObject]@{
+                    FileName = $fileName
+                    Path = $filePath
+                    Publisher = if ($publisher) { $publisher } else { 'Unknown' }
+                    ProductName = $productName
+                    BinaryName = $binaryName
+                    Version = $version
+                    Hash = $hash
+                    Size = $file.Length
+                    FileType = $fileType
+                    ModifiedDate = $file.LastWriteTime
+                }
             }
-
-            $version = $file.VersionInfo.FileVersion
-
-            # Get generic path for portability (from AaronLocker)
-            $genericPath = ConvertTo-AppLockerGenericPath -FilePath $filePath
-
-            $results += @{
-                name = $fileName
-                path = $filePath
-                genericPath = $genericPath
-                hash = $hash
-                publisher = $publisher
-                isSigned = $isSigned
-                version = $version
-                size = $file.Length
-                safetyClassification = $parentSafety
-                peType = $peType
+            catch {
+                # Skip files that cause errors
+                continue
             }
         }
 
-        return @{
-            success = $true
-            data = $results
-            count = $results.Count
-            scannedPath = $TargetPath
-            safetyClassification = $safetyClass
-            filteredOut = $filteredOut
-        }
+        return $results
     }
     catch {
-        return @{
-            success = $false
-            error = $_.Exception.Message
-            data = @()
-        }
+        return @()
     }
 }
 
@@ -501,14 +509,22 @@ function Get-ExecutableArtifacts {
 .SYNOPSIS
     Scan Remote Computer for Artifacts
 .DESCRIPTION
-    Runs artifact scan on a remote computer via WinRM
+    Runs artifact scan on a remote computer via WinRM using Get-AppLockerFileInformation.
+    Scans for EXE, DLL, MSI, and script files (like AaronLocker).
+.PARAMETER ComputerName
+    Remote computer name
+.PARAMETER Credential
+    Optional credentials for remote access
+.PARAMETER MaxFiles
+    Maximum files to return per path (default: 100)
 #>
 function Get-RemoteArtifacts {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [string]$ComputerName,
-        [PSCredential]$Credential
+        [PSCredential]$Credential,
+        [int]$MaxFiles = 100
     )
 
     if ([string]::IsNullOrWhiteSpace($ComputerName)) {
@@ -530,26 +546,74 @@ function Get-RemoteArtifacts {
     }
 
     $scanScript = {
+        param($MaxFilesParam)
+
         $results = @()
-        $paths = @('C:\Program Files', 'C:\Program Files (x86)')
+        $paths = @('C:\Program Files', 'C:\Program Files (x86)', 'C:\ProgramData')
+        $executableExtensions = @('.exe', '.dll', '.msi', '.msp', '.bat', '.cmd', '.ps1', '.vbs')
 
         foreach ($path in $paths) {
-            if (Test-Path $path) {
-                $files = Get-ChildItem -Path $path -Recurse -Include *.exe -ErrorAction SilentlyContinue |
-                    Select-Object -First 50
+            if (-not (Test-Path $path)) { continue }
 
-                foreach ($file in $files) {
-                    $sig = Get-AuthenticodeSignature -FilePath $file.FullName -ErrorAction SilentlyContinue
+            $files = Get-ChildItem -Path $path -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $executableExtensions -contains $_.Extension.ToLower() } |
+                Select-Object -First $MaxFilesParam
+
+            foreach ($file in $files) {
+                if ($file.Length -eq 0) { continue }
+
+                try {
+                    # Use Get-AppLockerFileInformation like AaronLocker
+                    $alfi = Get-AppLockerFileInformation -Path $file.FullName -ErrorAction SilentlyContinue
+
                     $publisher = 'Unknown'
-                    if ($sig.SignerCertificate -and $sig.SignerCertificate.Subject -match 'CN=([^,]+)') {
-                        $publisher = $matches[1]
+                    $productName = ''
+                    $version = ''
+                    $hash = ''
+
+                    if ($alfi) {
+                        if ($alfi.Publisher) {
+                            $publisher = $alfi.Publisher.PublisherName
+                            $productName = $alfi.Publisher.ProductName
+                            $version = if ($alfi.Publisher.BinaryVersion) { $alfi.Publisher.BinaryVersion.ToString() } else { '' }
+                        }
+                        if ($alfi.Hash -and $alfi.Hash.HashDataString) {
+                            $hash = $alfi.Hash.HashDataString
+                        }
                     }
 
-                    $results += @{
-                        name = $file.Name
-                        path = $file.FullName
-                        publisher = $publisher
+                    # Fallback to signature if publisher not found
+                    if ($publisher -eq 'Unknown' -or [string]::IsNullOrEmpty($publisher)) {
+                        $sig = Get-AuthenticodeSignature -FilePath $file.FullName -ErrorAction SilentlyContinue
+                        if ($sig -and $sig.SignerCertificate -and $sig.SignerCertificate.Subject -match 'CN=([^,]+)') {
+                            $publisher = $matches[1]
+                        }
                     }
+
+                    # Determine file type
+                    $fileType = switch ($file.Extension.ToLower()) {
+                        '.exe' { 'EXE' }
+                        '.dll' { 'DLL' }
+                        '.msi' { 'MSI' }
+                        '.msp' { 'MSI' }
+                        { $_ -in '.bat', '.cmd', '.ps1', '.vbs' } { 'Script' }
+                        default { 'Unknown' }
+                    }
+
+                    $results += [PSCustomObject]@{
+                        FileName = $file.Name
+                        Path = $file.FullName
+                        Publisher = if ($publisher) { $publisher } else { 'Unknown' }
+                        ProductName = $productName
+                        Version = $version
+                        Hash = $hash
+                        Size = $file.Length
+                        FileType = $fileType
+                        ModifiedDate = $file.LastWriteTime
+                    }
+                }
+                catch {
+                    continue
                 }
             }
         }
@@ -558,17 +622,23 @@ function Get-RemoteArtifacts {
     }
 
     try {
+        $invokeParams = @{
+            ComputerName = $ComputerName
+            ScriptBlock = $scanScript
+            ArgumentList = @($MaxFiles)
+            ErrorAction = 'Stop'
+        }
+
         if ($Credential) {
-            $remoteResults = Invoke-Command -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scanScript -ErrorAction Stop
+            $invokeParams.Credential = $Credential
         }
-        else {
-            $remoteResults = Invoke-Command -ComputerName $ComputerName -ScriptBlock $scanScript -ErrorAction Stop
-        }
+
+        $remoteResults = Invoke-Command @invokeParams
 
         return @{
             success = $true
             data = $remoteResults
-            count = $remoteResults.Count
+            count = if ($remoteResults) { $remoteResults.Count } else { 0 }
             computerName = $ComputerName
         }
     }
