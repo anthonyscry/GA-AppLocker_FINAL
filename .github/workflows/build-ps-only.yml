@@ -67,29 +67,28 @@ jobs:
       - name: Create launcher script
         shell: pwsh
         run: |
-          # Create a simple launcher that calls the modular entry point
-          $launcher = @'
-# GA-AppLocker Launcher
-# This script launches the modular GUI application
-
-$ErrorActionPreference = "Stop"
-
-# Get the directory where this script is located
-$ScriptDir = $PSScriptRoot
-
-# Path to the modular entry point
-$EntryPoint = Join-Path $ScriptDir "src\GUI\Main\GA-AppLocker-GUI.ps1"
-
-if (-not (Test-Path $EntryPoint)) {
-    Write-Host "ERROR: Entry point not found: $EntryPoint" -ForegroundColor Red
-    Write-Host "Make sure the src folder is in the same directory as this script." -ForegroundColor Yellow
-    Read-Host "Press Enter to exit"
-    exit 1
-}
-
-# Launch the application
-& $EntryPoint
-'@
+          $launcher = @(
+            "# GA-AppLocker Launcher"
+            "# This script launches the modular GUI application"
+            ""
+            '$ErrorActionPreference = "Stop"'
+            ""
+            "# Get the directory where this script is located"
+            '$ScriptDir = $PSScriptRoot'
+            ""
+            "# Path to the modular entry point"
+            '$EntryPoint = Join-Path $ScriptDir "src\GUI\Main\GA-AppLocker-GUI.ps1"'
+            ""
+            'if (-not (Test-Path $EntryPoint)) {'
+            '    Write-Host "ERROR: Entry point not found: $EntryPoint" -ForegroundColor Red'
+            '    Write-Host "Make sure the src folder is in the same directory as this script." -ForegroundColor Yellow'
+            '    Read-Host "Press Enter to exit"'
+            "    exit 1"
+            "}"
+            ""
+            "# Launch the application"
+            '& $EntryPoint'
+          ) -join "`r`n"
           $launcher | Out-File -FilePath "./output/Launch-GA-AppLocker.ps1" -Encoding UTF8
           Write-Host "Created Launch-GA-AppLocker.ps1 launcher" -ForegroundColor Green
 
