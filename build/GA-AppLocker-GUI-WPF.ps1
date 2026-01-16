@@ -7958,168 +7958,434 @@ function Write-OutputLog {
     }
 }
 
-# Help content function
+# ============================================================================
+# HELP CONTENT FUNCTION
+# Provides user-friendly help documentation for GA-AppLocker Dashboard
+# ============================================================================
 function Get-HelpContent {
+    <#
+    .SYNOPSIS
+        Returns help content for the specified topic
+    .PARAMETER Topic
+        The help topic to retrieve (Workflow, Rules, Troubleshooting, WhatsNew, PolicyGuide)
+    #>
     param([string]$Topic)
 
     switch ($Topic) {
         "Workflow" {
             return @"
-=== APPLOCKER DEPLOYMENT WORKFLOW ===
 
-Phase 1: SETUP
-1. AppLocker Setup - Initialize AD structure
-   - Creates AppLocker OU and groups:
-     - AppLocker-Admins, AppLocker-StandardUsers
-     - AppLocker-Service-Accounts, AppLocker-Installers
-   - Sets Domain Admins as owner (for deletion)
-   - Click 'Remove OU Protection' if needed
+=============================================================================
+                    APPLOCKER DEPLOYMENT WORKFLOW
+=============================================================================
 
-2. Group Management - Configure AD groups
-   - Export current group membership to CSV
-   - Edit CSV to add/remove members
-   - Import changes (preview first, then apply)
+This guide walks you through the complete AppLocker deployment process.
 
-3. AD Discovery - Find target computers
-   - Shows Online/Offline in separate lists
-   - Select only online hosts for scanning
 
-Phase 2: SCANNING
-4. Artifacts - Collect executable inventory
-   - Scan Localhost - Quick local scan
-   - Comprehensive Scan - AaronLocker-style scan creates:
-     Executables.csv, Publishers.csv, InstalledSoftware.csv
-     RunningProcesses.csv, WritableDirectories.csv
-   - Output saved to C:\GA-AppLocker\Scans\
+PHASE 1: SETUP (Prepare Your Environment)
+---------------------------------------------------------------------------
 
-5. Rule Generator - Create AppLocker rules
-   - Import Artifact - Imports any CSV (scans or events)
-   - Import Folder - Recursively imports all CSVs
-   - Use Search/Filter to find specific artifacts
-   - Preview rules before export
+1. AppLocker Setup (AppLocker Setup Panel)
+
+   Purpose: Creates the Active Directory structure for AppLocker
+
+   What it does:
+   - Creates AppLocker OU with security groups
+   - Sets up: AppLocker-Admins, AppLocker-StandardUsers
+   - Sets up: AppLocker-Service-Accounts, AppLocker-Installers
+   - Configures Domain Admins as owner (for deletion access)
+
+   Required: Domain Administrator privileges
+
+   Tip: Click 'Remove OU Protection' if you need to delete the OU later
+
+
+2. Group Management (Group Management Panel)
+
+   Purpose: Configure who belongs to each AppLocker group
+
+   What it does:
+   - Export current group membership to CSV file
+   - Edit the CSV to add or remove members
+   - Import changes back to Active Directory
+   - Preview changes before applying
+
+   Tip: Always use the preview feature before importing!
+
+
+3. AD Discovery (AD Discovery Panel)
+
+   Purpose: Find target computers for AppLocker deployment
+
+   What it does:
+   - Scans Active Directory for all computers
+   - Separates computers into Online/Offline lists
+   - Tests connectivity to each computer
+
+   Tip: Select only online hosts for artifact scanning
+
+
+PHASE 2: SCANNING (Collect Software Inventory)
+---------------------------------------------------------------------------
+
+4. Artifact Collection (Artifacts Panel)
+
+   Purpose: Collect executable files from your environment
+
+   Scan Options:
+   - Scan Localhost: Quick scan of the local system
+   - Comprehensive Scan: AaronLocker-style deep scan that creates:
+     * Executables.csv - All executable files found
+     * Publishers.csv - Code signing information
+     * InstalledSoftware.csv - Programs from registry
+     * RunningProcesses.csv - Currently executing programs
+     * WritableDirectories.csv - User-writable locations
+
+   Output: C:\GA-AppLocker\Scans\
+
+
+5. Rule Generator (Rules Panel)
+
+   Purpose: Create AppLocker rules from collected artifacts
+
+   Import Options:
+   - Load Artifacts: Pull from Artifact Collection panel
+   - Load Events: Pull from Event Monitor panel
+   - Import File: Load a CSV file manually
+   - Import Folder: Load all CSVs from a folder
+
+   Configure:
+   - Type: Auto (recommended), Publisher, Hash, or Path
+   - Action: Allow or Deny
+   - Group: Which AD group receives this rule
 
    Rule Types:
-   - Auto (Recommended) - Publisher for signed, Hash for unsigned
-   - Publisher - Uses code signing certificate
-   - Hash - SHA256 hash (breaks on updates)
-   - Path - File path (least secure)
+   - Auto: Publisher for signed, Hash for unsigned (BEST)
+   - Publisher: Uses code signing certificate
+   - Hash: SHA256 hash (breaks on software updates)
+   - Path: File path (least secure, use sparingly)
 
-   - Select Allow/Deny and target AppLocker group
-   - Default Deny Rules - Block TEMP, Downloads, AppData
-   - One-Click Audit Toggle (Deployment panel)
+   Actions:
+   - Generate Rules: Create rules from artifacts
+   - Default Deny Rules: Block TEMP, Downloads, AppData
+   - Browser Deny Rules: Block browsers for admin accounts
 
-Phase 3: DEPLOYMENT
-6. Deployment - Deploy policies via GPO
-   - Create GPO - Creates and links AppLocker GPO
-   - Toggle Audit/Enforce - One-click mode switch
-   - Export Rules - Save to C:\GA-AppLocker\Rules\
-   - Import Rules - Load existing AppLocker XML
 
-7. WinRM Setup - Enable remote management
-   - Creates WinRM GPO with:
-     - Service auto-config, Basic auth, TrustedHosts *
-     - Firewall rules for ports 5985/5986
-   - Force GPUpdate - Push policy to all computers
-   - Enable/Disable GPO Link
+PHASE 3: DEPLOYMENT (Push Policies to Computers)
+---------------------------------------------------------------------------
 
-Phase 4: MONITORING
-8. Events - Monitor AppLocker events
-   - Scan Local/Remote for AppLocker events
-   - Quick Date Presets: Last Hour, Today, 7 Days, 30 Days
-   - Filter by Allowed (8002) / Audit (8003) / Blocked (8004)
-   - Export to CSV for analysis
-   - Import events into Rule Generator
+6. Deployment (Deployment Panel)
 
-9. Dashboard - Overview and statistics
-   - Mini Status Bar shows domain, artifact count, sync status
-   - Policy Health Score
-   - Event counts from C:\GA-AppLocker\Events\
-   - Filter by time range (7/30 days)
-   - Filter by computer system
+   Purpose: Deploy AppLocker policies via Group Policy
 
-10. Compliance - Generate evidence packages
-    - Creates timestamped folder with policies and events
-    - Ready for audit documentation
+   Actions:
+   - Create GPO: Creates new AppLocker GPO
+   - Toggle Audit/Enforce: Switch mode for all rules at once
+   - Export Rules: Save rules to C:\GA-AppLocker\Rules\
+   - Import Rules: Load existing AppLocker XML file
 
-BEST PRACTICES:
-- Always start in Audit mode (Event ID 8003)
-- Use Auto rule type (Publisher for signed, Hash for unsigned)
-- Add Default Deny Rules for bypass locations
-- Monitor events for 7-14 days before enforcing
-- Maintain break-glass admin access
-- Use Search/Filter for large artifact lists
-- Preview rules before export to verify structure
-- Use Quick Date Presets for fast event filtering
+   GPO Assignment:
+   - DCs: Domain Controllers GPO
+   - Servers: Member servers GPO
+   - Workstations: Workstations GPO
+
+
+7. WinRM Setup (WinRM Panel)
+
+   Purpose: Enable remote management for scanning
+
+   What it creates:
+   - WinRM GPO with service auto-configuration
+   - Basic authentication enabled
+   - TrustedHosts configured
+   - Firewall rules for ports 5985/5986
+
+   Actions:
+   - Force GPUpdate: Push policy to all computers
+   - Enable/Disable: Turn WinRM GPO link on or off
+
+
+PHASE 4: MONITORING (Track Effectiveness)
+---------------------------------------------------------------------------
+
+8. Event Monitor (Events Panel)
+
+   Purpose: Monitor AppLocker policy effectiveness
+
+   Actions:
+   - Scan Local/Remote: Collect AppLocker events
+   - Quick Date Filters: Last Hour, Today, 7 Days, 30 Days
+   - Filter by Type: Allowed (8002), Audit (8003), Blocked (8004)
+   - Export to CSV: Analyze events externally
+   - Import to Rules: Create rules from events
+
+   Event IDs:
+   - 8002: Allowed (policy allows execution)
+   - 8003: Audit (would be blocked in Enforce mode)
+   - 8004: Blocked (policy denies execution)
+
+
+9. Dashboard (Dashboard Panel)
+
+   Purpose: At-a-glance overview of your AppLocker environment
+
+   Shows:
+   - Mini Status Bar: Domain status, artifact count
+   - Policy Health Score: 0-100 based on configured rules
+   - Event Counts: From C:\GA-AppLocker\Events\
+   - Filters: By time range (7/30 days) and computer
+   - Charts: Visual representation of data
+
+
+10. Compliance (Compliance Panel)
+
+    Purpose: Generate audit evidence packages
+
+    Creates:
+    - Timestamped folder with all policies
+    - Event logs for specified time period
+    - Ready-to-export documentation
+
+
+BEST PRACTICES (Key Recommendations)
+---------------------------------------------------------------------------
+
+1. Always start in Audit mode (Event ID 8003)
+   - Monitor for 7-14 days before switching to Enforce
+   - Review Audit events to identify legitimate software
+
+2. Use Auto rule type (Publisher for signed, Hash for unsigned)
+   - Most resilient to software updates
+   - Reduces rule maintenance overhead
+
+3. Add Default Deny Rules for bypass locations
+   - Block TEMP, Downloads, AppData, user-writable paths
+   - Prevents living-off-the-land attacks
+
+4. Maintain break-glass admin access
+   - Keep a local admin account for emergencies
+   - Document all exceptions and justifications
+
+5. Use Search/Filter for large artifact lists
+   - Quickly find specific applications
+   - Reduce noise before generating rules
+
+6. Test with actual user accounts
+   - Verify rules work as expected
+   - Check for business process interruptions
+
+
+QUICK REFERENCE (Common Commands)
+---------------------------------------------------------------------------
+
+PowerShell Commands:
+- Get-AppLockerPolicy -Effective        (View current policy)
+- Get-WinEvent -LogName 'AppLocker/EXE and DLL'  (View events)
+- Test-AppLockerPolicy                   (Test policy against file)
+- gpupdate /force                         (Refresh Group Policy)
+- gpresult /r /scope computer             (Check applied GPOs)
+
+
+NEED MORE HELP?
+---------------------------------------------------------------------------
+
+- Check Application Logs: C:\GA-AppLocker\Logs\
+- Review Microsoft AppLocker documentation
+- Contact your security team
+- Open a support ticket
+
 "@
         }
         "Rules" {
             return @"
-=== APPLOCKER RULE BEST PRACTICES ===
 
-RULE TYPE PRIORITY (Highest to Lowest):
-1. Publisher Rules (Preferred)
-   - Most resilient to updates
-   - Covers all versions from publisher
-   - Example: Microsoft Corporation, Adobe Inc.
+=============================================================================
+                    APPLOCKER RULE BEST PRACTICES
+=============================================================================
 
-2. Hash Rules (Fallback for unsigned)
-   - Most specific but fragile
-   - Changes with each file update
-   - Use only for unsigned executables
-   - Example: SHA256 hash
+This guide explains how to create effective and secure AppLocker rules.
 
-3. Path Rules (Exceptions only)
-   - Too permissive, easily bypassed
-   - Use only for:
-     - Denying specific user-writable paths
-     - Allowing specific admin tools
-   - Example: %OSDRIVE%\Users\*\Downloads\*\*
 
-SECURITY PRINCIPLES:
-- DENY-FIRST MODEL
-  - Default deny all executables
-  - Explicitly allow only approved software
-  - Deny user-writable locations
+RULE TYPE PRIORITY (Use in this order)
+---------------------------------------------------------------------------
 
-- LEAST PRIVILEGE
-  - Different rules for different user groups
-  - AppLocker-Admin: Full allow
-  - AppLocker-StandardUsers: Restricted
-  - AppLocker-Dev: Development tools
+1. PUBLISHER RULES (Preferred - Use First)
 
-- AUDIT BEFORE ENFORCE
-  - Deploy in Audit mode first
-  - Monitor for 7-14 days
-  - Review and address false positives
-  - Switch to Enforce only after validation
+   Best For: Signed commercial software
 
-RULE COLLECTIONS TO CONFIGURE:
-- Executable (.exe, .com)
-- Script (.ps1, .bat, .cmd, .vbs)
-- Windows Installer (.msi, .msp)
-- DLL (optional - advanced)
-- Packaged Apps/MSIX (Windows 10+)
+   Advantages:
+   - Most resilient to software updates
+   - Covers all versions from a publisher
+   - Automatic version updates
 
-COMMON PITFALLS TO AVOID:
-- Using wildcards in path rules
-- Forgetting to update hash rules after updates
-- Not testing with actual user accounts
-- Skipping the audit phase
-- Forgetting service accounts
-- Not documenting exceptions
+   Example: Microsoft Corporation, Adobe Inc.
 
-GROUP STRATEGY:
-- AppLocker-Admin - Full system access
-- AppLocker-Installers - Software installation rights
-- AppLocker-StandardUsers - Restricted workstation users
-- AppLocker-Dev - Developer tools access
-- AppLocker-Deny-* - Explicit deny for risky paths
+   When to Use:
+   - All signed software from trusted vendors
+   - Microsoft Office, Adobe products, etc.
 
-ADMIN SECURITY:
-- Consider denying browsers for admin accounts
-- Admins should use separate workstations
-- Break-glass access for emergency situations
-- Document all exceptions and justifications
+
+2. HASH RULES (Fallback for Unsigned Software)
+
+   Best For: Unsigned executables only
+
+   Advantages:
+   - Most specific - exact file match
+   - Cannot be bypassed by file renaming
+
+   Disadvantages:
+   - Fragile - breaks on every file update
+   - High maintenance overhead
+
+   When to Use:
+   - Unsigned internal tools
+   - Legacy applications without signatures
+   - Temporary exceptions
+
+
+3. PATH RULES (Exceptions Only - Use with Caution)
+
+   Best For: Specific exception cases only
+
+   Disadvantages:
+   - Too permissive - easily bypassed
+   - Moving files bypasses rules
+   - Symbolic links can bypass rules
+
+   When to Use (Rarely):
+   - Denying specific user-writable paths (TEMP, Downloads)
+   - Allowing specific admin tools from fixed paths
+   - Temporary exceptions during testing
+
+   Example: %OSDRIVE%\Users\*\Downloads\*\*
+
+
+SECURITY PRINCIPLES (Core Concepts)
+---------------------------------------------------------------------------
+
+DENY-FIRST MODEL (Default Stance)
+  - Default deny: Block all executables by default
+  - Explicit allow: Only allow approved software
+  - Deny bypass locations: Block user-writable paths
+
+  This approach provides the strongest security posture.
+
+
+LEAST PRIVILEGE (User Groups)
+  - AppLocker-Admin: Full system access
+  - AppLocker-Installers: Software installation rights
+  - AppLocker-StandardUsers: Restricted workstation users
+  - AppLocker-Service-Accounts: Service account access
+  - AppLocker-Dev: Developer tools access
+
+  Different rules for different user groups reduces risk.
+
+
+AUDIT BEFORE ENFORCE (Deployment Process)
+  1. Deploy in Audit mode first
+  2. Monitor for 7-14 days minimum
+  3. Review and categorize events:
+     - Legitimate software: Add allow rules
+     - Unapproved software: Leave blocked
+     - False positives: Create exceptions
+  4. Switch to Enforce only after validation
+
+  Never skip the audit phase!
+
+
+RULE COLLECTIONS TO CONFIGURE
+---------------------------------------------------------------------------
+
+Required:
+- Executable (.exe, .com)           - Most important
+- Script (.ps1, .bat, .cmd, .vbs)   - PowerShell critical
+- Windows Installer (.msi, .msp)    - Software deployment
+
+Optional (Advanced):
+- DLL (.dll, .ocx)                  - High maintenance
+- Packaged Apps/MSIX                - Windows 10+ store apps
+
+
+COMMON MISTAKES TO AVOID
+---------------------------------------------------------------------------
+
+1. Using wildcards in path rules
+   - Bad: C:\Program Files\*\*
+   - Good: Specific publisher rules
+
+2. Forgetting to update hash rules after updates
+   - Set reminder to review hash rules monthly
+
+3. Not testing with actual user accounts
+   - Test with standard user, not admin
+
+4. Skipping the audit phase
+   - Always audit first, enforce later
+
+5. Forgetting service accounts
+   - Service accounts need special rules
+
+6. Not documenting exceptions
+   - Document why each exception exists
+
+
+GROUP STRATEGY RECOMMENDATIONS
+---------------------------------------------------------------------------
+
+AppLocker-Admin
+  - Purpose: Full system administration
+  - Access: Allow most executables
+  - Exceptions: May deny browsers, P2P software
+
+AppLocker-Installers
+  - Purpose: Software installation rights
+  - Access: Allow installers, updaters
+  - Scope: Limited to installation tasks
+
+AppLocker-StandardUsers
+  - Purpose: General workforce
+  - Access: Highly restricted
+  - Scope: Business applications only
+
+AppLocker-Service-Accounts
+  - Purpose: Running services
+  - Access: Specific service executables
+  - Scope: Minimal required access
+
+AppLocker-Dev
+  - Purpose: Software development
+  - Access: Development tools, compilers
+  - Scope: Development workstations only
+
+
+ADMIN ACCOUNT SECURITY
+---------------------------------------------------------------------------
+
+Recommendations:
+- Consider denying web browsers for admin accounts
+- Admins should use separate workstations for admin tasks
+- Maintain break-glass local admin for emergencies
+- Document all exceptions with justifications
+- Review admin exceptions quarterly
+
+
+RULE MAINTENANCE
+---------------------------------------------------------------------------
+
+Monthly:
+- Review hash rules for stale entries
+- Check for new software versions
+- Verify all exceptions are still needed
+
+Quarterly:
+- Full policy review and cleanup
+- Remove unused rules
+- Update documentation
+
+Annually:
+- Complete audit of all AppLocker policies
+- Compliance review and reporting
+
 "@
         }
         "Troubleshooting" {
