@@ -482,7 +482,8 @@ function Invoke-AaronLockerScript {
     param(
         [string]$ScriptName,
         [string]$ScriptPath,
-        [string]$Parameters = ""
+        [string]$Parameters = "",
+        [string]$OutputFile = ""  # Optional: save output to this file
     )
 
     if (-not (Test-AaronLockerExists)) { return }
@@ -492,7 +493,12 @@ function Invoke-AaronLockerScript {
         return
     }
 
-    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters`n`nA new Windows PowerShell 5.1 window will open..."
+    $outputMsg = ""
+    if ($OutputFile) {
+        $outputMsg = "`n`nOutput will be saved to:`n$OutputFile"
+    }
+
+    Write-Console "Launching: $ScriptName`n`nScript: $ScriptPath`nParameters: $Parameters$outputMsg`n`nA new Windows PowerShell 5.1 window will open..."
 
     # CRITICAL: Must use Windows PowerShell 5.1 (not PowerShell 7/Core)
     # AaronLocker scripts use -Encoding Byte which only works in Windows PowerShell 5.1
@@ -507,6 +513,12 @@ function Invoke-AaronLockerScript {
             [System.Windows.MessageBoxImage]::Error
         )
         return
+    }
+
+    # Build output redirection command if output file specified
+    $outputRedirect = ""
+    if ($OutputFile) {
+        $outputRedirect = " | Out-File -FilePath '$OutputFile' -Encoding UTF8"
     }
 
     # Build the command to run - verify PS version and language mode first, then run script
@@ -542,21 +554,12 @@ if (`$langMode -ne 'FullLanguage') {
     Write-Host ''
 }
 
-# Verify Get-Content supports -Encoding Byte (diagnostic)
-try {
-    `$testParams = (Get-Command Microsoft.PowerShell.Management\Get-Content).Parameters
-    if (-not `$testParams.ContainsKey('Encoding')) {
-        Write-Host 'ERROR: Get-Content cmdlet is missing -Encoding parameter!' -ForegroundColor Red
-        Write-Host 'This indicates a restricted PowerShell environment.' -ForegroundColor Red
-    }
-} catch {
-    Write-Host "Warning: Could not verify Get-Content parameters: `$_" -ForegroundColor Yellow
-}
-
 Write-Host ''
 Set-Location '$($script:AaronLockerRoot)'
-. '$ScriptPath' $Parameters
+$(if ($OutputFile) { "Write-Host 'Saving output to: $OutputFile' -ForegroundColor Yellow; Write-Host ''" })
+. '$ScriptPath' $Parameters$outputRedirect
 Write-Host ''
+$(if ($OutputFile) { "Write-Host 'Output saved to: $OutputFile' -ForegroundColor Green; Write-Host ''" })
 Write-Host '=== COMPLETE ===' -ForegroundColor Green
 Write-Host 'Press any key to close...'
 `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
@@ -595,16 +598,30 @@ $BtnScanDirectories.Add_Click({
     if ($ScanUserProfile.IsChecked) { $params += "-SearchOneUserProfile" }
     if ($ScanAllProfiles.IsChecked) { $params += "-SearchAllUserProfiles" }
     if ($ScanNonDefaultRoot.IsChecked) { $params += "-SearchNonDefaultRootDirs" }
-    if ($ScanExcel.IsChecked) { $params += "-Excel" }
-    if ($ScanGridView.IsChecked) { $params += "-GridView" }
 
-    # Need at least one scan option
-    if ($params.Count -eq 0 -or ($params.Count -eq 1 -and ($params[0] -eq "-Excel" -or $params[0] -eq "-GridView"))) {
+    # Check for Excel/GridView options
+    $hasExcel = $ScanExcel.IsChecked
+    $hasGridView = $ScanGridView.IsChecked
+
+    # Need at least one scan location (not just display options)
+    $scanParams = $params.Clone()
+    if ($scanParams.Count -eq 0) {
         Write-Console "Please select at least one directory to scan."
         return
     }
 
-    Invoke-AaronLockerScript -ScriptName "Scan Directories" -ScriptPath $scriptPath -Parameters ($params -join " ")
+    $outputFile = ""
+    if ($hasExcel) {
+        $params += "-Excel"
+    } elseif ($hasGridView) {
+        $params += "-GridView"
+    } else {
+        # Auto-save to CSV when no display option selected
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $outputFile = Join-Path $script:AaronLockerRoot "ScanResults\ScanDirectories-$timestamp.csv"
+    }
+
+    Invoke-AaronLockerScript -ScriptName "Scan Directories" -ScriptPath $scriptPath -Parameters ($params -join " ") -OutputFile $outputFile
 })
 
 # Get AppLocker Events
@@ -617,10 +634,18 @@ $BtnGetEvents.Add_Click({
     elseif ($EventsAllowedOnly.IsChecked) { $params += "-AllowedOnly" }
     elseif ($EventsAll.IsChecked) { $params += "-AllEvents" }
 
-    if ($EventsExcel.IsChecked) { $params += "-Excel" }
-    if ($EventsGridView.IsChecked) { $params += "-GridView" }
+    $outputFile = ""
+    if ($EventsExcel.IsChecked) {
+        $params += "-Excel"
+    } elseif ($EventsGridView.IsChecked) {
+        $params += "-GridView"
+    } else {
+        # Auto-save to CSV when no display option selected
+        $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
+        $outputFile = Join-Path $script:AaronLockerRoot "ScanResults\AppLockerEvents-$timestamp.csv"
+    }
 
-    Invoke-AaronLockerScript -ScriptName "Get AppLocker Events" -ScriptPath $scriptPath -Parameters ($params -join " ")
+    Invoke-AaronLockerScript -ScriptName "Get AppLocker Events" -ScriptPath $scriptPath -Parameters ($params -join " ") -OutputFile $outputFile
 })
 
 # Compare Policies
