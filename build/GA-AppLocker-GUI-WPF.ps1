@@ -10573,13 +10573,15 @@ $ScanDirectoriesBtn.Add_Click({
     Write-Log "Starting scan of $($directories.Count) directories with max files: $maxFiles"
     $ArtifactsList.Items.Clear()
     $RulesOutput.Text = "Starting scan...`n`nDirectories:`n$($directories -join "`n")`n`nThis runs in the background - UI will remain responsive."
-    $ScanLocalBtn.IsEnabled = $false
+    $ScanDirectoriesBtn.IsEnabled = $false
+    if ($null -ne $ScanLocalArtifactsBtn) { $ScanLocalArtifactsBtn.IsEnabled = $false }
 
     # Create a background Runspace for async scanning
     $syncHash = [hashtable]::Synchronized(@{})
     $syncHash.ArtifactsList = $ArtifactsList
     $syncHash.RulesOutput = $RulesOutput
     $syncHash.ScanDirectoriesBtn = $ScanDirectoriesBtn
+    $syncHash.ScanLocalArtifactsBtn = $ScanLocalArtifactsBtn
     $syncHash.Window = $window
     $syncHash.CollectedArtifacts = [System.Collections.ArrayList]::new()
     $syncHash.Directories = $directories
@@ -10696,6 +10698,7 @@ $ScanDirectoriesBtn.Add_Click({
 
                 $syncHash.RulesOutput.Text = "Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`n`nGo to Rule Generator to create rules from these artifacts."
                 $syncHash.ScanDirectoriesBtn.IsEnabled = $true
+                if ($null -ne $syncHash.ScanLocalArtifactsBtn) { $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true }
             })
 
             # Export artifacts to CSV automatically
@@ -10748,6 +10751,7 @@ $ScanDirectoriesBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("ERROR: $errorMsg")
                 $syncHash.RulesOutput.Text = "Scan failed: $errorMsg"
                 $syncHash.ScanDirectoriesBtn.IsEnabled = $true
+                if ($null -ne $syncHash.ScanLocalArtifactsBtn) { $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true }
             })
             Write-Log "Scan failed: $errorMsg" -Level "ERROR"
         }
@@ -10779,14 +10783,12 @@ $ScanLocalArtifactsBtn.Add_Click({
     $ArtifactsList.Items.Clear()
     $RulesOutput.Text = "Starting local scan...`n`nDirectories:`n$($directories -join "`n")`n`nThis runs in the background - UI will remain responsive."
     $ScanLocalArtifactsBtn.IsEnabled = $false
-    $ScanDirectoriesBtn.IsEnabled = $false
 
     # Create a background Runspace for async scanning
     $syncHash = [hashtable]::Synchronized(@{})
     $syncHash.ArtifactsList = $ArtifactsList
     $syncHash.RulesOutput = $RulesOutput
     $syncHash.ScanLocalArtifactsBtn = $ScanLocalArtifactsBtn
-    $syncHash.ScanDirectoriesBtn = $ScanDirectoriesBtn
     $syncHash.Window = $window
     $syncHash.CollectedArtifacts = [System.Collections.ArrayList]::new()
     $syncHash.Directories = $directories
@@ -10854,16 +10856,17 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $artifacts = Get-ExecutableArtifacts -Path $dir -MaxFiles $maxFiles -Recurse
 
                 foreach ($art in $artifacts) {
-                    # Normalize to standard artifact format
+                    # Normalize to standard artifact format (handle both lowercase and uppercase property names)
                     $normalized = @{
-                        name = if ($art.FileName) { $art.FileName } else { (Split-Path $art.Path -Leaf) }
-                        path = $art.Path
-                        publisher = if ($art.Publisher) { $art.Publisher } else { "Unknown" }
-                        hash = if ($art.Hash) { $art.Hash } else { "" }
-                        version = if ($art.Version) { $art.Version } else { "" }
-                        size = if ($art.Size) { $art.Size } else { 0 }
-                        modifiedDate = if ($art.ModifiedDate) { $art.ModifiedDate } else { (Get-Date) }
-                        fileType = if ($art.FileType) { $art.FileType } else { "EXE" }
+                        name = if ($art.name) { $art.name } elseif ($art.FileName) { $art.FileName } else { (Split-Path $art.path -Leaf) }
+                        path = if ($art.path) { $art.path } elseif ($art.Path) { $art.Path } else { "" }
+                        publisher = if ($art.publisher) { $art.publisher } elseif ($art.Publisher) { $art.Publisher } else { "Unknown" }
+                        hash = if ($art.hash) { $art.hash } elseif ($art.Hash) { $art.Hash } else { "" }
+                        version = if ($art.version) { $art.version } elseif ($art.Version) { $art.Version } else { "" }
+                        size = if ($art.size) { $art.size } elseif ($art.Size) { $art.Size } else { 0 }
+                        modifiedDate = if ($art.modifiedDate) { $art.modifiedDate } elseif ($art.ModifiedDate) { $art.ModifiedDate } else { (Get-Date) }
+                        fileType = if ($art.peType) { $art.peType } elseif ($art.fileType) { $art.fileType } elseif ($art.FileType) { $art.FileType } else { "EXE" }
+                        isSigned = if ($null -ne $art.isSigned) { $art.isSigned } else { $false }
                     }
                     [void]$allArtifacts.Add($normalized)
                 }
@@ -10897,7 +10900,6 @@ $ScanLocalArtifactsBtn.Add_Click({
 
                 $syncHash.RulesOutput.Text = "Local scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`n`nGo to Rule Generator to create rules from these artifacts."
                 $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
-                $syncHash.ScanDirectoriesBtn.IsEnabled = $true
             })
 
             # Export artifacts to CSV automatically
@@ -10950,7 +10952,6 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("ERROR: $errorMsg")
                 $syncHash.RulesOutput.Text = "Local scan failed: $errorMsg"
                 $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
-                $syncHash.ScanDirectoriesBtn.IsEnabled = $true
             })
             Write-Log "Local scan failed: $errorMsg" -Level "ERROR"
         }
