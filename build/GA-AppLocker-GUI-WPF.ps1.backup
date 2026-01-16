@@ -4513,7 +4513,7 @@ $xamlString = @"
                 <!-- Rules Panel -->
                 <StackPanel x:Name="PanelRules" Visibility="Collapsed">
                     <!-- Header -->
-                    <Grid Margin="0,0,0,15">
+                    <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -4526,9 +4526,9 @@ $xamlString = @"
                     </Grid>
 
                     <!-- Section 1: Configuration -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -4540,32 +4540,47 @@ $xamlString = @"
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Rule Type -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,0,8"/>
-                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
-                                    <RadioButton x:Name="RuleTypeAuto" Content="Auto (Recommended)" IsChecked="True"
-                                                 Foreground="#58A6FF" FontSize="12" Margin="0,0,20,0"/>
-                                    <RadioButton x:Name="RuleTypePublisher" Content="Publisher"
-                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
-                                    <RadioButton x:Name="RuleTypeHash" Content="Hash"
-                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
-                                    <RadioButton x:Name="RuleTypePath" Content="Path"
-                                                 Foreground="#E6EDF3" FontSize="12"/>
-                                </StackPanel>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,0,6"/>
+                                <ComboBox x:Name="RuleTypeCombo" Grid.Row="0" Grid.Column="1" Height="28" Width="200" HorizontalAlignment="Left" Margin="0,0,0,6"
+                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="12">
+                                    <ComboBoxItem Content="Auto (Recommended)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Publisher"/>
+                                    <ComboBoxItem Content="Hash"/>
+                                    <ComboBoxItem Content="Path"/>
+                                </ComboBox>
 
                                 <!-- Action & Group -->
                                 <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
                                     <StackPanel>
                                         <TextBlock Text="Action:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
-                                                         Foreground="#3FB950" FontSize="12" Margin="0,0,20,0"/>
-                                            <RadioButton x:Name="RuleActionDeny" Content="Deny"
-                                                         Foreground="#F85149" FontSize="12"/>
-                                        </StackPanel>
+                                        <ToggleButton x:Name="ActionToggle" Content="Allow" Width="150" Height="28" FontSize="12" FontWeight="SemiBold"
+                                                      Background="#238636" Foreground="#FFFFFF" BorderBrush="#30363D" BorderThickness="1">
+                                            <ToggleButton.Style>
+                                                <Style TargetType="ToggleButton">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ToggleButton">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsChecked" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#DA3633"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ToggleButton.Style>
+                                        </ToggleButton>
                                     </StackPanel>
-                                    <StackPanel Margin="30,0,0,0">
+                                    <StackPanel Margin="20,0,0,0">
                                         <TextBlock Text="Apply to Group:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                        <ComboBox x:Name="RuleGroupCombo" Height="30" MinWidth="220"
+                                        <ComboBox x:Name="RuleGroupCombo" Height="28" MinWidth="220"
                                                   Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="12">
                                             <ComboBoxItem Content="AppLocker-Admins" IsSelected="True"/>
                                             <ComboBoxItem Content="AppLocker-StandardUsers"/>
@@ -4579,12 +4594,12 @@ $xamlString = @"
                     </Border>
 
                     <!-- Section 2: Import Artifacts -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="Import Artifacts" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Import Artifacts" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
 
                             <!-- Quick Import -->
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
@@ -4620,8 +4635,6 @@ $xamlString = @"
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Button x:Name="ImportArtifactsBtn" Content="Import File" Grid.Column="0"
@@ -4636,16 +4649,14 @@ $xamlString = @"
                                     <ComboBoxItem Content="By Hash"/>
                                     <ComboBoxItem Content="By Path"/>
                                 </ComboBox>
-                                <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="8"
-                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0" MinWidth="100"/>
                             </Grid>
                         </StackPanel>
                     </Border>
 
                     <!-- Section 3: Generate Rules -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="Generate Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Generate Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -4665,26 +4676,29 @@ $xamlString = @"
                     </Border>
 
                     <!-- Section 4: Rules List -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
                         <StackPanel>
                             <!-- Header with count and actions -->
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Generated Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="RulesCountText" Grid.Column="2" Text="0 rules" FontSize="12" Foreground="#3FB950" VerticalAlignment="Center"/>
-                                <Button x:Name="DeleteRulesBtn" Content="Delete Selected" Grid.Column="5"
+                                <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="4"
+                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Padding="10,0" MinWidth="100"/>
+                                <Button x:Name="DeleteRulesBtn" Content="Delete Selected" Grid.Column="6"
                                         Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Background="#F85149" Padding="10,0" MinWidth="110"/>
                             </Grid>
 
                             <!-- Filter and Search -->
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="80"/>
                                     <ColumnDefinition Width="10"/>
@@ -4834,50 +4848,61 @@ $xamlString = @"
 
                     <!-- Event Filters - Row 2: Date Range and Search -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="35"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="130"/>
-                                <ColumnDefinition Width="20"/>
-                                <ColumnDefinition Width="25"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="130"/>
-                                <ColumnDefinition Width="20"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="Auto"/>
-                                <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <!-- Date Range Row -->
+                            <Grid Margin="0,0,0,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="125"/>
+                                    <ColumnDefinition Width="20"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="125"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="From:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                            <DatePicker x:Name="EventsDateFrom" Grid.Column="2" Height="30" FontSize="11"
-                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                       FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+                                <TextBlock Grid.Column="0" Text="From:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <DatePicker x:Name="EventsDateFrom" Grid.Column="2" Height="30" FontSize="11"
+                                           Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                           FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                            <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Center"/>
-                            <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
-                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                       FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+                                <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
+                                           Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                           FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+                            </Grid>
 
-                            <TextBlock Grid.Column="8" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            <TextBox x:Name="EventsFilterSearch" Grid.Column="10" Height="30" FontSize="11" Width="160"
-                                     Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                     Padding="8,4" Text="Search events..."/>
+                            <!-- Search and Actions Row -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                            <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="13"
-                                    Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
+                                    <TextBlock Grid.Column="0" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                                    <TextBox x:Name="EventsFilterSearch" Grid.Column="2" Height="30" FontSize="11"
+                                             Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                             Padding="8,4" Text="Search events..."/>
 
-                            <TextBlock x:Name="EventsFilterCount" Grid.Column="15" Text=""
-                                      FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="100"/>
+                                    <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="4"
+                                            Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
 
-                            <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="17" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
-                        </Grid>
+                                    <TextBlock x:Name="EventsFilterCount" Grid.Column="6" Text=""
+                                              FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="80"/>
+
+                                    <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="10" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
+                            </Grid>
+                        </StackPanel>
                     </Border>
 
                     <!-- Events Output -->
@@ -5917,277 +5942,532 @@ try {
 
 # Find controls
 $SidebarScrollViewer = $window.FindName("SidebarScrollViewer")
+if ($null -eq $SidebarScrollViewer) { Write-Log "WARNING: Control 'SidebarScrollViewer' not found in XAML" -Level "WARNING" }
 $NavDashboard = $window.FindName("NavDashboard")
+if ($null -eq $NavDashboard) { Write-Log "WARNING: Control 'NavDashboard' not found in XAML" -Level "WARNING" }
 $NavDiscovery = $window.FindName("NavDiscovery")
+if ($null -eq $NavDiscovery) { Write-Log "WARNING: Control 'NavDiscovery' not found in XAML" -Level "WARNING" }
 $NavArtifacts = $window.FindName("NavArtifacts")
+if ($null -eq $NavArtifacts) { Write-Log "WARNING: Control 'NavArtifacts' not found in XAML" -Level "WARNING" }
 $NavRules = $window.FindName("NavRules")
+if ($null -eq $NavRules) { Write-Log "WARNING: Control 'NavRules' not found in XAML" -Level "WARNING" }
 $NavDeployment = $window.FindName("NavDeployment")
+if ($null -eq $NavDeployment) { Write-Log "WARNING: Control 'NavDeployment' not found in XAML" -Level "WARNING" }
 $NavEvents = $window.FindName("NavEvents")
+if ($null -eq $NavEvents) { Write-Log "WARNING: Control 'NavEvents' not found in XAML" -Level "WARNING" }
 $NavCompliance = $window.FindName("NavCompliance")
+if ($null -eq $NavCompliance) { Write-Log "WARNING: Control 'NavCompliance' not found in XAML" -Level "WARNING" }
 $NavReports = $window.FindName("NavReports")
+if ($null -eq $NavReports) { Write-Log "WARNING: Control 'NavReports' not found in XAML" -Level "WARNING" }
 $NavWinRM = $window.FindName("NavWinRM")
+if ($null -eq $NavWinRM) { Write-Log "WARNING: Control 'NavWinRM' not found in XAML" -Level "WARNING" }
 $NavGroupMgmt = $window.FindName("NavGroupMgmt")
+if ($null -eq $NavGroupMgmt) { Write-Log "WARNING: Control 'NavGroupMgmt' not found in XAML" -Level "WARNING" }
 $NavAppLockerSetup = $window.FindName("NavAppLockerSetup")
+if ($null -eq $NavAppLockerSetup) { Write-Log "WARNING: Control 'NavAppLockerSetup' not found in XAML" -Level "WARNING" }
 $NavGapAnalysis = $window.FindName("NavGapAnalysis")
+if ($null -eq $NavGapAnalysis) { Write-Log "WARNING: Control 'NavGapAnalysis' not found in XAML" -Level "WARNING" }
 $NavSaveWorkspace = $window.FindName("NavSaveWorkspace")
+if ($null -eq $NavSaveWorkspace) { Write-Log "WARNING: Control 'NavSaveWorkspace' not found in XAML" -Level "WARNING" }
 $NavLoadWorkspace = $window.FindName("NavLoadWorkspace")
+if ($null -eq $NavLoadWorkspace) { Write-Log "WARNING: Control 'NavLoadWorkspace' not found in XAML" -Level "WARNING" }
 $NavHelp = $window.FindName("NavHelp")
+if ($null -eq $NavHelp) { Write-Log "WARNING: Control 'NavHelp' not found in XAML" -Level "WARNING" }
 $NavAbout = $window.FindName("NavAbout")
+if ($null -eq $NavAbout) { Write-Log "WARNING: Control 'NavAbout' not found in XAML" -Level "WARNING" }
 
 # Expander controls
 $SetupSection = $window.FindName("SetupSection")
+if ($null -eq $SetupSection) { Write-Log "WARNING: Control 'SetupSection' not found in XAML" -Level "WARNING" }
 $ScanningSection = $window.FindName("ScanningSection")
+if ($null -eq $ScanningSection) { Write-Log "WARNING: Control 'ScanningSection' not found in XAML" -Level "WARNING" }
 $DeploymentSection = $window.FindName("DeploymentSection")
+if ($null -eq $DeploymentSection) { Write-Log "WARNING: Control 'DeploymentSection' not found in XAML" -Level "WARNING" }
 $MonitoringSection = $window.FindName("MonitoringSection")
+if ($null -eq $MonitoringSection) { Write-Log "WARNING: Control 'MonitoringSection' not found in XAML" -Level "WARNING" }
 # Arrow controls removed - using default expander style
 
 $StatusText = $window.FindName("StatusText")
+if ($null -eq $StatusText) { Write-Log "WARNING: Control 'StatusText' not found in XAML" -Level "WARNING" }
 $EnvironmentText = $window.FindName("EnvironmentText")
+if ($null -eq $EnvironmentText) { Write-Log "WARNING: Control 'EnvironmentText' not found in XAML" -Level "WARNING" }
 $EnvironmentBanner = $window.FindName("EnvironmentBanner")
+if ($null -eq $EnvironmentBanner) { Write-Log "WARNING: Control 'EnvironmentBanner' not found in XAML" -Level "WARNING" }
 
 # QoL: Mini Status Bar controls
 $MiniStatusDomain = $window.FindName("MiniStatusDomain")
+if ($null -eq $MiniStatusDomain) { Write-Log "WARNING: Control 'MiniStatusDomain' not found in XAML" -Level "WARNING" }
 $MiniStatusArtifacts = $window.FindName("MiniStatusArtifacts")
+if ($null -eq $MiniStatusArtifacts) { Write-Log "WARNING: Control 'MiniStatusArtifacts' not found in XAML" -Level "WARNING" }
 $MiniStatusSync = $window.FindName("MiniStatusSync")
+if ($null -eq $MiniStatusSync) { Write-Log "WARNING: Control 'MiniStatusSync' not found in XAML" -Level "WARNING" }
 
 $PanelDashboard = $window.FindName("PanelDashboard")
+if ($null -eq $PanelDashboard) { Write-Log "WARNING: Control 'PanelDashboard' not found in XAML" -Level "WARNING" }
 $PanelDiscovery = $window.FindName("PanelDiscovery")
+if ($null -eq $PanelDiscovery) { Write-Log "WARNING: Control 'PanelDiscovery' not found in XAML" -Level "WARNING" }
 $PanelArtifacts = $window.FindName("PanelArtifacts")
+if ($null -eq $PanelArtifacts) { Write-Log "WARNING: Control 'PanelArtifacts' not found in XAML" -Level "WARNING" }
 $PanelRules = $window.FindName("PanelRules")
+if ($null -eq $PanelRules) { Write-Log "WARNING: Control 'PanelRules' not found in XAML" -Level "WARNING" }
 $PanelDeployment = $window.FindName("PanelDeployment")
+if ($null -eq $PanelDeployment) { Write-Log "WARNING: Control 'PanelDeployment' not found in XAML" -Level "WARNING" }
 $PanelEvents = $window.FindName("PanelEvents")
+if ($null -eq $PanelEvents) { Write-Log "WARNING: Control 'PanelEvents' not found in XAML" -Level "WARNING" }
 $PanelCompliance = $window.FindName("PanelCompliance")
+if ($null -eq $PanelCompliance) { Write-Log "WARNING: Control 'PanelCompliance' not found in XAML" -Level "WARNING" }
 $PanelReports = $window.FindName("PanelReports")
+if ($null -eq $PanelReports) { Write-Log "WARNING: Control 'PanelReports' not found in XAML" -Level "WARNING" }
 $PanelWinRM = $window.FindName("PanelWinRM")
+if ($null -eq $PanelWinRM) { Write-Log "WARNING: Control 'PanelWinRM' not found in XAML" -Level "WARNING" }
 $PanelGroupMgmt = $window.FindName("PanelGroupMgmt")
+if ($null -eq $PanelGroupMgmt) { Write-Log "WARNING: Control 'PanelGroupMgmt' not found in XAML" -Level "WARNING" }
 $PanelAppLockerSetup = $window.FindName("PanelAppLockerSetup")
+if ($null -eq $PanelAppLockerSetup) { Write-Log "WARNING: Control 'PanelAppLockerSetup' not found in XAML" -Level "WARNING" }
 $PanelGapAnalysis = $window.FindName("PanelGapAnalysis")
+if ($null -eq $PanelGapAnalysis) { Write-Log "WARNING: Control 'PanelGapAnalysis' not found in XAML" -Level "WARNING" }
 $PanelHelp = $window.FindName("PanelHelp")
+if ($null -eq $PanelHelp) { Write-Log "WARNING: Control 'PanelHelp' not found in XAML" -Level "WARNING" }
 $PanelAbout = $window.FindName("PanelAbout")
+if ($null -eq $PanelAbout) { Write-Log "WARNING: Control 'PanelAbout' not found in XAML" -Level "WARNING" }
 
 # Phase 5: Templates controls
 $PanelTemplates = $window.FindName("PanelTemplates")
+if ($null -eq $PanelTemplates) { Write-Log "WARNING: Control 'PanelTemplates' not found in XAML" -Level "WARNING" }
 $NavTemplates = $window.FindName("NavTemplates")
+if ($null -eq $NavTemplates) { Write-Log "WARNING: Control 'NavTemplates' not found in XAML" -Level "WARNING" }
 $NavRuleWizard = $window.FindName("NavRuleWizard")
+if ($null -eq $NavRuleWizard) { Write-Log "WARNING: Control 'NavRuleWizard' not found in XAML" -Level "WARNING" }
 $NavCreateTemplate = $window.FindName("NavCreateTemplate")
+if ($null -eq $NavCreateTemplate) { Write-Log "WARNING: Control 'NavCreateTemplate' not found in XAML" -Level "WARNING" }
 $NavImportTemplate = $window.FindName("NavImportTemplate")
+if ($null -eq $NavImportTemplate) { Write-Log "WARNING: Control 'NavImportTemplate' not found in XAML" -Level "WARNING" }
 $TemplatesSection = $window.FindName("TemplatesSection")
+if ($null -eq $TemplatesSection) { Write-Log "WARNING: Control 'TemplatesSection' not found in XAML" -Level "WARNING" }
 $TemplatesList = $window.FindName("TemplatesList")
+if ($null -eq $TemplatesList) { Write-Log "WARNING: Control 'TemplatesList' not found in XAML" -Level "WARNING" }
 $TemplateSearch = $window.FindName("TemplateSearch")
+if ($null -eq $TemplateSearch) { Write-Log "WARNING: Control 'TemplateSearch' not found in XAML" -Level "WARNING" }
 $TemplateCategoryFilter = $window.FindName("TemplateCategoryFilter")
+if ($null -eq $TemplateCategoryFilter) { Write-Log "WARNING: Control 'TemplateCategoryFilter' not found in XAML" -Level "WARNING" }
 $TemplateName = $window.FindName("TemplateName")
+if ($null -eq $TemplateName) { Write-Log "WARNING: Control 'TemplateName' not found in XAML" -Level "WARNING" }
 $TemplateCategory = $window.FindName("TemplateCategory")
+if ($null -eq $TemplateCategory) { Write-Log "WARNING: Control 'TemplateCategory' not found in XAML" -Level "WARNING" }
 $TemplateDescription = $window.FindName("TemplateDescription")
+if ($null -eq $TemplateDescription) { Write-Log "WARNING: Control 'TemplateDescription' not found in XAML" -Level "WARNING" }
 $TemplateRulesSummary = $window.FindName("TemplateRulesSummary")
+if ($null -eq $TemplateRulesSummary) { Write-Log "WARNING: Control 'TemplateRulesSummary' not found in XAML" -Level "WARNING" }
 $TemplateApplications = $window.FindName("TemplateApplications")
+if ($null -eq $TemplateApplications) { Write-Log "WARNING: Control 'TemplateApplications' not found in XAML" -Level "WARNING" }
 $ApplyTemplateBtn = $window.FindName("ApplyTemplateBtn")
+if ($null -eq $ApplyTemplateBtn) { Write-Log "WARNING: Control 'ApplyTemplateBtn' not found in XAML" -Level "WARNING" }
 $EditTemplateBtn = $window.FindName("EditTemplateBtn")
+if ($null -eq $EditTemplateBtn) { Write-Log "WARNING: Control 'EditTemplateBtn' not found in XAML" -Level "WARNING" }
 $DeleteTemplateBtn = $window.FindName("DeleteTemplateBtn")
+if ($null -eq $DeleteTemplateBtn) { Write-Log "WARNING: Control 'DeleteTemplateBtn' not found in XAML" -Level "WARNING" }
 $ExportTemplateBtn = $window.FindName("ExportTemplateBtn")
+if ($null -eq $ExportTemplateBtn) { Write-Log "WARNING: Control 'ExportTemplateBtn' not found in XAML" -Level "WARNING" }
 $RefreshTemplatesBtn = $window.FindName("RefreshTemplatesBtn")
+if ($null -eq $RefreshTemplatesBtn) { Write-Log "WARNING: Control 'RefreshTemplatesBtn' not found in XAML" -Level "WARNING" }
 
 # Dashboard controls
 $HealthScore = $window.FindName("HealthScore")
+if ($null -eq $HealthScore) { Write-Log "WARNING: Control 'HealthScore' not found in XAML" -Level "WARNING" }
 $HealthStatus = $window.FindName("HealthStatus")
+if ($null -eq $HealthStatus) { Write-Log "WARNING: Control 'HealthStatus' not found in XAML" -Level "WARNING" }
 $TotalEvents = $window.FindName("TotalEvents")
+if ($null -eq $TotalEvents) { Write-Log "WARNING: Control 'TotalEvents' not found in XAML" -Level "WARNING" }
 $EventsStatus = $window.FindName("EventsStatus")
+if ($null -eq $EventsStatus) { Write-Log "WARNING: Control 'EventsStatus' not found in XAML" -Level "WARNING" }
 $AllowedEvents = $window.FindName("AllowedEvents")
+if ($null -eq $AllowedEvents) { Write-Log "WARNING: Control 'AllowedEvents' not found in XAML" -Level "WARNING" }
 $AuditedEvents = $window.FindName("AuditedEvents")
+if ($null -eq $AuditedEvents) { Write-Log "WARNING: Control 'AuditedEvents' not found in XAML" -Level "WARNING" }
 $BlockedEvents = $window.FindName("BlockedEvents")
+if ($null -eq $BlockedEvents) { Write-Log "WARNING: Control 'BlockedEvents' not found in XAML" -Level "WARNING" }
 $DashboardTimeFilter = $window.FindName("DashboardTimeFilter")
+if ($null -eq $DashboardTimeFilter) { Write-Log "WARNING: Control 'DashboardTimeFilter' not found in XAML" -Level "WARNING" }
 $DashboardSystemFilter = $window.FindName("DashboardSystemFilter")
+if ($null -eq $DashboardSystemFilter) { Write-Log "WARNING: Control 'DashboardSystemFilter' not found in XAML" -Level "WARNING" }
 $RefreshDashboardBtn = $window.FindName("RefreshDashboardBtn")
+if ($null -eq $RefreshDashboardBtn) { Write-Log "WARNING: Control 'RefreshDashboardBtn' not found in XAML" -Level "WARNING" }
 $DashboardOutput = $window.FindName("DashboardOutput")
+if ($null -eq $DashboardOutput) { Write-Log "WARNING: Control 'DashboardOutput' not found in XAML" -Level "WARNING" }
 
 # Dashboard Chart controls (Phase 4)
 $PieAllowed = $window.FindName("PieAllowed")
+if ($null -eq $PieAllowed) { Write-Log "WARNING: Control 'PieAllowed' not found in XAML" -Level "WARNING" }
 $PieAudited = $window.FindName("PieAudited")
+if ($null -eq $PieAudited) { Write-Log "WARNING: Control 'PieAudited' not found in XAML" -Level "WARNING" }
 $PieBlocked = $window.FindName("PieBlocked")
+if ($null -eq $PieBlocked) { Write-Log "WARNING: Control 'PieBlocked' not found in XAML" -Level "WARNING" }
 $GaugeBackground = $window.FindName("GaugeBackground")
+if ($null -eq $GaugeBackground) { Write-Log "WARNING: Control 'GaugeBackground' not found in XAML" -Level "WARNING" }
 $GaugeFill = $window.FindName("GaugeFill")
+if ($null -eq $GaugeFill) { Write-Log "WARNING: Control 'GaugeFill' not found in XAML" -Level "WARNING" }
 $BarWorkstations = $window.FindName("BarWorkstations")
+if ($null -eq $BarWorkstations) { Write-Log "WARNING: Control 'BarWorkstations' not found in XAML" -Level "WARNING" }
 $BarServers = $window.FindName("BarServers")
+if ($null -eq $BarServers) { Write-Log "WARNING: Control 'BarServers' not found in XAML" -Level "WARNING" }
 $BarDCs = $window.FindName("BarDCs")
+if ($null -eq $BarDCs) { Write-Log "WARNING: Control 'BarDCs' not found in XAML" -Level "WARNING" }
 $TrendChartCanvas = $window.FindName("TrendChartCanvas")
+if ($null -eq $TrendChartCanvas) { Write-Log "WARNING: Control 'TrendChartCanvas' not found in XAML" -Level "WARNING" }
 
 # GPO Quick Assignment controls
 $DCGPOStatus = $window.FindName("DCGPOStatus")
+if ($null -eq $DCGPOStatus) { Write-Log "WARNING: Control 'DCGPOStatus' not found in XAML" -Level "WARNING" }
 $ServersGPOStatus = $window.FindName("ServersGPOStatus")
+if ($null -eq $ServersGPOStatus) { Write-Log "WARNING: Control 'ServersGPOStatus' not found in XAML" -Level "WARNING" }
 $WorkstationsGPOStatus = $window.FindName("WorkstationsGPOStatus")
+if ($null -eq $WorkstationsGPOStatus) { Write-Log "WARNING: Control 'WorkstationsGPOStatus' not found in XAML" -Level "WARNING" }
 $DCGPOPhase = $window.FindName("DCGPOPhase")
+if ($null -eq $DCGPOPhase) { Write-Log "WARNING: Control 'DCGPOPhase' not found in XAML" -Level "WARNING" }
 $DCGPOMode = $window.FindName("DCGPOMode")
+if ($null -eq $DCGPOMode) { Write-Log "WARNING: Control 'DCGPOMode' not found in XAML" -Level "WARNING" }
 $ServersGPOPhase = $window.FindName("ServersGPOPhase")
+if ($null -eq $ServersGPOPhase) { Write-Log "WARNING: Control 'ServersGPOPhase' not found in XAML" -Level "WARNING" }
 $ServersGPOMode = $window.FindName("ServersGPOMode")
+if ($null -eq $ServersGPOMode) { Write-Log "WARNING: Control 'ServersGPOMode' not found in XAML" -Level "WARNING" }
 $WorkstationsGPOPhase = $window.FindName("WorkstationsGPOPhase")
+if ($null -eq $WorkstationsGPOPhase) { Write-Log "WARNING: Control 'WorkstationsGPOPhase' not found in XAML" -Level "WARNING" }
 $WorkstationsGPOMode = $window.FindName("WorkstationsGPOMode")
+if ($null -eq $WorkstationsGPOMode) { Write-Log "WARNING: Control 'WorkstationsGPOMode' not found in XAML" -Level "WARNING" }
 $CreateGPOsBtn = $window.FindName("CreateGPOsBtn")
+if ($null -eq $CreateGPOsBtn) { Write-Log "WARNING: Control 'CreateGPOsBtn' not found in XAML" -Level "WARNING" }
 $ApplyGPOSettingsBtn = $window.FindName("ApplyGPOSettingsBtn")
+if ($null -eq $ApplyGPOSettingsBtn) { Write-Log "WARNING: Control 'ApplyGPOSettingsBtn' not found in XAML" -Level "WARNING" }
 $LinkGPOsBtn = $window.FindName("LinkGPOsBtn")
+if ($null -eq $LinkGPOsBtn) { Write-Log "WARNING: Control 'LinkGPOsBtn' not found in XAML" -Level "WARNING" }
 
 # Other controls
 $MaxFilesText = $window.FindName("MaxFilesText")
+if ($null -eq $MaxFilesText) { Write-Log "WARNING: Control 'MaxFilesText' not found in XAML" -Level "WARNING" }
 $ScanDirectoriesBtn = $window.FindName("ScanDirectoriesBtn")
+if ($null -eq $ScanDirectoriesBtn) { Write-Log "WARNING: Control 'ScanDirectoriesBtn' not found in XAML" -Level "WARNING" }
 $DirectoryList = $window.FindName("DirectoryList")
+if ($null -eq $DirectoryList) { Write-Log "WARNING: Control 'DirectoryList' not found in XAML" -Level "WARNING" }
 $ArtifactsList = $window.FindName("ArtifactsList")
+if ($null -eq $ArtifactsList) { Write-Log "WARNING: Control 'ArtifactsList' not found in XAML" -Level "WARNING" }
 # Artifact Local Scan controls
 $ScanLocalArtifactsBtn = $window.FindName("ScanLocalArtifactsBtn")
+if ($null -eq $ScanLocalArtifactsBtn) { Write-Log "WARNING: Control 'ScanLocalArtifactsBtn' not found in XAML" -Level "WARNING" }
 $RuleTypeAuto = $window.FindName("RuleTypeAuto")
+if ($null -eq $RuleTypeAuto) { Write-Log "WARNING: Control 'RuleTypeAuto' not found in XAML" -Level "WARNING" }
 $RuleTypePublisher = $window.FindName("RuleTypePublisher")
+if ($null -eq $RuleTypePublisher) { Write-Log "WARNING: Control 'RuleTypePublisher' not found in XAML" -Level "WARNING" }
 $RuleTypeHash = $window.FindName("RuleTypeHash")
+if ($null -eq $RuleTypeHash) { Write-Log "WARNING: Control 'RuleTypeHash' not found in XAML" -Level "WARNING" }
 $RuleTypePath = $window.FindName("RuleTypePath")
+if ($null -eq $RuleTypePath) { Write-Log "WARNING: Control 'RuleTypePath' not found in XAML" -Level "WARNING" }
 $RuleActionAllow = $window.FindName("RuleActionAllow")
+if ($null -eq $RuleActionAllow) { Write-Log "WARNING: Control 'RuleActionAllow' not found in XAML" -Level "WARNING" }
 $RuleActionDeny = $window.FindName("RuleActionDeny")
+if ($null -eq $RuleActionDeny) { Write-Log "WARNING: Control 'RuleActionDeny' not found in XAML" -Level "WARNING" }
 $RuleGroupCombo = $window.FindName("RuleGroupCombo")
+if ($null -eq $RuleGroupCombo) { Write-Log "WARNING: Control 'RuleGroupCombo' not found in XAML" -Level "WARNING" }
 $CustomSidPanel = $window.FindName("CustomSidPanel")
+if ($null -eq $CustomSidPanel) { Write-Log "WARNING: Control 'CustomSidPanel' not found in XAML" -Level "WARNING" }
 $CustomSidText = $window.FindName("CustomSidText")
+if ($null -eq $CustomSidText) { Write-Log "WARNING: Control 'CustomSidText' not found in XAML" -Level "WARNING" }
 $ImportArtifactsBtn = $window.FindName("ImportArtifactsBtn")
+if ($null -eq $ImportArtifactsBtn) { Write-Log "WARNING: Control 'ImportArtifactsBtn' not found in XAML" -Level "WARNING" }
 $ImportFolderBtn = $window.FindName("ImportFolderBtn")
+if ($null -eq $ImportFolderBtn) { Write-Log "WARNING: Control 'ImportFolderBtn' not found in XAML" -Level "WARNING" }
 $MergeRulesBtn = $window.FindName("MergeRulesBtn")
+if ($null -eq $MergeRulesBtn) { Write-Log "WARNING: Control 'MergeRulesBtn' not found in XAML" -Level "WARNING" }
 $GenerateRulesBtn = $window.FindName("GenerateRulesBtn")
+if ($null -eq $GenerateRulesBtn) { Write-Log "WARNING: Control 'GenerateRulesBtn' not found in XAML" -Level "WARNING" }
 $DefaultDenyRulesBtn = $window.FindName("DefaultDenyRulesBtn")
+if ($null -eq $DefaultDenyRulesBtn) { Write-Log "WARNING: Control 'DefaultDenyRulesBtn' not found in XAML" -Level "WARNING" }
 $RulesOutput = $window.FindName("RulesOutput")
+if ($null -eq $RulesOutput) { Write-Log "WARNING: Control 'RulesOutput' not found in XAML" -Level "WARNING" }
 # Quick Import controls
 $LoadCollectedArtifactsBtn = $window.FindName("LoadCollectedArtifactsBtn")
+if ($null -eq $LoadCollectedArtifactsBtn) { Write-Log "WARNING: Control 'LoadCollectedArtifactsBtn' not found in XAML" -Level "WARNING" }
 $LoadCollectedEventsBtn = $window.FindName("LoadCollectedEventsBtn")
+if ($null -eq $LoadCollectedEventsBtn) { Write-Log "WARNING: Control 'LoadCollectedEventsBtn' not found in XAML" -Level "WARNING" }
 $ArtifactCountBadge = $window.FindName("ArtifactCountBadge")
+if ($null -eq $ArtifactCountBadge) { Write-Log "WARNING: Control 'ArtifactCountBadge' not found in XAML" -Level "WARNING" }
 $EventCountBadge = $window.FindName("EventCountBadge")
+if ($null -eq $EventCountBadge) { Write-Log "WARNING: Control 'EventCountBadge' not found in XAML" -Level "WARNING" }
 # Data Management controls
 $DedupeTypeCombo = $window.FindName("DedupeTypeCombo")
+if ($null -eq $DedupeTypeCombo) { Write-Log "WARNING: Control 'DedupeTypeCombo' not found in XAML" -Level "WARNING" }
 $DedupeBtn = $window.FindName("DedupeBtn")
+if ($null -eq $DedupeBtn) { Write-Log "WARNING: Control 'DedupeBtn' not found in XAML" -Level "WARNING" }
 $ExportArtifactsListBtn = $window.FindName("ExportArtifactsListBtn")
+if ($null -eq $ExportArtifactsListBtn) { Write-Log "WARNING: Control 'ExportArtifactsListBtn' not found in XAML" -Level "WARNING" }
 # Rules DataGrid controls
 $RulesDataGrid = $window.FindName("RulesDataGrid")
+if ($null -eq $RulesDataGrid) { Write-Log "WARNING: Control 'RulesDataGrid' not found in XAML" -Level "WARNING" }
 $RulesCountText = $window.FindName("RulesCountText")
+if ($null -eq $RulesCountText) { Write-Log "WARNING: Control 'RulesCountText' not found in XAML" -Level "WARNING" }
 $ChangeGroupBtn = $window.FindName("ChangeGroupBtn")
+if ($null -eq $ChangeGroupBtn) { Write-Log "WARNING: Control 'ChangeGroupBtn' not found in XAML" -Level "WARNING" }
 $DuplicateRulesBtn = $window.FindName("DuplicateRulesBtn")
+if ($null -eq $DuplicateRulesBtn) { Write-Log "WARNING: Control 'DuplicateRulesBtn' not found in XAML" -Level "WARNING" }
 $DeleteRulesBtn = $window.FindName("DeleteRulesBtn")
+if ($null -eq $DeleteRulesBtn) { Write-Log "WARNING: Control 'DeleteRulesBtn' not found in XAML" -Level "WARNING" }
 
 # QoL Feature controls
 $AuditToggleBtn = $window.FindName("AuditToggleBtn")
+if ($null -eq $AuditToggleBtn) { Write-Log "WARNING: Control 'AuditToggleBtn' not found in XAML" -Level "WARNING" }
 $RulesSearchBox = $window.FindName("RulesSearchBox")
+if ($null -eq $RulesSearchBox) { Write-Log "WARNING: Control 'RulesSearchBox' not found in XAML" -Level "WARNING" }
 $ClearFilterBtn = $window.FindName("ClearFilterBtn")
+if ($null -eq $ClearFilterBtn) { Write-Log "WARNING: Control 'ClearFilterBtn' not found in XAML" -Level "WARNING" }
 $RulePreviewPanel = $window.FindName("RulePreviewPanel")
+if ($null -eq $RulePreviewPanel) { Write-Log "WARNING: Control 'RulePreviewPanel' not found in XAML" -Level "WARNING" }
 $RulePreviewText = $window.FindName("RulePreviewText")
+if ($null -eq $RulePreviewText) { Write-Log "WARNING: Control 'RulePreviewText' not found in XAML" -Level "WARNING" }
 $ClosePreviewBtn = $window.FindName("ClosePreviewBtn")
+if ($null -eq $ClosePreviewBtn) { Write-Log "WARNING: Control 'ClosePreviewBtn' not found in XAML" -Level "WARNING" }
 $ScanLocalEventsBtn = $window.FindName("ScanLocalEventsBtn")
+if ($null -eq $ScanLocalEventsBtn) { Write-Log "WARNING: Control 'ScanLocalEventsBtn' not found in XAML" -Level "WARNING" }
 $ScanRemoteEventsBtn = $window.FindName("ScanRemoteEventsBtn")
+if ($null -eq $ScanRemoteEventsBtn) { Write-Log "WARNING: Control 'ScanRemoteEventsBtn' not found in XAML" -Level "WARNING" }
 $ExportEventsBtn = $window.FindName("ExportEventsBtn")
+if ($null -eq $ExportEventsBtn) { Write-Log "WARNING: Control 'ExportEventsBtn' not found in XAML" -Level "WARNING" }
 $EventComputersList = $window.FindName("EventComputersList")
+if ($null -eq $EventComputersList) { Write-Log "WARNING: Control 'EventComputersList' not found in XAML" -Level "WARNING" }
 $RefreshComputersBtn = $window.FindName("RefreshComputersBtn")
+if ($null -eq $RefreshComputersBtn) { Write-Log "WARNING: Control 'RefreshComputersBtn' not found in XAML" -Level "WARNING" }
 $FilterAllBtn = $window.FindName("FilterAllBtn")
+if ($null -eq $FilterAllBtn) { Write-Log "WARNING: Control 'FilterAllBtn' not found in XAML" -Level "WARNING" }
 $FilterAllowedBtn = $window.FindName("FilterAllowedBtn")
+if ($null -eq $FilterAllowedBtn) { Write-Log "WARNING: Control 'FilterAllowedBtn' not found in XAML" -Level "WARNING" }
 $FilterBlockedBtn = $window.FindName("FilterBlockedBtn")
+if ($null -eq $FilterBlockedBtn) { Write-Log "WARNING: Control 'FilterBlockedBtn' not found in XAML" -Level "WARNING" }
 $FilterAuditBtn = $window.FindName("FilterAuditBtn")
+if ($null -eq $FilterAuditBtn) { Write-Log "WARNING: Control 'FilterAuditBtn' not found in XAML" -Level "WARNING" }
 $RefreshEventsBtn = $window.FindName("RefreshEventsBtn")
+if ($null -eq $RefreshEventsBtn) { Write-Log "WARNING: Control 'RefreshEventsBtn' not found in XAML" -Level "WARNING" }
 $EventsOutput = $window.FindName("EventsOutput")
+if ($null -eq $EventsOutput) { Write-Log "WARNING: Control 'EventsOutput' not found in XAML" -Level "WARNING" }
 
 # Reports controls
 $ReportTypeSelector = $window.FindName("ReportTypeSelector")
+if ($null -eq $ReportTypeSelector) { Write-Log "WARNING: Control 'ReportTypeSelector' not found in XAML" -Level "WARNING" }
 $ReportStartDate = $window.FindName("ReportStartDate")
+if ($null -eq $ReportStartDate) { Write-Log "WARNING: Control 'ReportStartDate' not found in XAML" -Level "WARNING" }
 $ReportEndDate = $window.FindName("ReportEndDate")
+if ($null -eq $ReportEndDate) { Write-Log "WARNING: Control 'ReportEndDate' not found in XAML" -Level "WARNING" }
 $ReportLast7Days = $window.FindName("ReportLast7Days")
+if ($null -eq $ReportLast7Days) { Write-Log "WARNING: Control 'ReportLast7Days' not found in XAML" -Level "WARNING" }
 $ReportLast30Days = $window.FindName("ReportLast30Days")
+if ($null -eq $ReportLast30Days) { Write-Log "WARNING: Control 'ReportLast30Days' not found in XAML" -Level "WARNING" }
 $ReportLast90Days = $window.FindName("ReportLast90Days")
+if ($null -eq $ReportLast90Days) { Write-Log "WARNING: Control 'ReportLast90Days' not found in XAML" -Level "WARNING" }
 $ReportTargetSystem = $window.FindName("ReportTargetSystem")
+if ($null -eq $ReportTargetSystem) { Write-Log "WARNING: Control 'ReportTargetSystem' not found in XAML" -Level "WARNING" }
 $GenerateReportBtn = $window.FindName("GenerateReportBtn")
+if ($null -eq $GenerateReportBtn) { Write-Log "WARNING: Control 'GenerateReportBtn' not found in XAML" -Level "WARNING" }
 $ExportToPdfBtn = $window.FindName("ExportToPdfBtn")
+if ($null -eq $ExportToPdfBtn) { Write-Log "WARNING: Control 'ExportToPdfBtn' not found in XAML" -Level "WARNING" }
 $ExportToHtmlBtn = $window.FindName("ExportToHtmlBtn")
+if ($null -eq $ExportToHtmlBtn) { Write-Log "WARNING: Control 'ExportToHtmlBtn' not found in XAML" -Level "WARNING" }
 $ExportToCsvBtn = $window.FindName("ExportToCsvBtn")
+if ($null -eq $ExportToCsvBtn) { Write-Log "WARNING: Control 'ExportToCsvBtn' not found in XAML" -Level "WARNING" }
 $ScheduleReportBtn = $window.FindName("ScheduleReportBtn")
+if ($null -eq $ScheduleReportBtn) { Write-Log "WARNING: Control 'ScheduleReportBtn' not found in XAML" -Level "WARNING" }
 $RefreshScheduledReportsBtn = $window.FindName("RefreshScheduledReportsBtn")
+if ($null -eq $RefreshScheduledReportsBtn) { Write-Log "WARNING: Control 'RefreshScheduledReportsBtn' not found in XAML" -Level "WARNING" }
 $ScheduledReportsList = $window.FindName("ScheduledReportsList")
+if ($null -eq $ScheduledReportsList) { Write-Log "WARNING: Control 'ScheduledReportsList' not found in XAML" -Level "WARNING" }
 $ReportGeneratedTime = $window.FindName("ReportGeneratedTime")
+if ($null -eq $ReportGeneratedTime) { Write-Log "WARNING: Control 'ReportGeneratedTime' not found in XAML" -Level "WARNING" }
 $ReportStatus = $window.FindName("ReportStatus")
+if ($null -eq $ReportStatus) { Write-Log "WARNING: Control 'ReportStatus' not found in XAML" -Level "WARNING" }
 $ReportPreview = $window.FindName("ReportPreview")
+if ($null -eq $ReportPreview) { Write-Log "WARNING: Control 'ReportPreview' not found in XAML" -Level "WARNING" }
 $ReportPreviewScroll = $window.FindName("ReportPreviewScroll")
+if ($null -eq $ReportPreviewScroll) { Write-Log "WARNING: Control 'ReportPreviewScroll' not found in XAML" -Level "WARNING" }
 
 # Phase 4: Filter controls
 $RulesTypeFilter = $window.FindName("RulesTypeFilter")
+if ($null -eq $RulesTypeFilter) { Write-Log "WARNING: Control 'RulesTypeFilter' not found in XAML" -Level "WARNING" }
 $RulesActionFilter = $window.FindName("RulesActionFilter")
+if ($null -eq $RulesActionFilter) { Write-Log "WARNING: Control 'RulesActionFilter' not found in XAML" -Level "WARNING" }
 $RulesGroupFilter = $window.FindName("RulesGroupFilter")
+if ($null -eq $RulesGroupFilter) { Write-Log "WARNING: Control 'RulesGroupFilter' not found in XAML" -Level "WARNING" }
 $RulesFilterSearch = $window.FindName("RulesFilterSearch")
+if ($null -eq $RulesFilterSearch) { Write-Log "WARNING: Control 'RulesFilterSearch' not found in XAML" -Level "WARNING" }
 $RulesClearFilterBtn = $window.FindName("RulesClearFilterBtn")
+if ($null -eq $RulesClearFilterBtn) { Write-Log "WARNING: Control 'RulesClearFilterBtn' not found in XAML" -Level "WARNING" }
 $RulesFilterCount = $window.FindName("RulesFilterCount")
+if ($null -eq $RulesFilterCount) { Write-Log "WARNING: Control 'RulesFilterCount' not found in XAML" -Level "WARNING" }
 
 $EventsDateFrom = $window.FindName("EventsDateFrom")
+if ($null -eq $EventsDateFrom) { Write-Log "WARNING: Control 'EventsDateFrom' not found in XAML" -Level "WARNING" }
 $EventsDateTo = $window.FindName("EventsDateTo")
+if ($null -eq $EventsDateTo) { Write-Log "WARNING: Control 'EventsDateTo' not found in XAML" -Level "WARNING" }
 $EventsFilterSearch = $window.FindName("EventsFilterSearch")
+if ($null -eq $EventsFilterSearch) { Write-Log "WARNING: Control 'EventsFilterSearch' not found in XAML" -Level "WARNING" }
 $EventsClearFilterBtn = $window.FindName("EventsClearFilterBtn")
+if ($null -eq $EventsClearFilterBtn) { Write-Log "WARNING: Control 'EventsClearFilterBtn' not found in XAML" -Level "WARNING" }
 $EventsFilterCount = $window.FindName("EventsFilterCount")
+if ($null -eq $EventsFilterCount) { Write-Log "WARNING: Control 'EventsFilterCount' not found in XAML" -Level "WARNING" }
 
 $ComplianceStatusFilter = $window.FindName("ComplianceStatusFilter")
+if ($null -eq $ComplianceStatusFilter) { Write-Log "WARNING: Control 'ComplianceStatusFilter' not found in XAML" -Level "WARNING" }
 $ComplianceFilterSearch = $window.FindName("ComplianceFilterSearch")
+if ($null -eq $ComplianceFilterSearch) { Write-Log "WARNING: Control 'ComplianceFilterSearch' not found in XAML" -Level "WARNING" }
 $ComplianceClearFilterBtn = $window.FindName("ComplianceClearFilterBtn")
+if ($null -eq $ComplianceClearFilterBtn) { Write-Log "WARNING: Control 'ComplianceClearFilterBtn' not found in XAML" -Level "WARNING" }
 $ComplianceFilterCount = $window.FindName("ComplianceFilterCount")
+if ($null -eq $ComplianceFilterCount) { Write-Log "WARNING: Control 'ComplianceFilterCount' not found in XAML" -Level "WARNING" }
 $CreateGP0Btn = $window.FindName("CreateGP0Btn")
+if ($null -eq $CreateGP0Btn) { Write-Log "WARNING: Control 'CreateGP0Btn' not found in XAML" -Level "WARNING" }
 $DisableGpoBtn = $window.FindName("DisableGpoBtn")
+if ($null -eq $DisableGpoBtn) { Write-Log "WARNING: Control 'DisableGpoBtn' not found in XAML" -Level "WARNING" }
 $DeploymentStatus = $window.FindName("DeploymentStatus")
+if ($null -eq $DeploymentStatus) { Write-Log "WARNING: Control 'DeploymentStatus' not found in XAML" -Level "WARNING" }
 $GenerateEvidenceBtn = $window.FindName("GenerateEvidenceBtn")
+if ($null -eq $GenerateEvidenceBtn) { Write-Log "WARNING: Control 'GenerateEvidenceBtn' not found in XAML" -Level "WARNING" }
 $ComplianceOutput = $window.FindName("ComplianceOutput")
+if ($null -eq $ComplianceOutput) { Write-Log "WARNING: Control 'ComplianceOutput' not found in XAML" -Level "WARNING" }
 $ScanLocalComplianceBtn = $window.FindName("ScanLocalComplianceBtn")
+if ($null -eq $ScanLocalComplianceBtn) { Write-Log "WARNING: Control 'ScanLocalComplianceBtn' not found in XAML" -Level "WARNING" }
 $ScanSelectedComplianceBtn = $window.FindName("ScanSelectedComplianceBtn")
+if ($null -eq $ScanSelectedComplianceBtn) { Write-Log "WARNING: Control 'ScanSelectedComplianceBtn' not found in XAML" -Level "WARNING" }
 $RefreshComplianceListBtn = $window.FindName("RefreshComplianceListBtn")
+if ($null -eq $RefreshComplianceListBtn) { Write-Log "WARNING: Control 'RefreshComplianceListBtn' not found in XAML" -Level "WARNING" }
 $ComplianceComputersList = $window.FindName("ComplianceComputersList")
+if ($null -eq $ComplianceComputersList) { Write-Log "WARNING: Control 'ComplianceComputersList' not found in XAML" -Level "WARNING" }
 $CreateWinRMGpoBtn = $window.FindName("CreateWinRMGpoBtn")
+if ($null -eq $CreateWinRMGpoBtn) { Write-Log "WARNING: Control 'CreateWinRMGpoBtn' not found in XAML" -Level "WARNING" }
 $EnableWinRMGpoBtn = $window.FindName("EnableWinRMGpoBtn")
+if ($null -eq $EnableWinRMGpoBtn) { Write-Log "WARNING: Control 'EnableWinRMGpoBtn' not found in XAML" -Level "WARNING" }
 $DisableWinRMGpoBtn = $window.FindName("DisableWinRMGpoBtn")
+if ($null -eq $DisableWinRMGpoBtn) { Write-Log "WARNING: Control 'DisableWinRMGpoBtn' not found in XAML" -Level "WARNING" }
 $ForceGPUpdateBtn = $window.FindName("ForceGPUpdateBtn")
+if ($null -eq $ForceGPUpdateBtn) { Write-Log "WARNING: Control 'ForceGPUpdateBtn' not found in XAML" -Level "WARNING" }
 $WinRMOutput = $window.FindName("WinRMOutput")
+if ($null -eq $WinRMOutput) { Write-Log "WARNING: Control 'WinRMOutput' not found in XAML" -Level "WARNING" }
 
 # AD Discovery controls
 $ADSearchFilter = $window.FindName("ADSearchFilter")
+if ($null -eq $ADSearchFilter) { Write-Log "WARNING: Control 'ADSearchFilter' not found in XAML" -Level "WARNING" }
 $DiscoverComputersBtn = $window.FindName("DiscoverComputersBtn")
+if ($null -eq $DiscoverComputersBtn) { Write-Log "WARNING: Control 'DiscoverComputersBtn' not found in XAML" -Level "WARNING" }
 $TestConnectivityBtn = $window.FindName("TestConnectivityBtn")
+if ($null -eq $TestConnectivityBtn) { Write-Log "WARNING: Control 'TestConnectivityBtn' not found in XAML" -Level "WARNING" }
 $SelectAllComputersBtn = $window.FindName("SelectAllComputersBtn")
+if ($null -eq $SelectAllComputersBtn) { Write-Log "WARNING: Control 'SelectAllComputersBtn' not found in XAML" -Level "WARNING" }
 $ScanSelectedBtn = $window.FindName("ScanSelectedBtn")
+if ($null -eq $ScanSelectedBtn) { Write-Log "WARNING: Control 'ScanSelectedBtn' not found in XAML" -Level "WARNING" }
 $DiscoveredComputersList = $window.FindName("DiscoveredComputersList")
+if ($null -eq $DiscoveredComputersList) { Write-Log "WARNING: Control 'DiscoveredComputersList' not found in XAML" -Level "WARNING" }
 $OfflineComputersList = $window.FindName("OfflineComputersList")
+if ($null -eq $OfflineComputersList) { Write-Log "WARNING: Control 'OfflineComputersList' not found in XAML" -Level "WARNING" }
 $DiscoveryOutput = $window.FindName("DiscoveryOutput")
+if ($null -eq $DiscoveryOutput) { Write-Log "WARNING: Control 'DiscoveryOutput' not found in XAML" -Level "WARNING" }
 $DiscoveryStatus = $window.FindName("DiscoveryStatus")
+if ($null -eq $DiscoveryStatus) { Write-Log "WARNING: Control 'DiscoveryStatus' not found in XAML" -Level "WARNING" }
 
 # Group Management controls
 $ExportGroupsBtn = $window.FindName("ExportGroupsBtn")
+if ($null -eq $ExportGroupsBtn) { Write-Log "WARNING: Control 'ExportGroupsBtn' not found in XAML" -Level "WARNING" }
 $ImportGroupsBtn = $window.FindName("ImportGroupsBtn")
+if ($null -eq $ImportGroupsBtn) { Write-Log "WARNING: Control 'ImportGroupsBtn' not found in XAML" -Level "WARNING" }
 $DryRunCheck = $window.FindName("DryRunCheck")
+if ($null -eq $DryRunCheck) { Write-Log "WARNING: Control 'DryRunCheck' not found in XAML" -Level "WARNING" }
 $AllowRemovalsCheck = $window.FindName("AllowRemovalsCheck")
+if ($null -eq $AllowRemovalsCheck) { Write-Log "WARNING: Control 'AllowRemovalsCheck' not found in XAML" -Level "WARNING" }
 $IncludeProtectedCheck = $window.FindName("IncludeProtectedCheck")
+if ($null -eq $IncludeProtectedCheck) { Write-Log "WARNING: Control 'IncludeProtectedCheck' not found in XAML" -Level "WARNING" }
 $GroupMgmtOutput = $window.FindName("GroupMgmtOutput")
+if ($null -eq $GroupMgmtOutput) { Write-Log "WARNING: Control 'GroupMgmtOutput' not found in XAML" -Level "WARNING" }
 
 # AppLocker Setup controls
 $OUNameText = $window.FindName("OUNameText")
+if ($null -eq $OUNameText) { Write-Log "WARNING: Control 'OUNameText' not found in XAML" -Level "WARNING" }
 $AutoPopulateCheck = $window.FindName("AutoPopulateCheck")
+if ($null -eq $AutoPopulateCheck) { Write-Log "WARNING: Control 'AutoPopulateCheck' not found in XAML" -Level "WARNING" }
 $BootstrapAppLockerBtn = $window.FindName("BootstrapAppLockerBtn")
+if ($null -eq $BootstrapAppLockerBtn) { Write-Log "WARNING: Control 'BootstrapAppLockerBtn' not found in XAML" -Level "WARNING" }
 $RemoveOUProtectionBtn = $window.FindName("RemoveOUProtectionBtn")
+if ($null -eq $RemoveOUProtectionBtn) { Write-Log "WARNING: Control 'RemoveOUProtectionBtn' not found in XAML" -Level "WARNING" }
 $CreateBrowserDenyBtn = $window.FindName("CreateBrowserDenyBtn")
+if ($null -eq $CreateBrowserDenyBtn) { Write-Log "WARNING: Control 'CreateBrowserDenyBtn' not found in XAML" -Level "WARNING" }
 $AppLockerSetupOutput = $window.FindName("AppLockerSetupOutput")
+if ($null -eq $AppLockerSetupOutput) { Write-Log "WARNING: Control 'AppLockerSetupOutput' not found in XAML" -Level "WARNING" }
 
 # About and Help controls
 $AboutLogo = $window.FindName("AboutLogo")
+if ($null -eq $AboutLogo) { Write-Log "WARNING: Control 'AboutLogo' not found in XAML" -Level "WARNING" }
 $AboutVersion = $window.FindName("AboutVersion")
+if ($null -eq $AboutVersion) { Write-Log "WARNING: Control 'AboutVersion' not found in XAML" -Level "WARNING" }
 $HelpTitle = $window.FindName("HelpTitle")
+if ($null -eq $HelpTitle) { Write-Log "WARNING: Control 'HelpTitle' not found in XAML" -Level "WARNING" }
 $HelpText = $window.FindName("HelpText")
+if ($null -eq $HelpText) { Write-Log "WARNING: Control 'HelpText' not found in XAML" -Level "WARNING" }
 $HelpBtnWorkflow = $window.FindName("HelpBtnWorkflow")
+if ($null -eq $HelpBtnWorkflow) { Write-Log "WARNING: Control 'HelpBtnWorkflow' not found in XAML" -Level "WARNING" }
 $HelpBtnWhatsNew = $window.FindName("HelpBtnWhatsNew")
+if ($null -eq $HelpBtnWhatsNew) { Write-Log "WARNING: Control 'HelpBtnWhatsNew' not found in XAML" -Level "WARNING" }
 $HelpBtnPolicyGuide = $window.FindName("HelpBtnPolicyGuide")
+if ($null -eq $HelpBtnPolicyGuide) { Write-Log "WARNING: Control 'HelpBtnPolicyGuide' not found in XAML" -Level "WARNING" }
 $HelpBtnRules = $window.FindName("HelpBtnRules")
+if ($null -eq $HelpBtnRules) { Write-Log "WARNING: Control 'HelpBtnRules' not found in XAML" -Level "WARNING" }
 $HelpBtnTroubleshooting = $window.FindName("HelpBtnTroubleshooting")
+if ($null -eq $HelpBtnTroubleshooting) { Write-Log "WARNING: Control 'HelpBtnTroubleshooting' not found in XAML" -Level "WARNING" }
 
 # Gap Analysis controls (Scan buttons removed - use Import only)
 $ImportBaselineBtn = $window.FindName("ImportBaselineBtn")
+if ($null -eq $ImportBaselineBtn) { Write-Log "WARNING: Control 'ImportBaselineBtn' not found in XAML" -Level "WARNING" }
 $ImportTargetBtn = $window.FindName("ImportTargetBtn")
+if ($null -eq $ImportTargetBtn) { Write-Log "WARNING: Control 'ImportTargetBtn' not found in XAML" -Level "WARNING" }
 $CompareSoftwareBtn = $window.FindName("CompareSoftwareBtn")
+if ($null -eq $CompareSoftwareBtn) { Write-Log "WARNING: Control 'CompareSoftwareBtn' not found in XAML" -Level "WARNING" }
 $GapAnalysisGrid = $window.FindName("GapAnalysisGrid")
+if ($null -eq $GapAnalysisGrid) { Write-Log "WARNING: Control 'GapAnalysisGrid' not found in XAML" -Level "WARNING" }
 $GapTotalCount = $window.FindName("GapTotalCount")
+if ($null -eq $GapTotalCount) { Write-Log "WARNING: Control 'GapTotalCount' not found in XAML" -Level "WARNING" }
 $GapMissingCount = $window.FindName("GapMissingCount")
+if ($null -eq $GapMissingCount) { Write-Log "WARNING: Control 'GapMissingCount' not found in XAML" -Level "WARNING" }
 $GapExtraCount = $window.FindName("GapExtraCount")
+if ($null -eq $GapExtraCount) { Write-Log "WARNING: Control 'GapExtraCount' not found in XAML" -Level "WARNING" }
 $GapVersionCount = $window.FindName("GapVersionCount")
+if ($null -eq $GapVersionCount) { Write-Log "WARNING: Control 'GapVersionCount' not found in XAML" -Level "WARNING" }
 $ExportGapAnalysisBtn = $window.FindName("ExportGapAnalysisBtn")
+if ($null -eq $ExportGapAnalysisBtn) { Write-Log "WARNING: Control 'ExportGapAnalysisBtn' not found in XAML" -Level "WARNING" }
 
 # Export/Import Rules controls
 $ExportRulesBtn = $window.FindName("ExportRulesBtn")
+if ($null -eq $ExportRulesBtn) { Write-Log "WARNING: Control 'ExportRulesBtn' not found in XAML" -Level "WARNING" }
 $ImportRulesBtn = $window.FindName("ImportRulesBtn")
+if ($null -eq $ImportRulesBtn) { Write-Log "WARNING: Control 'ImportRulesBtn' not found in XAML" -Level "WARNING" }
 $TargetGpoCombo = $window.FindName("TargetGpoCombo")
+if ($null -eq $TargetGpoCombo) { Write-Log "WARNING: Control 'TargetGpoCombo' not found in XAML" -Level "WARNING" }
 $ImportModeCombo = $window.FindName("ImportModeCombo")
+if ($null -eq $ImportModeCombo) { Write-Log "WARNING: Control 'ImportModeCombo' not found in XAML" -Level "WARNING" }
+
+# Additional controls for dashboard and status
+$GaugeScore = $window.FindName("GaugeScore")
+if ($null -eq $GaugeScore) { Write-Log "WARNING: Control 'GaugeScore' not found in XAML" -Level "WARNING" }
+$GaugeLabel = $window.FindName("GaugeLabel")
+if ($null -eq $GaugeLabel) { Write-Log "WARNING: Control 'GaugeLabel' not found in XAML" -Level "WARNING" }
+$LabelWorkstations = $window.FindName("LabelWorkstations")
+if ($null -eq $LabelWorkstations) { Write-Log "WARNING: Control 'LabelWorkstations' not found in XAML" -Level "WARNING" }
+$LabelServers = $window.FindName("LabelServers")
+if ($null -eq $LabelServers) { Write-Log "WARNING: Control 'LabelServers' not found in XAML" -Level "WARNING" }
+$LabelDCs = $window.FindName("LabelDCs")
+if ($null -eq $LabelDCs) { Write-Log "WARNING: Control 'LabelDCs' not found in XAML" -Level "WARNING" }
+$MiniStatusMode = $window.FindName("MiniStatusMode")
+if ($null -eq $MiniStatusMode) { Write-Log "WARNING: Control 'MiniStatusMode' not found in XAML" -Level "WARNING" }
+$MiniStatusPhase = $window.FindName("MiniStatusPhase")
+if ($null -eq $MiniStatusPhase) { Write-Log "WARNING: Control 'MiniStatusPhase' not found in XAML" -Level "WARNING" }
+$MiniStatusConnected = $window.FindName("MiniStatusConnected")
+if ($null -eq $MiniStatusConnected) { Write-Log "WARNING: Control 'MiniStatusConnected' not found in XAML" -Level "WARNING" }
+$HeaderLogo = $window.FindName("HeaderLogo")
+if ($null -eq $HeaderLogo) { Write-Log "WARNING: Control 'HeaderLogo' not found in XAML" -Level "WARNING" }
+$EventMonitorPanel = $window.FindName("EventMonitorPanel")
+if ($null -eq $EventMonitorPanel) { Write-Log "WARNING: Control 'EventMonitorPanel' not found in XAML" -Level "WARNING" }
+$ArtifactPanel = $window.FindName("ArtifactPanel")
+if ($null -eq $ArtifactPanel) { Write-Log "WARNING: Control 'ArtifactPanel' not found in XAML" -Level "WARNING" }
 
 # Global variables
 $script:CollectedArtifacts = @()
@@ -6925,6 +7205,10 @@ function Deduplicate-Rules {
     <#
     .SYNOPSIS
         Deduplicate generated rules by selected criteria
+        IMPORTANT: Preserves rules assigned to different AD groups
+        A rule is only considered a duplicate if it has BOTH:
+        1. The same publisher/hash/path (based on criteria selected)
+        2. The same assigned AD group (userOrGroupSid)
     #>
     if (-not $script:GeneratedRules -or $script:GeneratedRules.Count -eq 0) {
         [System.Windows.MessageBox]::Show("No rules to deduplicate.", "Deduplicate", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
@@ -6933,7 +7217,7 @@ function Deduplicate-Rules {
 
     # Show deduplication options
     $result = [System.Windows.MessageBox]::Show(
-        "Deduplicate by which criteria?`n`nYes = Publisher (Recommended)`nNo = File Hash`nCancel = Path",
+        "Deduplicate by which criteria?`n`nIMPORTANT: Rules assigned to different groups will be preserved.`n`nYes = Publisher (Recommended)`nNo = File Hash`nCancel = Path",
         "Deduplicate Rules",
         [System.Windows.MessageBoxButton]::YesNoCancel,
         [System.Windows.MessageBoxImage]::Question
@@ -6949,15 +7233,19 @@ function Deduplicate-Rules {
     $seen = @{}
 
     foreach ($rule in $script:GeneratedRules) {
+        # Get the group SID for this rule
+        $groupSid = if ($rule.userOrGroupSid) { $rule.userOrGroupSid } else { "S-1-1-0" }
+
+        # Build key combining criteria and group to preserve rules for different groups
         $key = switch ($criteria) {
             "Publisher" {
-                if ($rule.Publisher) { $rule.Publisher }
-                elseif ($rule.Name) { $rule.Name }
-                else { $rule.FilePath }
+                if ($rule.Publisher) { "$($rule.Publisher)|$groupSid" }
+                elseif ($rule.Name) { "$($rule.Name)|$groupSid" }
+                else { "$($rule.FilePath)|$groupSid" }
             }
             "Hash" {
-                if ($rule.FileHash) { $rule.FileHash }
-                else { "$($rule.Name)$($rule.FilePath)" }
+                if ($rule.FileHash) { "$($rule.FileHash)|$groupSid" }
+                else { "$($rule.Name)$($rule.FilePath)|$groupSid" }
             }
         }
 
@@ -6977,8 +7265,9 @@ function Deduplicate-Rules {
     Apply-RuleTypeFormatting
 
     $RulesOutput.Text += "Deduplicated by $criteria`: Removed $removed duplicate rules.`n"
+    $RulesOutput.Text += "Note: Rules assigned to different groups were preserved.`n"
 
-    Write-AuditLog -Action "RULES_DEDUPLICATED" -Target $criteria -Result 'SUCCESS' -Details "Removed $removed duplicate rules"
+    Write-AuditLog -Action "RULES_DEDUPLICATED" -Target $criteria -Result 'SUCCESS' -Details "Removed $removed duplicate rules (rules for different groups preserved)"
 }
 
 function Export-SelectedRules {
@@ -9180,28 +9469,60 @@ function Test-AppLockerRules {
 function Show-Panel {
     param([string]$PanelName)
 
+    if ($null -ne $PanelDashboard) {
     $PanelDashboard.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelDiscovery) {
     $PanelDiscovery.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelArtifacts) {
     $PanelArtifacts.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelRules) {
     $PanelRules.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelDeployment) {
     $PanelDeployment.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelEvents) {
     $PanelEvents.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelCompliance) {
     $PanelCompliance.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelReports) {
     $PanelReports.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelWinRM) {
     $PanelWinRM.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelGroupMgmt) {
     $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelAppLockerSetup) {
     $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelGapAnalysis) {
     $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelTemplates) {
     $PanelTemplates.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelHelp) {
     $PanelHelp.Visibility = [System.Windows.Visibility]::Collapsed
+    }
+    if ($null -ne $PanelAbout) {
     $PanelAbout.Visibility = [System.Windows.Visibility]::Collapsed
+    }
 
     switch ($PanelName) {
         "Dashboard" { $PanelDashboard.Visibility = [System.Windows.Visibility]::Visible }
         "Discovery" { $PanelDiscovery.Visibility = [System.Windows.Visibility]::Visible }
         "Artifacts" { $PanelArtifacts.Visibility = [System.Windows.Visibility]::Visible }
         "Rules" {
+            if ($null -ne $PanelRules) {
             $PanelRules.Visibility = [System.Windows.Visibility]::Visible
+            }
             Update-Badges
         }
         "Deployment" { $PanelDeployment.Visibility = [System.Windows.Visibility]::Visible }
@@ -9213,7 +9534,9 @@ function Show-Panel {
         "AppLockerSetup" { $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible }
         "GapAnalysis" { $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Visible }
         "Templates" {
+            if ($null -ne $PanelTemplates) {
             $PanelTemplates.Visibility = [System.Windows.Visibility]::Visible
+            }
             Load-TemplatesList
         }
         "Help" { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible }
@@ -9222,66 +9545,91 @@ function Show-Panel {
 }
 
 # Navigation event handlers
+if ($null -ne $NavDashboard) {
 $NavDashboard.Add_Click({
     Show-Panel "Dashboard"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavDiscovery) {
 $NavDiscovery.Add_Click({
     Show-Panel "Discovery"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavArtifacts) {
 $NavArtifacts.Add_Click({
     Show-Panel "Artifacts"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavGapAnalysis) {
 $NavGapAnalysis.Add_Click({
     Show-Panel "GapAnalysis"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavRules) {
 $NavRules.Add_Click({
     Show-Panel "Rules"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavDeployment) {
 $NavDeployment.Add_Click({
     Show-Panel "Deployment"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavEvents) {
 $NavEvents.Add_Click({
     Show-Panel "Events"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavCompliance) {
 $NavCompliance.Add_Click({
     Show-Panel "Compliance"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavReports) {
 $NavReports.Add_Click({
     Show-Panel "Reports"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavWinRM) {
 $NavWinRM.Add_Click({
     Show-Panel "WinRM"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavGroupMgmt) {
 $NavGroupMgmt.Add_Click({
     Show-Panel "GroupMgmt"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavAppLockerSetup) {
 $NavAppLockerSetup.Add_Click({
     Show-Panel "AppLockerSetup"
     Update-StatusBar
 })
+}
 
+if ($null -ne $NavHelp) {
 $NavHelp.Add_Click({
     Show-Panel "Help"
     Update-StatusBar
@@ -9289,35 +9637,47 @@ $NavHelp.Add_Click({
     $HelpTitle.Text = "Help - Workflow"
     $HelpText.Text = Get-HelpContent "Workflow"
 })
+}
 
+if ($null -ne $NavAbout) {
 $NavAbout.Add_Click({
     Show-Panel "About"
     Update-StatusBar
 })
+}
 
 # Phase 5: Templates navigation event handlers
+if ($null -ne $NavTemplates) {
 $NavTemplates.Add_Click({
     Show-Panel "Templates"
     Update-StatusBar
     Write-Log "Navigated to Templates panel"
 })
+}
 
+if ($null -ne $NavRuleWizard) {
 $NavRuleWizard.Add_Click({
     Write-Log "Rule Wizard button clicked"
     Invoke-RuleWizard
 })
+}
 
+if ($null -ne $NavCreateTemplate) {
 $NavCreateTemplate.Add_Click({
     Write-Log "Create Template button clicked"
     New-CustomTemplate
 })
+}
 
+if ($null -ne $NavImportTemplate) {
 $NavImportTemplate.Add_Click({
     Write-Log "Import Template button clicked"
     Import-RuleTemplateFromFile
 })
+}
 
 # Phase 4: Workspace Save/Load Event Handlers
+if ($null -ne $NavSaveWorkspace) {
 $NavSaveWorkspace.Add_Click({
     Write-Log "Save workspace button clicked"
     $savedFile = Save-Workspace
@@ -9325,11 +9685,14 @@ $NavSaveWorkspace.Add_Click({
         [System.Windows.MessageBox]::Show("Workspace saved to:`n$savedFile", "Workspace Saved", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
+}
 
+if ($null -ne $NavLoadWorkspace) {
 $NavLoadWorkspace.Add_Click({
     Write-Log "Load workspace button clicked"
     Load-Workspace
 })
+}
 
 # Mouse wheel scroll event handler for sidebar ScrollViewer
 # This ensures mouse wheel events propagate to parent ScrollViewer when sidebar can't scroll further
@@ -9354,12 +9717,12 @@ function Refresh-Data {
     [System.Windows.Forms.Application]::DoEvents()
 
     # Get time filter
-    $timeFilter = $DashboardTimeFilter.SelectedItem.Content
+    $timeFilter = if ($DashboardTimeFilter.SelectedItem) { $DashboardTimeFilter.SelectedItem.Content } else { "Last 7 Days" }
     $daysBack = if ($timeFilter -eq "Last 7 Days") { 7 } else { 30 }
     $cutoffDate = (Get-Date).AddDays(-$daysBack)
 
     # Get system filter
-    $systemFilter = $DashboardSystemFilter.SelectedItem.Content
+    $systemFilter = if ($DashboardSystemFilter.SelectedItem) { $DashboardSystemFilter.SelectedItem.Content } else { "All Systems" }
 
     # Get policy health from local system
     $summary = Get-DashboardSummary
@@ -9392,7 +9755,7 @@ function Refresh-Data {
         }
 
         # Update system filter dropdown
-        $currentSelection = $DashboardSystemFilter.SelectedItem.Content
+        $currentSelection = if ($DashboardSystemFilter.SelectedItem) { $DashboardSystemFilter.SelectedItem.Content } else { "All Systems" }
         $DashboardSystemFilter.Items.Clear()
         $allItem = New-Object System.Windows.Controls.ComboBoxItem
         $allItem.Content = "All Systems"
@@ -9860,11 +10223,14 @@ function Initialize-Tooltips {
     if ($null -ne $ApplyGPOSettingsBtn) { $ApplyGPOSettingsBtn.ToolTip = "Apply AppLocker policy to selected GPO." }
 }
 
+if ($null -ne $RefreshDashboardBtn) {
 $RefreshDashboardBtn.Add_Click({
     Refresh-Data
 })
+}
 
 # GPO Quick Assignment - Create GPOs button
+if ($null -ne $CreateGPOsBtn) {
 $CreateGPOsBtn.Add_Click({
     Write-Log "User requested creation of 3 AppLocker GPOs (DC, Servers, Workstations)"
     Write-AuditLog -Action "GPO_CREATE_ATTEMPT" -Target "GA-AppLocker-DC, GA-AppLocker-Servers, GA-AppLocker-Workstations" -Result 'ATTEMPT' -Details "User initiated bulk GPO creation"
@@ -9935,8 +10301,10 @@ $CreateGPOsBtn.Add_Click({
         Write-AuditLog -Action "GPO_CREATE_BULK_FAILED" -Target "Multiple GPOs" -Result 'FAILURE' -Details "Exception: $errorMsg"
     }
 })
+}
 
 # GPO Quick Assignment - Apply Phase/Mode button
+if ($null -ne $ApplyGPOSettingsBtn) {
 $ApplyGPOSettingsBtn.Add_Click({
     Write-Log "User requested GPO Phase/Mode settings application"
     Write-AuditLog -Action "GPO_SETTINGS_ATTEMPT" -Target "Multiple GPOs" -Result 'ATTEMPT' -Details "User initiated GPO settings changes"
@@ -10046,8 +10414,10 @@ $ApplyGPOSettingsBtn.Add_Click({
         Write-AuditLog -Action "GPO_SETTINGS_APPLY_FAILED" -Target "Multiple GPOs" -Result 'FAILURE' -Details "Exception: $errorMsg"
     }
 })
+}
 
 # GPO Quick Assignment - Link to OUs button
+if ($null -ne $LinkGPOsBtn) {
 $LinkGPOsBtn.Add_Click({
     Write-Log "User requested linking GPOs to OUs"
     Write-AuditLog -Action "GPO_LINK_ATTEMPT" -Target "Multiple GPOs" -Result 'ATTEMPT' -Details "User initiated GPO linking"
@@ -10146,8 +10516,10 @@ $LinkGPOsBtn.Add_Click({
         Write-AuditLog -Action "GPO_LINK_BULK_FAILED" -Target "Multiple GPOs" -Result 'FAILURE' -Details "Exception: $errorMsg"
     }
 })
+}
 
 # Artifacts events
+if ($null -ne $ScanDirectoriesBtn) {
 $ScanDirectoriesBtn.Add_Click({
     # Get selected directories
     $selectedItems = $DirectoryList.SelectedItems
@@ -10347,8 +10719,10 @@ $ScanDirectoriesBtn.Add_Click({
     # Store async handle for cleanup if needed
     $script:ScanHandle = @{Handle = $handle; PowerShell = $powerShell}
 })
+}
 
 # Scan Local Artifacts button - scans localhost directories
+if ($null -ne $ScanLocalArtifactsBtn) {
 $ScanLocalArtifactsBtn.Add_Click({
     Write-Log "Starting local artifact scan (localhost directories)"
 
@@ -10548,8 +10922,10 @@ $ScanLocalArtifactsBtn.Add_Click({
     # Store async handle for cleanup if needed
     $script:LocalScanHandle = @{Handle = $handle; PowerShell = $powerShell}
 })
+}
 
 # Rules events
+if ($null -ne $ImportArtifactsBtn) {
 $ImportArtifactsBtn.Add_Click({
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
     $openDialog.Filter = "CSV Files (*.csv)|*.csv|JSON Files (*.json)|*.json|All Files (*.*)|*.*"
@@ -10673,8 +11049,10 @@ $ImportArtifactsBtn.Add_Click({
         }
     }
 })
+}
 
 # Import folder recursively - searches all CSV files in folder and subfolders
+if ($null -ne $ImportFolderBtn) {
 $ImportFolderBtn.Add_Click({
     Write-Log "Import folder (recursive) clicked"
     $folderDialog = New-Object System.Windows.Forms.FolderBrowserDialog
@@ -10715,8 +11093,10 @@ $ImportFolderBtn.Add_Click({
         }
     }
 })
+}
 
 # Load Collected Artifacts button - seamless integration from Artifact Collection
+if ($null -ne $LoadCollectedArtifactsBtn) {
 $LoadCollectedArtifactsBtn.Add_Click({
     Write-Log "Loading collected artifacts from Artifact Collection panel"
 
@@ -10758,8 +11138,10 @@ $LoadCollectedArtifactsBtn.Add_Click({
         [System.Windows.MessageBoxButton]::OK,
         [System.Windows.MessageBoxImage]::Information)
 })
+}
 
 # Load Collected Events button - seamless integration from Event Monitor
+if ($null -ne $LoadCollectedEventsBtn) {
 $LoadCollectedEventsBtn.Add_Click({
     Write-Log "Loading collected events from Event Monitor panel"
 
@@ -10837,8 +11219,10 @@ $LoadCollectedEventsBtn.Add_Click({
         [System.Windows.MessageBoxButton]::OK,
         [System.Windows.MessageBoxImage]::Information)
 })
+}
 
 # Deduplicate button - removes duplicate artifacts based on selected field
+if ($null -ne $DedupeBtn) {
 $DedupeBtn.Add_Click({
     Write-Log "Deduplicating artifacts"
 
@@ -10923,8 +11307,10 @@ $DedupeBtn.Add_Click({
         [System.Windows.MessageBoxButton]::OK,
         [System.Windows.MessageBoxImage]::Information)
 })
+}
 
 # Export Artifacts List button - exports current artifact list to CSV
+if ($null -ne $ExportArtifactsListBtn) {
 $ExportArtifactsListBtn.Add_Click({
     Write-Log "Exporting artifacts list"
 
@@ -10992,8 +11378,10 @@ $ExportArtifactsListBtn.Add_Click({
         }
     }
 })
+}
 
 # Change Group button - change AD group for selected rules
+if ($null -ne $ChangeGroupBtn) {
 $ChangeGroupBtn.Add_Click({
     Write-Log "Change group button clicked"
 
@@ -11039,8 +11427,10 @@ $ChangeGroupBtn.Add_Click({
         [System.Windows.MessageBoxButton]::OK,
         [System.Windows.MessageBoxImage]::Information)
 })
+}
 
 # Duplicate Rules button - duplicate selected rules to another group
+if ($null -ne $DuplicateRulesBtn) {
 $DuplicateRulesBtn.Add_Click({
     Write-Log "Duplicate rules button clicked"
 
@@ -11107,8 +11497,10 @@ $DuplicateRulesBtn.Add_Click({
         [System.Windows.MessageBoxButton]::OK,
         [System.Windows.MessageBoxImage]::Information)
 })
+}
 
 # Delete Rules button - delete selected rules
+if ($null -ne $DeleteRulesBtn) {
 $DeleteRulesBtn.Add_Click({
     Write-Log "Delete rules button clicked"
 
@@ -11160,12 +11552,14 @@ $DeleteRulesBtn.Add_Click({
         [System.Windows.MessageBoxButton]::OK,
         [System.Windows.MessageBoxImage]::Information)
 })
+}
 
 # ============================================================
 # PHASE 4: Bulk Editing Event Handlers
 # ============================================================
 
 # Apply Group Change button - bulk change AD group for selected rules
+if ($null -ne $ApplyGroupChangeBtn) {
 $ApplyGroupChangeBtn.Add_Click({
     Write-Log "Bulk group change button clicked"
 
@@ -11202,8 +11596,10 @@ $ApplyGroupChangeBtn.Add_Click({
 
     Invoke-BulkChangeGroup -SelectedItems $selectedItems -NewGroup $newGroup
 })
+}
 
 # Apply Action Change button - bulk change action (Allow/Deny) for selected rules
+if ($null -ne $ApplyActionChangeBtn) {
 $ApplyActionChangeBtn.Add_Click({
     Write-Log "Bulk action change button clicked"
 
@@ -11241,8 +11637,10 @@ $ApplyActionChangeBtn.Add_Click({
 
     Invoke-BulkChangeAction -SelectedItems $selectedItems -NewAction $newAction
 })
+}
 
 # Apply Duplicate button - bulk duplicate selected rules to another group
+if ($null -ne $ApplyDuplicateBtn) {
 $ApplyDuplicateBtn.Add_Click({
     Write-Log "Bulk duplicate button clicked"
 
@@ -11279,8 +11677,10 @@ $ApplyDuplicateBtn.Add_Click({
 
     Invoke-BulkDuplicateToGroup -SelectedItems $selectedItems -TargetGroup $targetGroup
 })
+}
 
 # Bulk Remove button - remove all selected rules
+if ($null -ne $BulkRemoveBtn) {
 $BulkRemoveBtn.Add_Click({
     Write-Log "Bulk remove button clicked"
 
@@ -11304,6 +11704,7 @@ $BulkRemoveBtn.Add_Click({
 
     Invoke-BulkRemoveRules -SelectedItems $selectedItems
 })
+}
 
 # Update selection info when selection changes
 $RulesDataGrid.Add_SelectionChanged({
@@ -11346,6 +11747,7 @@ $RulesFilterSearch.Add_TextChanged({
     Filter-RulesDataGrid
 })
 
+if ($null -ne $RulesClearFilterBtn) {
 $RulesClearFilterBtn.Add_Click({
     $RulesTypeFilter.SelectedIndex = 0
     $RulesActionFilter.SelectedIndex = 0
@@ -11353,31 +11755,40 @@ $RulesClearFilterBtn.Add_Click({
     $RulesFilterSearch.Text = "Search..."
     Filter-RulesDataGrid
 })
+}
 
 # Phase 4: Filter Control Event Handlers for Events Panel
+if ($null -ne $FilterAllBtn) {
 $FilterAllBtn.Add_Click({
     $script:EventFilter = "All"
     Update-EventFilterButtons
     Filter-Events
 })
+}
 
+if ($null -ne $FilterAllowedBtn) {
 $FilterAllowedBtn.Add_Click({
     $script:EventFilter = "Allowed"
     Update-EventFilterButtons
     Filter-Events
 })
+}
 
+if ($null -ne $FilterBlockedBtn) {
 $FilterBlockedBtn.Add_Click({
     $script:EventFilter = "Blocked"
     Update-EventFilterButtons
     Filter-Events
 })
+}
 
+if ($null -ne $FilterAuditBtn) {
 $FilterAuditBtn.Add_Click({
     $script:EventFilter = "Audit"
     Update-EventFilterButtons
     Filter-Events
 })
+}
 
 function Update-EventFilterButtons {
     $FilterAllBtn.Background = if ($script:EventFilter -eq "All") { "#388BFD" } else { "#21262D" }
@@ -11410,6 +11821,7 @@ $EventsFilterSearch.Add_TextChanged({
     Filter-Events
 })
 
+if ($null -ne $EventsClearFilterBtn) {
 $EventsClearFilterBtn.Add_Click({
     $script:EventFilter = "All"
     Update-EventFilterButtons
@@ -11418,32 +11830,42 @@ $EventsClearFilterBtn.Add_Click({
     $EventsFilterSearch.Text = "Search events..."
     Filter-Events
 })
+}
 
+if ($null -ne $RefreshEventsBtn) {
 $RefreshEventsBtn.Add_Click({
     Filter-Events
 })
+}
 
 # Phase 5: Report Button Event Handlers
 # Quick date range buttons
+if ($null -ne $ReportLast7Days) {
 $ReportLast7Days.Add_Click({
     $ReportEndDate.SelectedDate = Get-Date
     $ReportStartDate.SelectedDate = (Get-Date).AddDays(-7)
     Update-StatusBar
 })
+}
 
+if ($null -ne $ReportLast30Days) {
 $ReportLast30Days.Add_Click({
     $ReportEndDate.SelectedDate = Get-Date
     $ReportStartDate.SelectedDate = (Get-Date).AddDays(-30)
     Update-StatusBar
 })
+}
 
+if ($null -ne $ReportLast90Days) {
 $ReportLast90Days.Add_Click({
     $ReportEndDate.SelectedDate = Get-Date
     $ReportStartDate.SelectedDate = (Get-Date).AddDays(-90)
     Update-StatusBar
 })
+}
 
 # Generate Report button
+if ($null -ne $GenerateReportBtn) {
 $GenerateReportBtn.Add_Click({
     try {
         Write-Log "Generate Report button clicked"
@@ -11533,8 +11955,10 @@ $GenerateReportBtn.Add_Click({
             [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
 # Export to PDF button
+if ($null -ne $ExportToPdfBtn) {
 $ExportToPdfBtn.Add_Click({
     try {
         Write-Log "Export to PDF button clicked"
@@ -11585,8 +12009,10 @@ $ExportToPdfBtn.Add_Click({
             [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
 # Export to HTML button
+if ($null -ne $ExportToHtmlBtn) {
 $ExportToHtmlBtn.Add_Click({
     try {
         Write-Log "Export to HTML button clicked"
@@ -11637,8 +12063,10 @@ $ExportToHtmlBtn.Add_Click({
             [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
 # Export to CSV button
+if ($null -ne $ExportToCsvBtn) {
 $ExportToCsvBtn.Add_Click({
     try {
         Write-Log "Export to CSV button clicked"
@@ -11689,8 +12117,10 @@ $ExportToCsvBtn.Add_Click({
             [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
 # Schedule Report button
+if ($null -ne $ScheduleReportBtn) {
 $ScheduleReportBtn.Add_Click({
     try {
         Write-Log "Schedule Report button clicked"
@@ -11732,8 +12162,10 @@ $ScheduleReportBtn.Add_Click({
             [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
 # Refresh Scheduled Reports button
+if ($null -ne $RefreshScheduledReportsBtn) {
 $RefreshScheduledReportsBtn.Add_Click({
     try {
         Write-Log "Refresh Scheduled Reports button clicked"
@@ -11779,6 +12211,7 @@ $RefreshScheduledReportsBtn.Add_Click({
             [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
 # Phase 4: Filter Control Event Handlers for Compliance Panel
 $ComplianceStatusFilter.Add_SelectionChanged({
@@ -11801,13 +12234,16 @@ $ComplianceFilterSearch.Add_TextChanged({
     Filter-ComplianceComputers
 })
 
+if ($null -ne $ComplianceClearFilterBtn) {
 $ComplianceClearFilterBtn.Add_Click({
     $ComplianceStatusFilter.SelectedIndex = 0
     $ComplianceFilterSearch.Text = "Search computers..."
     Filter-ComplianceComputers
 })
+}
 
 # Phase 4: Bulk Duplicate Button Event Handler
+if ($null -ne $ApplyDuplicateBtn) {
 $ApplyDuplicateBtn.Add_Click({
     Write-Log "Bulk duplicate button clicked"
 
@@ -11843,6 +12279,7 @@ $ApplyDuplicateBtn.Add_Click({
 
     Invoke-BulkDuplicateToGroup -SelectedItems $selectedItems -TargetGroup $targetGroup
 })
+}
 
 # Helper function to show group selection dialog
 function Show-GroupSelectionDialog {
@@ -12293,11 +12730,12 @@ function Invoke-BulkRemoveRules {
 }
 
 # Default Deny Rules - adds deny rules for common bypass locations
+if ($null -ne $DefaultDenyRulesBtn) {
 $DefaultDenyRulesBtn.Add_Click({
     Write-Log "Adding default deny rules for bypass locations"
 
     $sid = Get-SelectedSid
-    $groupName = $RuleGroupCombo.SelectedItem.Content
+    $groupName = if ($RuleGroupCombo.SelectedItem) { $RuleGroupCombo.SelectedItem.Content } else { "Everyone" }
 
     $RulesOutput.Text = "=== GENERATING DEFAULT DENY RULES ===`n`n"
     $RulesOutput.Text += "These rules block execution from common bypass locations.`n"
@@ -12328,12 +12766,14 @@ $DefaultDenyRulesBtn.Add_Click({
         $RulesOutput.Text += "ERROR: Failed to generate deny rules."
     }
 })
+}
 
 # ============================================================
 # QoL FEATURE: Audit Mode Toggle
 # ============================================================
 $script:AuditModeEnabled = $true
 
+if ($null -ne $AuditToggleBtn) {
 $AuditToggleBtn.Add_Click({
     Write-Log "Audit toggle clicked"
 
@@ -12353,6 +12793,7 @@ $AuditToggleBtn.Add_Click({
         Write-Log "Switched to ENFORCE mode"
     }
 })
+}
 
 function Update-RulesOutputAuditMode {
     param([bool]$IsAudit)
@@ -12391,11 +12832,13 @@ $RulesSearchBox.Add_TextChanged({
     Apply-FilterToRules
 })
 
+if ($null -ne $ClearFilterBtn) {
 $ClearFilterBtn.Add_Click({
     $RulesSearchBox.Text = ""
     $RulesSearchBox.Foreground = "#8B949E"
     Apply-FilterToRules
 })
+}
 
 function Apply-FilterToRules {
     $filterText = $RulesSearchBox.Text
@@ -12653,11 +13096,16 @@ function Update-RulesGroupFilter {
 # ============================================================
 # QoL FEATURE: Quick Rule Preview Panel
 # ============================================================
+if ($null -ne $ClosePreviewBtn) {
 $ClosePreviewBtn.Add_Click({
+    if ($null -ne $RulePreviewPanel) {
     $RulePreviewPanel.Visibility = [System.Windows.Visibility]::Collapsed
+    }
 })
+}
 
 # Merge rules - import additional XML rules and merge with generated rules
+if ($null -ne $MergeRulesBtn) {
 $MergeRulesBtn.Add_Click({
     Write-Log "Merge rules clicked"
 
@@ -12703,6 +13151,7 @@ $MergeRulesBtn.Add_Click({
         }
     }
 })
+}
 
 # Rule Group ComboBox selection changed - show/hide custom SID panel
 $RuleGroupCombo.Add_SelectionChanged({
@@ -12766,6 +13215,7 @@ function Get-SelectedSid {
     }
 }
 
+if ($null -ne $GenerateRulesBtn) {
 $GenerateRulesBtn.Add_Click({
     if ($script:CollectedArtifacts.Count -eq 0) {
         $RulesOutput.Text = "ERROR: No artifacts imported. Use Import Artifact or Import Folder first."
@@ -12779,7 +13229,7 @@ $GenerateRulesBtn.Add_Click({
                 else { "Path" }
 
     $action = if ($RuleActionAllow.IsChecked) { "Allow" } else { "Deny" }
-    $selectedGroup = $RuleGroupCombo.SelectedItem.Content
+    $selectedGroup = if ($RuleGroupCombo.SelectedItem) { $RuleGroupCombo.SelectedItem.Content } else { "Everyone" }
 
     # QoL: Bulk Action Confirmation
     $confirmMsg = "[!] You are about to:`n`n"
@@ -12938,36 +13388,46 @@ $GenerateRulesBtn.Add_Click({
     # Update Rules DataGrid
     Update-RulesDataGrid
 })
+}
 
 # Events filters
+if ($null -ne $FilterAllBtn) {
 $FilterAllBtn.Add_Click({
     $script:EventFilter = "All"
     Write-Log "Event filter set to: All"
     Filter-Events | Out-Null
     $EventsOutput.Text = "Filter set to All."
 })
+}
 
+if ($null -ne $FilterAllowedBtn) {
 $FilterAllowedBtn.Add_Click({
     $script:EventFilter = "Allowed"
     Write-Log "Event filter set to: Allowed"
     Filter-Events | Out-Null
     $EventsOutput.Text = "Filter set to Allowed (ID 8002)."
 })
+}
 
+if ($null -ne $FilterBlockedBtn) {
 $FilterBlockedBtn.Add_Click({
     $script:EventFilter = "Blocked"
     Write-Log "Event filter set to: Blocked"
     Filter-Events | Out-Null
     $EventsOutput.Text = "Filter set to Blocked (ID 8004)."
 })
+}
 
+if ($null -ne $FilterAuditBtn) {
 $FilterAuditBtn.Add_Click({
     $script:EventFilter = "Audit"
     Write-Log "Event filter set to: Audit"
     Filter-Events | Out-Null
     $EventsOutput.Text = "Filter set to Audit (ID 8003)."
 })
+}
 
+if ($null -ne $ExportEventsBtn) {
 $ExportEventsBtn.Add_Click({
     if ($script:AllEvents.Count -eq 0) {
         [System.Windows.MessageBox]::Show("No events to export. Click Refresh first.", "No Data", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
@@ -12993,8 +13453,10 @@ $ExportEventsBtn.Add_Click({
         [System.Windows.MessageBox]::Show("Exported $($script:AllEvents.Count) events to $($saveDialog.FileName)", "Export Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     }
 })
+}
 
 # Scan Local Events button
+if ($null -ne $ScanLocalEventsBtn) {
 $ScanLocalEventsBtn.Add_Click({
     Write-Log "Scanning local AppLocker events"
     $EventsOutput.Text = "=== SCANNING LOCAL EVENTS ===`n`nReading AppLocker logs from this computer...`n"
@@ -13102,10 +13564,12 @@ $ScanLocalEventsBtn.Add_Click({
         Write-Log "Local event scan failed: $($_.Exception.Message)" -Level "ERROR"
     }
 })
+}
 
 # Scan Remote Events button - COMPREHENSIVE SCAN
 # Uses Get-RemoteAppLockerEvents from Module2-RemoteScan for full data collection
 # Collects: All 4 AppLocker logs, system info, policy status, parsed event XML
+if ($null -ne $ScanRemoteEventsBtn) {
 $ScanRemoteEventsBtn.Add_Click({
     Write-Log "Scanning remote AppLocker events (comprehensive)"
 
@@ -13221,8 +13685,10 @@ $ScanRemoteEventsBtn.Add_Click({
     $EventsOutput.Text += "`nExport to CSV, then Import in Rule Generator.`n"
     $EventsOutput.Text += "Or go to Rule Generator > From Events to create rules directly."
 })
+}
 
 # Refresh Computers button - loads from AD Discovery
+if ($null -ne $RefreshComputersBtn) {
 $RefreshComputersBtn.Add_Click({
     $EventComputersList.Items.Clear()
 
@@ -13317,7 +13783,9 @@ $RefreshComputersBtn.Add_Click({
         }
     }
 })
+}
 
+if ($null -ne $RefreshEventsBtn) {
 $RefreshEventsBtn.Add_Click({
     Write-Log "Refreshing events with filter: $($script:EventFilter)"
     $result = Get-AppLockerEvents -MaxEvents 1000
@@ -13344,8 +13812,10 @@ $RefreshEventsBtn.Add_Click({
     $EventsOutput.Text = $output
     Write-Log "Events refreshed: $($filteredEvents.Count) events displayed"
 })
+}
 
 # Compliance events
+if ($null -ne $GenerateEvidenceBtn) {
 $GenerateEvidenceBtn.Add_Click({
     Write-Log "Generating evidence package"
 
@@ -13479,8 +13949,10 @@ $GenerateEvidenceBtn.Add_Click({
         Write-Log "Failed to generate evidence package: $errorMsg" -Level "ERROR"
     }
 })
+}
 
 # Scan Local Compliance button
+if ($null -ne $ScanLocalComplianceBtn) {
 $ScanLocalComplianceBtn.Add_Click({
     Write-Log "Scan Local Compliance clicked"
 
@@ -13504,8 +13976,10 @@ $ScanLocalComplianceBtn.Add_Click({
         $ComplianceOutput.Text = "Loaded $($script:DiscoveredComputers.Count) computers from AD Discovery.`n`nSelect computers and click 'Scan Selected' to test connectivity."
     }
 })
+}
 
 # Scan Selected Compliance button
+if ($null -ne $ScanSelectedComplianceBtn) {
 $ScanSelectedComplianceBtn.Add_Click({
     Write-Log "Scan Selected Compliance clicked"
 
@@ -13544,8 +14018,10 @@ $ScanSelectedComplianceBtn.Add_Click({
     $results | ForEach-Object { $ComplianceOutput.Text += "$_`n" }
     $ComplianceOutput.Text += "`nReady to generate evidence package. Select computers and click 'Generate Evidence Package'."
 })
+}
 
 # Refresh Compliance List button
+if ($null -ne $RefreshComplianceListBtn) {
 $RefreshComplianceListBtn.Add_Click({
     Write-Log "Refresh Compliance List clicked"
 
@@ -13596,8 +14072,10 @@ $RefreshComplianceListBtn.Add_Click({
         Write-Log "Failed to refresh compliance list: $($_.Exception.Message)" -Level "ERROR"
     }
 })
+}
 
 # Deployment events
+if ($null -ne $CreateGP0Btn) {
 $CreateGP0Btn.Add_Click({
     Write-Log "Create GPO button clicked"
     if ($script:IsWorkgroup) {
@@ -13625,7 +14103,9 @@ $CreateGP0Btn.Add_Click({
         Write-Log "Failed to create AppLocker GPO: $($result.error)" -Level "ERROR"
     }
 })
+}
 
+if ($null -ne $DisableGpoBtn) {
 $DisableGpoBtn.Add_Click({
     Write-Log "Disable GPO button clicked"
     if ($script:IsWorkgroup) {
@@ -13676,8 +14156,10 @@ $DisableGpoBtn.Add_Click({
         Write-Log "Failed to disable GPO: $($_.Exception.Message)" -Level "ERROR"
     }
 })
+}
 
 # WinRM events
+if ($null -ne $CreateWinRMGpoBtn) {
 $CreateWinRMGpoBtn.Add_Click({
     Write-Log "Create WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
@@ -13701,8 +14183,10 @@ $CreateWinRMGpoBtn.Add_Click({
         [System.Windows.MessageBox]::Show("Failed to create/update WinRM GPO:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
 # Enable/Disable WinRM GPO Link
+if ($null -ne $EnableWinRMGpoBtn) {
 $EnableWinRMGpoBtn.Add_Click({
     Write-Log "Enable WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
@@ -13720,7 +14204,9 @@ $EnableWinRMGpoBtn.Add_Click({
         [System.Windows.MessageBox]::Show("Failed to enable GPO link:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
+if ($null -ne $DisableWinRMGpoBtn) {
 $DisableWinRMGpoBtn.Add_Click({
     Write-Log "Disable WinRM GPO button clicked"
     if ($script:IsWorkgroup) {
@@ -13742,8 +14228,10 @@ $DisableWinRMGpoBtn.Add_Click({
         }
     }
 })
+}
 
 # Force GPUpdate on all domain computers
+if ($null -ne $ForceGPUpdateBtn) {
 $ForceGPUpdateBtn.Add_Click({
     Write-Log "Force GPUpdate button clicked"
     if ($script:IsWorkgroup -or -not $script:HasRSAT) {
@@ -13827,8 +14315,10 @@ $ForceGPUpdateBtn.Add_Click({
         Write-Log "Force GPUpdate failed: $($_.Exception.Message)" -Level "ERROR"
     }
 })
+}
 
 # AD Discovery events
+if ($null -ne $DiscoverComputersBtn) {
 $DiscoverComputersBtn.Add_Click({
     Write-Log "Discover computers button clicked"
     if ($script:IsWorkgroup) {
@@ -13886,7 +14376,9 @@ $DiscoverComputersBtn.Add_Click({
         Write-Log "AD Discovery failed: $($_.Exception.Message)" -Level "ERROR"
     }
 })
+}
 
+if ($null -ne $TestConnectivityBtn) {
 $TestConnectivityBtn.Add_Click({
     Write-Log "Test connectivity button clicked"
     if ($DiscoveredComputersList.SelectedItems.Count -eq 0) {
@@ -13978,12 +14470,16 @@ $TestConnectivityBtn.Add_Click({
 
     Write-Log "Connectivity test: Ping=$pingOK/$totalTests, WinRM=$winrmOK/$totalTests"
 })
+}
 
+if ($null -ne $SelectAllComputersBtn) {
 $SelectAllComputersBtn.Add_Click({
     $DiscoveredComputersList.SelectAll()
     $DiscoveryOutput.Text = "Selected all $($DiscoveredComputersList.Items.Count) computers"
 })
+}
 
+if ($null -ne $ScanSelectedBtn) {
 $ScanSelectedBtn.Add_Click({
     Write-Log "Scan selected button clicked"
     if ($DiscoveredComputersList.SelectedItems.Count -eq 0) {
@@ -14118,8 +14614,10 @@ $ScanSelectedBtn.Add_Click({
     [System.Windows.MessageBox]::Show("Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`nFrom $($winrmOK.Count) computers`n`nGo to Rule Generator to create rules.", "Scan Complete", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
     Write-Log "Remote scan complete: $($allArtifacts.Count) artifacts from $($winrmOK.Count) computers"
 })
+}
 
 # Group Management events
+if ($null -ne $ExportGroupsBtn) {
 $ExportGroupsBtn.Add_Click({
     Write-Log "Export groups button clicked"
     if ($script:IsWorkgroup) {
@@ -14145,7 +14643,9 @@ $ExportGroupsBtn.Add_Click({
         }
     }
 })
+}
 
+if ($null -ne $ImportGroupsBtn) {
 $ImportGroupsBtn.Add_Click({
     Write-Log "Import groups button clicked"
     if ($script:IsWorkgroup) {
@@ -14180,8 +14680,10 @@ $ImportGroupsBtn.Add_Click({
         }
     }
 })
+}
 
 # AppLocker Setup events
+if ($null -ne $BootstrapAppLockerBtn) {
 $BootstrapAppLockerBtn.Add_Click({
     Write-Log "Bootstrap AppLocker button clicked"
     if ($script:IsWorkgroup) {
@@ -14205,8 +14707,10 @@ $BootstrapAppLockerBtn.Add_Click({
         Write-Log "AppLocker bootstrap failed: $($result.error)" -Level "ERROR"
     }
 })
+}
 
 # Remove OU Protection button handler
+if ($null -ne $RemoveOUProtectionBtn) {
 $RemoveOUProtectionBtn.Add_Click({
     Write-Log "Remove OU Protection button clicked"
     if ($script:IsWorkgroup) {
@@ -14238,7 +14742,9 @@ $RemoveOUProtectionBtn.Add_Click({
         [System.Windows.MessageBox]::Show("Failed to remove protection: $($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
+if ($null -ne $CreateBrowserDenyBtn) {
 $CreateBrowserDenyBtn.Add_Click({
     Write-Log "Create browser deny rules button clicked"
 
@@ -14253,34 +14759,46 @@ $CreateBrowserDenyBtn.Add_Click({
         Write-Log "Browser deny rules failed: $($result.error)" -Level "ERROR"
     }
 })
+}
 
 # Help events
+if ($null -ne $HelpBtnWorkflow) {
 $HelpBtnWorkflow.Add_Click({
     $HelpTitle.Text = "Help - Workflow"
     $HelpText.Text = Get-HelpContent "Workflow"
 })
+}
 
+if ($null -ne $HelpBtnWhatsNew) {
 $HelpBtnWhatsNew.Add_Click({
     $HelpTitle.Text = "Help - What's New in v1.2.5"
     $HelpText.Text = Get-HelpContent "WhatsNew"
 })
+}
 
+if ($null -ne $HelpBtnPolicyGuide) {
 $HelpBtnPolicyGuide.Add_Click({
     $HelpTitle.Text = "Help - Policy Build Guide"
     $HelpText.Text = Get-HelpContent "PolicyGuide"
 })
+}
 
+if ($null -ne $HelpBtnRules) {
 $HelpBtnRules.Add_Click({
     $HelpTitle.Text = "Help - Rule Best Practices"
     $HelpText.Text = Get-HelpContent "Rules"
 })
+}
 
+if ($null -ne $HelpBtnTroubleshooting) {
 $HelpBtnTroubleshooting.Add_Click({
     $HelpTitle.Text = "Help - Troubleshooting"
     $HelpText.Text = Get-HelpContent "Troubleshooting"
 })
+}
 
 # Gap Analysis events
+if ($null -ne $ImportBaselineBtn) {
 $ImportBaselineBtn.Add_Click({
     Write-Log "Import baseline button clicked"
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -14302,7 +14820,9 @@ $ImportBaselineBtn.Add_Click({
         }
     }
 })
+}
 
+if ($null -ne $ImportTargetBtn) {
 $ImportTargetBtn.Add_Click({
     Write-Log "Import target button clicked"
     $openDialog = New-Object System.Windows.Forms.OpenFileDialog
@@ -14324,7 +14844,9 @@ $ImportTargetBtn.Add_Click({
         }
     }
 })
+}
 
+if ($null -ne $CompareSoftwareBtn) {
 $CompareSoftwareBtn.Add_Click({
     Write-Log "Compare software button clicked"
 
@@ -14356,7 +14878,9 @@ $CompareSoftwareBtn.Add_Click({
         [System.Windows.MessageBox]::Show("Comparison failed: $($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
+if ($null -ne $ExportGapAnalysisBtn) {
 $ExportGapAnalysisBtn.Add_Click({
     Write-Log "Export gap analysis button clicked"
 
@@ -14382,8 +14906,10 @@ $ExportGapAnalysisBtn.Add_Click({
         }
     }
 })
+}
 
 # Export/Import Rules events
+if ($null -ne $ExportRulesBtn) {
 $ExportRulesBtn.Add_Click({
     Write-Log "Export rules button clicked"
 
@@ -14443,7 +14969,9 @@ $ExportRulesBtn.Add_Click({
         Write-Log "Rules exported: $($saveDialog.FileName) ($($validation.validCount) rules)"
     }
 })
+}
 
+if ($null -ne $ImportRulesBtn) {
 $ImportRulesBtn.Add_Click({
     Write-Log "Import rules to GPO button clicked"
 
@@ -14487,7 +15015,18 @@ $ImportRulesBtn.Add_Click({
     Write-Log "Importing rules to GPO: $targetGpoName (Mode: $(if ($isMergeMode) { 'Merge' } else { 'Overwrite' }))"
 
     try {
-        Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
+        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
+            Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
+        } else {
+            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
+            if (Test-Path $script:ModulePath) {
+                Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
+            } else {
+                Write-Log "ERROR: Module path not found for Module4-PolicyLab" -Level "ERROR"
+                $DeploymentStatus.Text = "ERROR: Module path not found for Module4-PolicyLab"
+                return
+            }
+        }
         Import-Module GroupPolicy -ErrorAction Stop
 
         # Load new rules from XML file
@@ -14620,6 +15159,7 @@ $ImportRulesBtn.Add_Click({
         [System.Windows.MessageBox]::Show("Failed to import rules:`n`n$errorMsg", "Import Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
     }
 })
+}
 
 # Other events
 function Update-StatusBar {
@@ -15368,7 +15908,7 @@ function New-CustomTemplate {
         $CreateTemplateBtn.Add_Click({
             $name = $TemplateNameInput.Text.Trim()
             $desc = $TemplateDescInput.Text.Trim()
-            $category = $TemplateCategoryInput.SelectedItem.Content
+            $category = if ($TemplateCategoryInput.SelectedItem) { $TemplateCategoryInput.SelectedItem.Content } else { "Custom" }
             $rulesJson = $TemplateRulesInput.Text.Trim()
 
             if ([string]::IsNullOrEmpty($name)) {
@@ -15597,7 +16137,9 @@ function Invoke-RuleWizard {
 
             # Hide all panels
             foreach ($panel in $stepPanels) {
+                if ($null -ne $panel) {
                 $panel.Visibility = [System.Windows.Visibility]::Collapsed
+                }
             }
 
             # Show current panel
@@ -15615,11 +16157,19 @@ function Invoke-RuleWizard {
             # Update buttons
             $WizardBackBtn.IsEnabled = ($step -gt 1)
             if ($step -eq 5) {
+                if ($null -ne $WizardNextBtn) {
                 $WizardNextBtn.Visibility = [System.Windows.Visibility]::Collapsed
+                }
+                if ($null -ne $WizardFinishBtn) {
                 $WizardFinishBtn.Visibility = [System.Windows.Visibility]::Visible
+                }
             } else {
+                if ($null -ne $WizardNextBtn) {
                 $WizardNextBtn.Visibility = [System.Windows.Visibility]::Visible
+                }
+                if ($null -ne $WizardFinishBtn) {
                 $WizardFinishBtn.Visibility = [System.Windows.Visibility]::Collapsed
+                }
             }
 
             # Update review panel on step 5
@@ -15628,7 +16178,7 @@ function Invoke-RuleWizard {
                 $ReviewRuleType.Text = "Rule Type: $ruleType"
                 $ReviewApplications.Text = "Applications: $($selectedApps.Count) selected"
                 $ReviewAction.Text = "Action: $(if ($AllowActionRadio.IsChecked) { 'Allow' } else { 'Deny' })"
-                $ReviewUserGroup.Text = "User Group: $($UserGroupCombo.SelectedItem.Content)"
+                $ReviewUserGroup.Text = "User Group: $(if ($UserGroupCombo.SelectedItem) { $UserGroupCombo.SelectedItem.Content } else { 'Everyone' })"
                 $ReviewExceptions.Text = "Exceptions: $(if ($UseExceptionsCheck.IsChecked) { 'Enabled' } else { 'None' })"
             }
         }
@@ -15937,13 +16487,16 @@ $TemplateCategoryFilter.Add_SelectionChanged({
 })
 
 # Refresh button
+if ($null -ne $RefreshTemplatesBtn) {
 $RefreshTemplatesBtn.Add_Click({
     Write-Log "Refreshing templates list"
     Load-TemplatesList
     [System.Windows.MessageBox]::Show("Templates list refreshed.", "Refresh", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
 })
+}
 
 # Export button
+if ($null -ne $ExportTemplateBtn) {
 $ExportTemplateBtn.Add_Click({
     Write-Log "Export template button clicked"
 
@@ -15972,8 +16525,10 @@ $ExportTemplateBtn.Add_Click({
         Write-Log "Error exporting template: $_" -Level "ERROR"
     }
 })
+}
 
 # Apply template button
+if ($null -ne $ApplyTemplateBtn) {
 $ApplyTemplateBtn.Add_Click({
     Write-Log "Apply template button clicked"
 
@@ -16025,8 +16580,10 @@ $ApplyTemplateBtn.Add_Click({
         Write-Log "Failed to apply template: $($importResult.error)" -Level "ERROR"
     }
 })
+}
 
 # Edit template button
+if ($null -ne $EditTemplateBtn) {
 $EditTemplateBtn.Add_Click({
     Write-Log "Edit template button clicked"
 
@@ -16044,8 +16601,10 @@ $EditTemplateBtn.Add_Click({
         [System.Windows.MessageBoxImage]::Information
     )
 })
+}
 
 # Delete template button
+if ($null -ne $DeleteTemplateBtn) {
 $DeleteTemplateBtn.Add_Click({
     Write-Log "Delete template button clicked"
 
@@ -16088,6 +16647,7 @@ $DeleteTemplateBtn.Add_Click({
         Write-Log "Error deleting template: $_" -Level "ERROR"
     }
 })
+}
 
 # Initialize on load - fast startup, defer slow operations
 $window.add_Loaded({

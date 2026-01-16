@@ -388,11 +388,25 @@ function Import-GuiModule {
     try {
         Write-StartupLog "Loading $($ModuleInfo.Name)..." -Level Debug
 
-        # Validate module file
-        Test-ModuleFile -Path $ModuleInfo.Path -ModuleName $ModuleInfo.Name | Out-Null
+        # Validate module file exists
+        if (-not (Test-Path $ModuleInfo.Path)) {
+            throw "Module file not found: $($ModuleInfo.Path)"
+        }
 
-        # Dot-source the module
+        # Validate module file syntax if requested
+        if ($ModuleValidation) {
+            Test-ModuleFile -Path $ModuleInfo.Path -ModuleName $ModuleInfo.Name | Out-Null
+        }
+
+        # Dot-source the module in the current scope
+        # NOTE: Export-ModuleMember in modules has no effect with dot-sourcing
+        # All functions are automatically available in the calling scope
         . $ModuleInfo.Path
+
+        # Verify the module actually loaded something
+        if (-not $?) {
+            throw "Dot-sourcing returned error for $($ModuleInfo.Path)"
+        }
 
         $timer.Stop()
         $script:ModuleLoadTimes[$ModuleInfo.Name] = $timer.ElapsedMilliseconds
@@ -436,12 +450,25 @@ function Import-GuiModules {
     Write-StartupLog "Loading GA-AppLocker GUI modules..." -Level Info
 
     $modules = Get-ModuleLoadOrder
-    $totalModules = $modules.Count
+
+    # Filter out already-loaded modules (Core modules loaded during startup)
+    $modulesToLoad = $modules | Where-Object {
+        -not $script:LoadedModules.ContainsKey($_.Name)
+    }
+
+    $totalModules = $modulesToLoad.Count
     $loadedCount = 0
     $failedModules = @()
 
+    if ($totalModules -eq 0) {
+        Write-StartupLog "All modules already loaded" -Level Success
+        return
+    }
+
+    Write-StartupLog "Loading $totalModules remaining modules..." -Level Info
+
     # Group by layer for progress reporting
-    $layers = $modules | Group-Object -Property Layer | Sort-Object Name
+    $layers = $modulesToLoad | Group-Object -Property Layer | Sort-Object Name
 
     foreach ($layer in $layers) {
         Write-StartupLog "Loading Layer $($layer.Name) ($($layer.Count) modules)..." -Level Info
@@ -558,35 +585,77 @@ function Initialize-UiControls {
 
     Write-StartupLog "Initializing UI controls..." -Level Info
 
-    $xamlPath = Join-Path $script:GuiRoot "UI/MainWindow.xaml"
-    $controlNames = Get-XamlControlNames -XamlPath $xamlPath
-
-    $foundCount = 0
-    $missingCount = 0
-    $missingControls = @()
-
-    foreach ($name in $controlNames) {
-        $control = $script:Window.FindName($name)
-        if ($control) {
-            $script:Controls[$name] = $control
-            $foundCount++
-            Write-Verbose "Control bound: $name ($($control.GetType().Name))"
-        }
-        else {
-            $missingCount++
-            $missingControls += $name
-            Write-Warning "Control not found in window: $name"
-        }
+    # CRITICAL: Check if window exists before attempting to access it
+    if ($null -eq $script:Window) {
+        $errorMsg = "Cannot initialize controls: Window object is null. XAML loading may have failed."
+        Write-StartupLog $errorMsg -Level Error
+        throw $errorMsg
     }
 
-    Write-StartupLog "Controls initialized: $foundCount found, $missingCount missing" `
-        -Level $(if ($missingCount -eq 0) { 'Success' } else { 'Warning' })
+    try {
+        $xamlPath = Join-Path $script:GuiRoot "UI/MainWindow.xaml"
 
-    if ($Debug -and $missingControls.Count -gt 0) {
-        Write-StartupLog "Missing controls: $($missingControls -join ', ')" -Level Debug
+        if (-not (Test-Path $xamlPath)) {
+            throw "XAML file not found at: $xamlPath"
+        }
+
+        $controlNames = Get-XamlControlNames -XamlPath $xamlPath
+
+        $foundCount = 0
+        $missingCount = 0
+        $missingControls = @()
+
+        foreach ($name in $controlNames) {
+            try {
+                # Safely call FindName with error handling
+                $control = $script:Window.FindName($name)
+
+                if ($null -ne $control) {
+                    # Store in hashtable
+                    $script:Controls[$name] = $control
+
+                    # CRITICAL FIX: Also create script-scoped variables for direct access
+                    # This allows UI-Helpers to access controls as $StatusText instead of $script:Controls["StatusText"]
+                    Set-Variable -Name $name -Value $control -Scope Script -ErrorAction SilentlyContinue
+
+                    $foundCount++
+                    Write-Verbose "Control bound: $name ($($control.GetType().Name))"
+                }
+                else {
+                    $missingCount++
+                    $missingControls += $name
+                    Write-Verbose "Control not found in window: $name"
+                }
+            }
+            catch {
+                $missingCount++
+                $missingControls += $name
+                Write-Warning "Error binding control '$name': $($_.Exception.Message)"
+            }
+        }
+
+        Write-StartupLog "Controls initialized: $foundCount found, $missingCount missing" `
+            -Level $(if ($missingCount -eq 0) { 'Success' } else { 'Warning' })
+
+        if ($Debug -and $missingControls.Count -gt 0) {
+            Write-StartupLog "Missing controls: $($missingControls -join ', ')" -Level Debug
+        }
+
+        # Verify critical controls exist
+        $criticalControls = @('StatusText', 'PanelDashboard')
+        $missingCritical = $criticalControls | Where-Object { -not $script:Controls.ContainsKey($_) }
+
+        if ($missingCritical.Count -gt 0) {
+            Write-StartupLog "WARNING: Critical controls missing: $($missingCritical -join ', ')" -Level Warning
+        }
+
+        return $script:Controls
     }
-
-    return $script:Controls
+    catch {
+        $errorMsg = "Failed to initialize UI controls: $($_.Exception.Message)"
+        Write-StartupLog $errorMsg -Level Error
+        throw $errorMsg
+    }
 }
 
 function Initialize-ViewModels {
@@ -684,21 +753,32 @@ function Initialize-DefaultUiState {
             Show-Panel -PanelName "Dashboard"
         }
 
-        # Set initial status
-        if ($script:Controls.ContainsKey("StatusText")) {
-            $script:Controls["StatusText"].Text = "Ready"
-            $script:Controls["StatusText"].Foreground = "#3FB950"
+        # Set initial status - with comprehensive null checks
+        if ($script:Controls.ContainsKey("StatusText") -and $null -ne $script:Controls["StatusText"]) {
+            try {
+                $script:Controls["StatusText"].Text = "Ready"
+                $script:Controls["StatusText"].Foreground = "#3FB950"
+            }
+            catch {
+                Write-StartupLog "Could not set StatusText: $($_.Exception.Message)" -Level Debug
+            }
         }
 
-        # Set version info
-        if ($script:Controls.ContainsKey("HeaderVersion")) {
-            $script:Controls["HeaderVersion"].Text = "v$script:RequiredModuleVersion"
+        # Set version info - with comprehensive null checks
+        if ($script:Controls.ContainsKey("HeaderVersion") -and $null -ne $script:Controls["HeaderVersion"]) {
+            try {
+                $script:Controls["HeaderVersion"].Text = "v$script:RequiredModuleVersion"
+            }
+            catch {
+                Write-StartupLog "Could not set HeaderVersion: $($_.Exception.Message)" -Level Debug
+            }
         }
 
         Write-StartupLog "Initial UI state configured" -Level Success
     }
     catch {
         Write-StartupLog "Failed to set initial UI state: $_" -Level Warning
+        # Don't throw - this is not critical to application startup
     }
 }
 
@@ -788,38 +868,74 @@ try {
     Write-Host "╚════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
     Write-Host "`n"
 
-    # Step 1: Initialize WPF Application
+    # Step 1: Load Core modules first (they contain Initialize-GuiApplication)
+    Write-StartupLog "Loading core modules..." -Level Info
+
+    $coreModules = @(
+        @{
+            Path = "$script:GuiRoot/Core/Initialize-Application.ps1"
+            Name = "Core.Initialize"
+            Layer = 1
+        }
+        @{
+            Path = "$script:GuiRoot/Core/Configuration.ps1"
+            Name = "Core.Configuration"
+            Layer = 1
+        }
+    )
+
+    foreach ($module in $coreModules) {
+        $result = Import-GuiModule -ModuleInfo $module
+        if (-not $result.Success) {
+            throw "Failed to load critical core module: $($module.Name)"
+        }
+    }
+
+    Write-StartupLog "Core modules loaded successfully" -Level Success
+
+    # Step 2: Initialize WPF Application (now that Initialize-GuiApplication is loaded)
     Write-StartupLog "Initializing WPF application..." -Level Info
 
+    # Verify the function exists before calling it
+    if (-not (Get-Command Initialize-GuiApplication -ErrorAction SilentlyContinue)) {
+        throw "Initialize-GuiApplication function not found after loading core modules"
+    }
+
     $initResult = Initialize-GuiApplication
+
+    # Add null check for $initResult
+    if ($null -eq $initResult) {
+        throw "Initialize-GuiApplication returned null result"
+    }
+
     if (-not $initResult.Success) {
         throw "Application initialization failed: $($initResult.Error)"
     }
 
     Write-StartupLog "WPF assemblies loaded successfully" -Level Success
 
-    # Step 2: Load all modules
+    # Step 3: Load all remaining modules
     Import-GuiModules
 
-    # Step 3: Load and parse XAML
+    # Step 4: Load and parse XAML
     Initialize-XamlWindow | Out-Null
 
-    # Step 4: Initialize UI controls
+    # Step 5: Initialize UI controls
     Initialize-UiControls | Out-Null
 
-    # Step 5: Initialize ViewModels
+    # Step 6: Initialize ViewModels
     Initialize-ViewModels
 
-    # Step 6: Register event handlers
+    # Step 7: Register event handlers
     Register-EventHandlers
 
-    # Step 7: Set initial UI state
+    # Step 8: Set initial UI state
     Initialize-DefaultUiState
 
-    # Step 8: Register cleanup handlers
+    # Step 9: Register cleanup handlers
     Register-CleanupHandlers
 
-    # Step 9: Show startup summary
+    # Step 10: Show startup summary
     if (-not $NoSplash) {
         Show-StartupSummary
     }
@@ -827,11 +943,22 @@ try {
     # Mark as initialized
     $script:IsInitialized = $true
 
-    # Step 10: Show the window
+    # Step 11: Show the window - with critical null check
     Write-StartupLog "Launching GA-AppLocker Management Console..." -Level Success
     Write-Host "`n"
 
-    $script:Window.ShowDialog() | Out-Null
+    # CRITICAL: Verify window exists before showing
+    if ($null -eq $script:Window) {
+        throw "Cannot show window: Window object is null. Application initialization may have failed."
+    }
+
+    try {
+        $script:Window.ShowDialog() | Out-Null
+    }
+    catch {
+        Write-StartupLog "Window.ShowDialog() failed: $($_.Exception.Message)" -Level Error
+        throw "Failed to display main window: $_"
+    }
 
 }
 catch {

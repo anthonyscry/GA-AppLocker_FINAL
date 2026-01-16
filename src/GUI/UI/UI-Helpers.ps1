@@ -77,32 +77,89 @@ function Show-Panel {
         $PanelAbout.Visibility = [System.Windows.Visibility]::Collapsed
     }
 
+    # CRITICAL FIX: Add null checks to switch statement to prevent null reference errors
     switch ($PanelName) {
-        "Dashboard" { $PanelDashboard.Visibility = [System.Windows.Visibility]::Visible }
-        "Discovery" { $PanelDiscovery.Visibility = [System.Windows.Visibility]::Visible }
-        "Artifacts" { $PanelArtifacts.Visibility = [System.Windows.Visibility]::Visible }
+        "Dashboard" {
+            if ($null -ne $PanelDashboard) {
+                $PanelDashboard.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "Discovery" {
+            if ($null -ne $PanelDiscovery) {
+                $PanelDiscovery.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "Artifacts" {
+            if ($null -ne $PanelArtifacts) {
+                $PanelArtifacts.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
         "Rules" {
             if ($null -ne $PanelRules) {
                 $PanelRules.Visibility = [System.Windows.Visibility]::Visible
             }
-            Update-Badges
+            if (Get-Command Update-Badges -ErrorAction SilentlyContinue) {
+                Update-Badges
+            }
         }
-        "Deployment" { $PanelDeployment.Visibility = [System.Windows.Visibility]::Visible }
-        "Events" { $PanelEvents.Visibility = [System.Windows.Visibility]::Visible }
-        "Compliance" { $PanelCompliance.Visibility = [System.Windows.Visibility]::Visible }
-        "Reports" { $PanelReports.Visibility = [System.Windows.Visibility]::Visible }
-        "WinRM" { $PanelWinRM.Visibility = [System.Windows.Visibility]::Visible }
-        "GroupMgmt" { $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Visible }
-        "AppLockerSetup" { $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible }
-        "GapAnalysis" { $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Visible }
+        "Deployment" {
+            if ($null -ne $PanelDeployment) {
+                $PanelDeployment.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "Events" {
+            if ($null -ne $PanelEvents) {
+                $PanelEvents.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "Compliance" {
+            if ($null -ne $PanelCompliance) {
+                $PanelCompliance.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "Reports" {
+            if ($null -ne $PanelReports) {
+                $PanelReports.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "WinRM" {
+            if ($null -ne $PanelWinRM) {
+                $PanelWinRM.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "GroupMgmt" {
+            if ($null -ne $PanelGroupMgmt) {
+                $PanelGroupMgmt.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "AppLockerSetup" {
+            if ($null -ne $PanelAppLockerSetup) {
+                $PanelAppLockerSetup.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "GapAnalysis" {
+            if ($null -ne $PanelGapAnalysis) {
+                $PanelGapAnalysis.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
         "Templates" {
             if ($null -ne $PanelTemplates) {
                 $PanelTemplates.Visibility = [System.Windows.Visibility]::Visible
             }
-            Load-TemplatesList
+            if (Get-Command Load-TemplatesList -ErrorAction SilentlyContinue) {
+                Load-TemplatesList
+            }
         }
-        "Help" { $PanelHelp.Visibility = [System.Windows.Visibility]::Visible }
-        "About" { $PanelAbout.Visibility = [System.Windows.Visibility]::Visible }
+        "Help" {
+            if ($null -ne $PanelHelp) {
+                $PanelHelp.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
+        "About" {
+            if ($null -ne $PanelAbout) {
+                $PanelAbout.Visibility = [System.Windows.Visibility]::Visible
+            }
+        }
     }
 }
 
@@ -122,83 +179,105 @@ function Update-StatusBar {
     .EXAMPLE
         Update-StatusBar
     #>
-    # Update main status text
-    if ($script:IsWorkgroup) {
-        $StatusText.Text = "WORKGROUP MODE - Local scanning available"
-    } elseif (-not $script:HasRSAT) {
-        $StatusText.Text = "$($script:DomainInfo.dnsRoot) - RSAT required for GPO features"
-    } else {
-        $StatusText.Text = "$($script:DomainInfo.dnsRoot) - Full features available"
-    }
 
-    # Phase 3: Enhanced Context Indicators
-    # Domain/Workgroup indicator
-    if ($script:IsWorkgroup) {
-        $MiniStatusDomain.Text = "WORKGROUP"
-        $MiniStatusDomain.Foreground = "#8B949E"
-    } else {
-        $MiniStatusDomain.Text = "$($script:DomainInfo.netBIOSName)"
-        $MiniStatusDomain.Foreground = "#3FB950"
-    }
-
-    # Mode indicator (Audit vs Enforce)
+    # CRITICAL FIX: Add null checks for all status bar controls
     try {
-        $policy = Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue
-        $hasEnforce = $false
-        if ($policy) {
-            foreach ($collection in $policy.RuleCollections) {
-                if ($collection.EnforcementMode -eq "Enabled") {
-                    $hasEnforce = $true
-                    break
-                }
+        # Update main status text
+        if ($null -ne $StatusText) {
+            if ($script:IsWorkgroup) {
+                $StatusText.Text = "WORKGROUP MODE - Local scanning available"
+            } elseif (-not $script:HasRSAT) {
+                $StatusText.Text = "$($script:DomainInfo.dnsRoot) - RSAT required for GPO features"
+            } else {
+                $StatusText.Text = "$($script:DomainInfo.dnsRoot) - Full features available"
             }
         }
 
-        if ($hasEnforce) {
-            $MiniStatusMode.Text = "ENFORCE"
-            $MiniStatusMode.Foreground = "#F85149"
-        } else {
-            $MiniStatusMode.Text = "AUDIT"
-            $MiniStatusMode.Foreground = "#3FB950"
+        # Phase 3: Enhanced Context Indicators
+        # Domain/Workgroup indicator
+        if ($null -ne $MiniStatusDomain) {
+            if ($script:IsWorkgroup) {
+                $MiniStatusDomain.Text = "WORKGROUP"
+                $MiniStatusDomain.Foreground = "#8B949E"
+            } else {
+                $MiniStatusDomain.Text = "$($script:DomainInfo.netBIOSName)"
+                $MiniStatusDomain.Foreground = "#3FB950"
+            }
+        }
+
+        # Mode indicator (Audit vs Enforce)
+        if ($null -ne $MiniStatusMode) {
+            try {
+                $policy = Get-AppLockerPolicy -Effective -ErrorAction SilentlyContinue
+                $hasEnforce = $false
+                if ($policy) {
+                    foreach ($collection in $policy.RuleCollections) {
+                        if ($collection.EnforcementMode -eq "Enabled") {
+                            $hasEnforce = $true
+                            break
+                        }
+                    }
+                }
+
+                if ($hasEnforce) {
+                    $MiniStatusMode.Text = "ENFORCE"
+                    $MiniStatusMode.Foreground = "#F85149"
+                } else {
+                    $MiniStatusMode.Text = "AUDIT"
+                    $MiniStatusMode.Foreground = "#3FB950"
+                }
+            }
+            catch {
+                $MiniStatusMode.Text = "UNKNOWN"
+                $MiniStatusMode.Foreground = "#8B949E"
+            }
+        }
+
+        # Phase indicator (from GPO quick assignment)
+        if ($null -ne $MiniStatusPhase) {
+            $currentPhase = $script:CurrentDeploymentPhase
+            if ($currentPhase) {
+                $MiniStatusPhase.Text = "P$currentPhase"
+            } else {
+                $MiniStatusPhase.Text = ""
+            }
+        }
+
+        # Connected systems count
+        if ($null -ne $MiniStatusConnected) {
+            if ($script:DiscoveredSystems) {
+                $onlineCount = @($script:DiscoveredSystems | Where-Object { $_.status -eq "Online" }).Count
+                $MiniStatusConnected.Text = "$onlineCount online"
+            } else {
+                $MiniStatusConnected.Text = "0 systems"
+            }
+        }
+
+        # Artifacts count
+        if ($null -ne $MiniStatusArtifacts) {
+            $artifactCount = if ($script:CollectedArtifacts) { $script:CollectedArtifacts.Count } else { 0 }
+            $MiniStatusArtifacts.Text = "$artifactCount artifacts"
+        }
+
+        # Last sync time
+        if ($null -ne $MiniStatusSync) {
+            if ($script:LastSyncTime) {
+                $timeDiff = (Get-Date) - $script:LastSyncTime
+                if ($timeDiff.TotalMinutes -lt 1) {
+                    $MiniStatusSync.Text = "Just now"
+                } elseif ($timeDiff.TotalMinutes -lt 60) {
+                    $MiniStatusSync.Text = "$([int]$timeDiff.TotalMinutes)m ago"
+                } else {
+                    $MiniStatusSync.Text = "$([int]$timeDiff.TotalHours)h ago"
+                }
+            } else {
+                $MiniStatusSync.Text = "Ready"
+            }
         }
     }
     catch {
-        $MiniStatusMode.Text = "UNKNOWN"
-        $MiniStatusMode.Foreground = "#8B949E"
-    }
-
-    # Phase indicator (from GPO quick assignment)
-    $currentPhase = $script:CurrentDeploymentPhase
-    if ($currentPhase) {
-        $MiniStatusPhase.Text = "P$currentPhase"
-    } else {
-        $MiniStatusPhase.Text = ""
-    }
-
-    # Connected systems count
-    if ($script:DiscoveredSystems) {
-        $onlineCount = @($script:DiscoveredSystems | Where-Object { $_.status -eq "Online" }).Count
-        $MiniStatusConnected.Text = "$onlineCount online"
-    } else {
-        $MiniStatusConnected.Text = "0 systems"
-    }
-
-    # Artifacts count
-    $artifactCount = $script:CollectedArtifacts.Count
-    $MiniStatusArtifacts.Text = "$artifactCount artifacts"
-
-    # Last sync time
-    if ($script:LastSyncTime) {
-        $timeDiff = (Get-Date) - $script:LastSyncTime
-        if ($timeDiff.TotalMinutes -lt 1) {
-            $MiniStatusSync.Text = "Just now"
-        } elseif ($timeDiff.TotalMinutes -lt 60) {
-            $MiniStatusSync.Text = "$([int]$timeDiff.TotalMinutes)m ago"
-        } else {
-            $MiniStatusSync.Text = "$([int]$timeDiff.TotalHours)h ago"
-        }
-    } else {
-        $MiniStatusSync.Text = "Ready"
+        # Silently fail - status bar updates are not critical
+        Write-Verbose "Update-StatusBar failed: $($_.Exception.Message)"
     }
 }
 
@@ -214,29 +293,42 @@ function Update-Badges {
     .EXAMPLE
         Update-Badges
     #>
-    # Update artifact count badge
-    $artifactCount = if ($script:CollectedArtifacts) { $script:CollectedArtifacts.Count } else { 0 }
-    $ArtifactCountBadge.Text = "$artifactCount"
 
-    # Update event count badge
-    $eventCount = if ($script:AllEvents) { $script:AllEvents.Count } else { 0 }
-    $EventCountBadge.Text = "$eventCount"
+    # CRITICAL FIX: Add null checks for badge controls
+    try {
+        # Update artifact count badge
+        if ($null -ne $ArtifactCountBadge) {
+            $artifactCount = if ($script:CollectedArtifacts) { $script:CollectedArtifacts.Count } else { 0 }
+            $ArtifactCountBadge.Text = "$artifactCount"
 
-    # Update badge colors based on availability
-    if ($artifactCount -gt 0) {
-        $ArtifactCountBadge.Foreground = "#3FB950"
-        $ArtifactCountBadge.Background = "#1F6FEB"
-    } else {
-        $ArtifactCountBadge.Foreground = "#6E7681"
-        $ArtifactCountBadge.Background = "#21262D"
+            # Update badge colors based on availability
+            if ($artifactCount -gt 0) {
+                $ArtifactCountBadge.Foreground = "#3FB950"
+                $ArtifactCountBadge.Background = "#1F6FEB"
+            } else {
+                $ArtifactCountBadge.Foreground = "#6E7681"
+                $ArtifactCountBadge.Background = "#21262D"
+            }
+        }
+
+        # Update event count badge
+        if ($null -ne $EventCountBadge) {
+            $eventCount = if ($script:AllEvents) { $script:AllEvents.Count } else { 0 }
+            $EventCountBadge.Text = "$eventCount"
+
+            # Update badge colors based on availability
+            if ($eventCount -gt 0) {
+                $EventCountBadge.Foreground = "#3FB950"
+                $EventCountBadge.Background = "#1F6FEB"
+            } else {
+                $EventCountBadge.Foreground = "#6E7681"
+                $EventCountBadge.Background = "#21262D"
+            }
+        }
     }
-
-    if ($eventCount -gt 0) {
-        $EventCountBadge.Foreground = "#3FB950"
-        $EventCountBadge.Background = "#1F6FEB"
-    } else {
-        $EventCountBadge.Foreground = "#6E7681"
-        $EventCountBadge.Background = "#21262D"
+    catch {
+        # Silently fail - badge updates are not critical
+        Write-Verbose "Update-Badges failed: $($_.Exception.Message)"
     }
 }
 
@@ -258,6 +350,13 @@ function Get-SelectedSid {
     .EXAMPLE
         $sid = Get-SelectedSid
     #>
+
+    # CRITICAL FIX: Add null check for RuleGroupCombo control
+    if ($null -eq $RuleGroupCombo) {
+        Write-Verbose "Get-SelectedSid: RuleGroupCombo control is null, returning default SID"
+        return "S-1-1-0"
+    }
+
     $selectedItem = $RuleGroupCombo.SelectedItem
     if (-not $selectedItem) { return "S-1-1-0" }
 
@@ -300,8 +399,11 @@ function Get-SelectedSid {
             }
         }
         "Custom" {
-            $customSid = $CustomSidText.Text.Trim()
-            if ($customSid -match "^S-1-") { return $customSid }
+            # CRITICAL FIX: Add null check for CustomSidText control
+            if ($null -ne $CustomSidText) {
+                $customSid = $CustomSidText.Text.Trim()
+                if ($customSid -match "^S-1-") { return $customSid }
+            }
             return "S-1-1-0"
         }
         default { return "S-1-1-0" }
