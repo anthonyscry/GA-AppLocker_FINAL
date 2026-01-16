@@ -5705,7 +5705,7 @@ $xamlString = @"
                         <Border Background="#21262D" CornerRadius="8" Padding="20" Margin="0,0,0,12">
                             <StackPanel Orientation="Horizontal">
                                 <Image x:Name="AboutLogo" Width="64" Height="64" Margin="0,0,20,0" VerticalAlignment="Center"
-                                       Source="C:\GA-AppLocker_FINAL\general_atomics_logo_big.ico"/>
+                                       Source="C:\GA-AppLocker\general_atomics_logo_big.ico"/>
                                 <StackPanel VerticalAlignment="Center">
                                     <TextBlock Text="GA-AppLocker Dashboard" FontSize="20" FontWeight="Bold" Foreground="#E6EDF3"/>
                                     <TextBlock x:Name="AboutVersion" Text="Version 1.2.5" FontSize="13" Foreground="#8B949E" Margin="0,4,0,0"/>
@@ -6495,7 +6495,7 @@ if ([string]::IsNullOrEmpty($script:ScriptRoot)) {
 
 # If still null, use hardcoded path (for ps2exe)
 if ([string]::IsNullOrEmpty($script:ScriptRoot)) {
-    $script:ScriptRoot = "C:\projects\GA-AppLocker_FINAL\build"
+    $script:ScriptRoot = "C:\GA-AppLocker\build"
 }
 
 # Determine module path - check if modules are in src\modules, or parent\src\modules
@@ -10457,7 +10457,7 @@ $ScanDirectoriesBtn.Add_Click({
                 return
             }
         }
-        Import-Module "C:\GA-AppLocker_FINAL\src\GA-AppLocker.psm1" -ErrorAction Stop
+        Import-Module "C:\GA-AppLocker\src\GA-AppLocker.psm1" -ErrorAction Stop
 
         $directories = $syncHash.Directories
         $maxFiles = $syncHash.MaxFiles
@@ -13878,7 +13878,7 @@ $ScanSelectedComplianceBtn.Add_Click({
 
     $ComplianceOutput.Text = "Testing connectivity to $($selectedItems.Count) computers...`n`n"
 
-    Import-Module "C:\GA-AppLocker_FINAL\src\modules\Module2-RemoteScan.psm1" -ErrorAction Stop
+    Import-Module "C:\GA-AppLocker\src\modules\Module2-RemoteScan.psm1" -ErrorAction Stop
 
     $results = @()
     foreach ($item in $selectedItems) {
@@ -16683,7 +16683,7 @@ $window.add_Loaded({
         $iconPaths = @(
             (Join-Path $script:ScriptRoot "GA-AppLocker.ico"),
             (Join-Path $script:ScriptRoot "..\build\GA-AppLocker.ico"),
-            "C:\projects\GA-AppLocker_FINAL\build\GA-AppLocker.ico"
+            "C:\GA-AppLocker\build\GA-AppLocker.ico"
         )
 
         foreach ($iconPath in $iconPaths) {
@@ -16699,7 +16699,7 @@ $window.add_Loaded({
         $logoPaths = @(
             (Join-Path $script:ScriptRoot "GA-AppLocker.png"),
             (Join-Path $script:ScriptRoot "..\build\GA-AppLocker.png"),
-            "C:\projects\GA-AppLocker_FINAL\build\GA-AppLocker.png"
+            "C:\GA-AppLocker\build\GA-AppLocker.png"
         )
 
         foreach ($logoPath in $logoPaths) {
@@ -16721,7 +16721,7 @@ $window.add_Loaded({
         $aboutLogoPaths = @(
             (Join-Path $script:ScriptRoot "general_atomics_logo_big.ico"),
             (Join-Path $script:ScriptRoot "..\general_atomics_logo_big.ico"),
-            "C:\projects\GA-AppLocker_FINAL\general_atomics_logo_big.ico"
+            "C:\GA-AppLocker\general_atomics_logo_big.ico"
         )
 
         foreach ($logoPath in $aboutLogoPaths) {
