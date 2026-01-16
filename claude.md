@@ -225,6 +225,11 @@ $rules = New-RulesFromArtifacts -Artifacts $artifacts -RuleType Publisher -Actio
 - `IsWin32Executable` - PE header detection
 - `Test-AppLockerPath` / `Test-PublisherName` - Input validation
 
+**Artifact Data Model Functions (v1.2.5):**
+- `New-AppLockerArtifact` - Creates standardized artifact hashtable with properties: name, path, publisher, hash, version, size, modifiedDate, fileType
+- `Convert-AppLockerArtifact` - Converts artifacts between different property naming conventions (Module2 lowercase, GUI PascalCase, CSV import)
+- `Test-AppLockerArtifact` - Validates artifact has required properties for specific rule types (Publisher, Path, Hash)
+
 **Key Constants:**
 - `$UnsafeDir`, `$SafeDir`, `$UnknownDir` - Directory classification
 - `$GetAlfiDefaultExts` - Default file extensions for scanning
@@ -251,12 +256,28 @@ Modern WPF-based dashboard with GitHub-style dark theme.
 - Compliance - Evidence collection
 - Policy Guide - Best practices reference
 - About - Application information
+- Help - Context-sensitive help documentation
 
 **Key Script Variables:**
 - `$script:CollectedArtifacts` - Scanned artifact data
 - `$script:DiscoveredComputers` - AD computer list
 - `$script:GeneratedRules` - Generated rule objects
 - `$script:BaselineSoftware` / `$script:TargetSoftware` - Gap analysis data
+
+**Quality-of-Life Features (v1.2.5):**
+- **Search/Filter** - Filter artifacts and rules by publisher, path, filename (Rule Generator panel)
+- **Audit Toggle** - One-click switch between Audit and Enforce modes (Deployment panel)
+- **Rule Preview** - Preview XML rules before generation (Rule Generator panel)
+- **Mini Status Bar** - Real-time domain, artifact count, and sync status (top bar)
+- **Bulk Confirmation** - Confirmation dialogs before destructive operations (clear rules, delete GPOs)
+- **Quick Date Presets** - Last Hour, Today, Last 7 Days, Last 30 Days event filtering (Events panel)
+
+**Rule Validation (v1.2.5):**
+- `Test-AppLockerRules` - Pre-export validation ensures all required properties exist
+- Validates Publisher rules have: type, action, publisher, userSid
+- Validates Path rules have: type, action, path, userSid
+- Validates Hash rules have: type, action, hash, userSid
+- Returns success, validRules, errors, warnings
 
 ---
 
