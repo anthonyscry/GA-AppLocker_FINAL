@@ -4262,64 +4262,52 @@ $xamlString = @"
 
                 <!-- Artifacts Panel -->
                 <StackPanel x:Name="PanelArtifacts" Visibility="Collapsed">
-                    <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,15"/>
+                    <TextBlock Text="Artifact Collection" FontSize="24" FontWeight="Bold" Foreground="#58A6FF" Margin="0,0,0,15"/>
 
-                    <!-- Local Scan Header -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,0,0,10" Padding="15">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="Local Artifact Scanning" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3"/>
-                                <TextBlock Text="Scan the local system for executable artifacts" FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
-                            </StackPanel>
-
-                            <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Local System" Style="{StaticResource PrimaryButton}" Grid.Column="1" MinHeight="32" MinWidth="140"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- Directory Selection -->
+                    <!-- Directory Selection and Scan -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Margin="0,0,0,10" Padding="15">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
 
-                            <Grid Grid.Row="0" Margin="0,0,0,10">
+                            <!-- Header with description -->
+                            <StackPanel Grid.Row="0" Margin="0,0,0,10">
+                                <TextBlock Text="Local Artifact Scanning" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3"/>
+                                <TextBlock Text="Select directories to scan for executable artifacts (Ctrl+click for multiple, Shift+click for range)" FontSize="11" Foreground="#6E7681" Margin="0,4,0,0"/>
+                            </StackPanel>
+
+                            <!-- Controls row -->
+                            <Grid Grid.Row="1" Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="Directories:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBlock Grid.Column="1" Text="Ctrl+click to select multiple, Shift+click for range" FontSize="11" Foreground="#6E7681" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="2" Text="Max Files:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
-                                <TextBox x:Name="MaxFilesText" Text="50000" Width="80" Height="28"
+                                <TextBlock Grid.Column="0" Text="Max Files:" FontSize="13" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                <TextBox x:Name="MaxFilesText" Text="50000" Width="80" Height="32"
                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                         BorderThickness="1" FontSize="12" Padding="5" Grid.Column="3"/>
-                                <Button x:Name="ScanDirectoriesBtn" Content="Scan Directories"
-                                        Style="{StaticResource SecondaryButton}" Grid.Column="5" MinHeight="32"/>
+                                         BorderThickness="1" FontSize="12" Padding="5" Grid.Column="1"/>
+                                <Button x:Name="ScanLocalArtifactsBtn" Content="Scan Selected Directories"
+                                        Style="{StaticResource PrimaryButton}" Grid.Column="3" MinHeight="32" MinWidth="180"/>
                             </Grid>
 
-                            <ListBox x:Name="DirectoryList" Grid.Row="1" Height="150" Background="#0D1117"
+                            <ListBox x:Name="DirectoryList" Grid.Row="2" Height="150" Background="#0D1117"
                                      Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1"
                                      SelectionMode="Extended" FontSize="12">
+                                <ListBoxItem Content="C:\ (Entire C Drive - may take longer)"/>
                                 <ListBoxItem Content="C:\Program Files"/>
                                 <ListBoxItem Content="C:\Program Files (x86)"/>
                                 <ListBoxItem Content="C:\ProgramData"/>
                                 <ListBoxItem Content="C:\Windows\System32"/>
                                 <ListBoxItem Content="C:\Windows\SysWOW64"/>
                                 <ListBoxItem Content="C:\Windows\Temp"/>
+                                <ListBoxItem Content="C:\Users"/>
                                 <ListBoxItem Content="C:\Users\*\AppData\Local\Temp"/>
                                 <ListBoxItem Content="C:\Users\*\Downloads"/>
                             </ListBox>
@@ -6130,8 +6118,7 @@ if ($null -eq $LinkGPOsBtn) { Write-Log "WARNING: Control 'LinkGPOsBtn' not foun
 # Other controls
 $MaxFilesText = $window.FindName("MaxFilesText")
 if ($null -eq $MaxFilesText) { Write-Log "WARNING: Control 'MaxFilesText' not found in XAML" -Level "WARNING" }
-$ScanDirectoriesBtn = $window.FindName("ScanDirectoriesBtn")
-if ($null -eq $ScanDirectoriesBtn) { Write-Log "WARNING: Control 'ScanDirectoriesBtn' not found in XAML" -Level "WARNING" }
+# ScanDirectoriesBtn removed - consolidated into ScanLocalArtifactsBtn
 $DirectoryList = $window.FindName("DirectoryList")
 if ($null -eq $DirectoryList) { Write-Log "WARNING: Control 'DirectoryList' not found in XAML" -Level "WARNING" }
 $ArtifactsList = $window.FindName("ArtifactsList")
@@ -10480,210 +10467,7 @@ $LinkGPOsBtn.Add_Click({
 })
 }
 
-# Artifacts events
-if ($null -ne $ScanDirectoriesBtn) {
-$ScanDirectoriesBtn.Add_Click({
-    # Get selected directories
-    $selectedItems = $DirectoryList.SelectedItems
-    if ($selectedItems.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("Please select at least one directory to scan.", "No Directory Selected", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-        return
-    }
-
-    $directories = $selectedItems | ForEach-Object { $_.Content.ToString() }
-    $maxFiles = [int]$MaxFilesText.Text
-
-    Write-Log "Starting scan of $($directories.Count) directories with max files: $maxFiles"
-    $ArtifactsList.Items.Clear()
-    $RulesOutput.Text = "Starting scan...`n`nDirectories:`n$($directories -join "`n")`n`nThis runs in the background - UI will remain responsive."
-    $ScanLocalBtn.IsEnabled = $false
-
-    # Create a background Runspace for async scanning
-    $syncHash = [hashtable]::Synchronized(@{})
-    $syncHash.ArtifactsList = $ArtifactsList
-    $syncHash.RulesOutput = $RulesOutput
-    $syncHash.ScanDirectoriesBtn = $ScanDirectoriesBtn
-    $syncHash.Window = $window
-    $syncHash.CollectedArtifacts = [System.Collections.ArrayList]::new()
-    $syncHash.Directories = $directories
-    $syncHash.MaxFiles = $maxFiles
-    $syncHash.ArtifactCountBadge = $ArtifactCountBadge
-    $syncHash.EventCountBadge = $EventCountBadge
-
-    $runspace = [runspacefactory]::CreateRunspace()
-    $runspace.ApartmentState = "STA"
-    $runspace.ThreadOptions = "ReuseThread"
-    $runspace.Open()
-
-    $powerShell = [PowerShell]::Create()
-    $powerShell.Runspace = $runspace
-    $powerShell.AddScript({
-        param($syncHash)
-
-        # Import required modules
-        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
-            Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
-        } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
-            if (Test-Path $script:ModulePath) {
-                Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
-            } else {
-                $syncHash.Window.Dispatcher.Invoke([action]{
-                    $syncHash.ArtifactsList.Items.Add("ERROR: Module path not found for Module2-RemoteScan")
-                })
-                return
-            }
-        }
-        Import-Module "C:\GA-AppLocker_FINAL\src\GA-AppLocker.psm1" -ErrorAction Stop
-
-        $directories = $syncHash.Directories
-        $maxFiles = $syncHash.MaxFiles
-        $allArtifacts = [System.Collections.ArrayList]::new()
-
-        # Update UI - starting
-        $syncHash.Window.Dispatcher.Invoke([action]{
-            $syncHash.ArtifactsList.Items.Clear()
-            $syncHash.ArtifactsList.Items.Add("=== ARTIFACT COLLECTION ===")
-            $syncHash.ArtifactsList.Items.Add("")
-            $syncHash.ArtifactsList.Items.Add("Collecting from $($directories.Count) directories:")
-            foreach ($dir in $directories) {
-                $syncHash.ArtifactsList.Items.Add("  - $dir")
-            }
-            $syncHash.ArtifactsList.Items.Add("")
-            $syncHash.ArtifactsList.Items.Add("=== WHAT'S COLLECTED ===")
-            $syncHash.ArtifactsList.Items.Add("  * File name, full path, size")
-            $syncHash.ArtifactsList.Items.Add("  * Publisher/Signer (if signed)")
-            $syncHash.ArtifactsList.Items.Add("  * SHA256 hash (for unsigned files)")
-            $syncHash.ArtifactsList.Items.Add("  * File version and modified date")
-            $syncHash.ArtifactsList.Items.Add("  * File type (EXE, DLL, MSI, Script)")
-            $syncHash.ArtifactsList.Items.Add("")
-            $syncHash.ArtifactsList.Items.Add("[*] Scanning... (UI remains responsive)")
-        })
-
-        try {
-            # Scan each directory
-            foreach ($dir in $directories) {
-                if (-not (Test-Path $dir)) {
-                    $syncHash.Window.Dispatcher.Invoke([action]{
-                        $syncHash.ArtifactsList.Items.Add("[!] Directory not found: $dir")
-                    })
-                    continue
-                }
-
-                $syncHash.Window.Dispatcher.Invoke([action]{
-                    $syncHash.ArtifactsList.Items.Add("[*] Scanning: $dir...")
-                })
-
-                # Get executable artifacts from directory
-                $artifacts = Get-ExecutableArtifacts -Path $dir -MaxFiles $maxFiles -Recurse
-
-                foreach ($art in $artifacts) {
-                    # Normalize to standard artifact format
-                    $normalized = @{
-                        name = if ($art.FileName) { $art.FileName } else { (Split-Path $art.Path -Leaf) }
-                        path = $art.Path
-                        publisher = if ($art.Publisher) { $art.Publisher } else { "Unknown" }
-                        hash = if ($art.Hash) { $art.Hash } else { "" }
-                        version = if ($art.Version) { $art.Version } else { "" }
-                        size = if ($art.Size) { $art.Size } else { 0 }
-                        modifiedDate = if ($art.ModifiedDate) { $art.ModifiedDate } else { (Get-Date) }
-                        fileType = if ($art.FileType) { $art.FileType } else { "Unknown" }
-                    }
-                    $null = $allArtifacts.Add($normalized)
-                    $null = $syncHash.CollectedArtifacts.Add($normalized)
-                }
-            }
-
-            # Update UI with results
-            $syncHash.Window.Dispatcher.Invoke([action]{
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.ArtifactsList.Items.Add("=== SCAN COMPLETE ===")
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.ArtifactsList.Items.Add("Total artifacts: $($allArtifacts.Count)")
-                $syncHash.ArtifactsList.Items.Add("")
-
-                # Count by publisher
-                $byPublisher = $allArtifacts | Group-Object -Property publisher | Sort-Object Count -Descending
-                $syncHash.ArtifactsList.Items.Add("=== TOP PUBLISHERS ===")
-                foreach ($pub in $byPublisher | Select-Object -First 10) {
-                    $syncHash.ArtifactsList.Items.Add("  $($pub.Name): $($pub.Count)")
-                }
-
-                # Count by file type
-                $byType = $allArtifacts | Group-Object -Property fileType | Sort-Object Count -Descending
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.ArtifactsList.Items.Add("=== FILE TYPES ===")
-                foreach ($type in $byType) {
-                    $syncHash.ArtifactsList.Items.Add("  $($type.Name): $($type.Count)")
-                }
-
-                $syncHash.RulesOutput.Text = "Scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`n`nGo to Rule Generator to create rules from these artifacts."
-                $syncHash.ScanDirectoriesBtn.IsEnabled = $true
-            })
-
-            # Export artifacts to CSV automatically
-            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-            $csvPath = "C:\GA-AppLocker\Scans\LocalScan_$timestamp.csv"
-
-            $syncHash.Window.Dispatcher.Invoke([action]{
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.ArtifactsList.Items.Add("Saving to: $csvPath...")
-            })
-
-            # Ensure Scans folder exists
-            $scansFolder = "C:\GA-AppLocker\Scans"
-            if (-not (Test-Path $scansFolder)) {
-                New-Item -ItemType Directory -Path $scansFolder -Force | Out-Null
-            }
-
-            # Convert artifacts to CSV format and save
-            $csvData = $allArtifacts | ForEach-Object {
-                [PSCustomObject]@{
-                    Name = $_.name
-                    Path = $_.path
-                    Publisher = $_.publisher
-                    Hash = $_.hash
-                    Version = $_.version
-                    Size = $_.size
-                    ModifiedDate = $_.modifiedDate
-                    FileType = $_.fileType
-                }
-            }
-
-            $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-
-            $syncHash.Window.Dispatcher.Invoke([action]{
-                $syncHash.ArtifactsList.Items.Add("[OK] Saved: $csvPath")
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.RulesOutput.Text += "`n`nArtifacts exported to: $csvPath"
-
-                # Update badges in Rule Generator
-                $syncHash.ArtifactCountBadge.Text = "$($allArtifacts.Count)"
-                $syncHash.ArtifactCountBadge.Foreground = "#3FB950"
-                $syncHash.ArtifactCountBadge.Background = "#1F6FEB"
-            })
-
-            Write-Log "Scan complete: $($allArtifacts.Count) artifacts collected, saved to: $csvPath"
-        } catch {
-            $errorMsg = $_.Exception.Message
-            $syncHash.Window.Dispatcher.Invoke([action]{
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.ArtifactsList.Items.Add("ERROR: $errorMsg")
-                $syncHash.RulesOutput.Text = "Scan failed: $errorMsg"
-                $syncHash.ScanDirectoriesBtn.IsEnabled = $true
-            })
-            Write-Log "Scan failed: $errorMsg" -Level "ERROR"
-        }
-    }).AddParameter($syncHash) | Out-Null
-
-    $handle = $powerShell.BeginInvoke()
-
-    # Store async handle for cleanup if needed
-    $script:ScanHandle = @{Handle = $handle; PowerShell = $powerShell}
-})
-}
-
-# Scan Local Artifacts button - scans localhost directories
+# Artifacts events - Scan Local Artifacts button - scans localhost directories
 if ($null -ne $ScanLocalArtifactsBtn) {
 $ScanLocalArtifactsBtn.Add_Click({
     Write-Log "Starting local artifact scan (localhost directories)"
@@ -10695,27 +10479,39 @@ $ScanLocalArtifactsBtn.Add_Click({
         return
     }
 
-    $directories = $selectedItems | ForEach-Object { $_.Content.ToString() }
+    # Parse directory selections - handle the "C:\ (Entire C Drive)" option
+    $directories = $selectedItems | ForEach-Object {
+        $content = $_.Content.ToString()
+        if ($content -match "^C:\\\s*\(") {
+            "C:\"  # Extract just C:\ from the full label
+        } else {
+            $content
+        }
+    }
     $maxFiles = [int]$MaxFilesText.Text
 
     Write-Log "Starting local scan of $($directories.Count) directories with max files: $maxFiles"
     $ArtifactsList.Items.Clear()
-    $RulesOutput.Text = "Starting local scan...`n`nDirectories:`n$($directories -join "`n")`n`nThis runs in the background - UI will remain responsive."
+    $ArtifactsList.Items.Add("=== LOCAL ARTIFACT SCAN ===")
+    $ArtifactsList.Items.Add("")
+    $ArtifactsList.Items.Add("Scanning $($directories.Count) directories (max $maxFiles files)...")
+    foreach ($dir in $directories) {
+        $ArtifactsList.Items.Add("  - $dir")
+    }
+    $ArtifactsList.Items.Add("")
+    $ArtifactsList.Items.Add("[*] Scanning... Please wait...")
     $ScanLocalArtifactsBtn.IsEnabled = $false
-    $ScanDirectoriesBtn.IsEnabled = $false
 
     # Create a background Runspace for async scanning
     $syncHash = [hashtable]::Synchronized(@{})
     $syncHash.ArtifactsList = $ArtifactsList
     $syncHash.RulesOutput = $RulesOutput
     $syncHash.ScanLocalArtifactsBtn = $ScanLocalArtifactsBtn
-    $syncHash.ScanDirectoriesBtn = $ScanDirectoriesBtn
     $syncHash.Window = $window
     $syncHash.CollectedArtifacts = [System.Collections.ArrayList]::new()
     $syncHash.Directories = $directories
     $syncHash.MaxFiles = $maxFiles
     $syncHash.ArtifactCountBadge = $ArtifactCountBadge
-    $syncHash.EventCountBadge = $EventCountBadge
 
     $runspace = [runspacefactory]::CreateRunspace()
     $runspace.ApartmentState = "STA"
@@ -10727,73 +10523,102 @@ $ScanLocalArtifactsBtn.Add_Click({
     $powerShell.AddScript({
         param($syncHash)
 
-        # Import required modules
-        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
-            Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
-        } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
-            if (Test-Path $script:ModulePath) {
-                Import-Module (Join-Path $script:ModulePath "Module2-RemoteScan.psm1") -ErrorAction Stop
-            } else {
-                $syncHash.Window.Dispatcher.Invoke([action]{
-                    $syncHash.ArtifactsList.Items.Add("ERROR: Module path not found for Module2-RemoteScan")
-                })
-                return
-            }
-        }
-
         $directories = $syncHash.Directories
         $maxFiles = $syncHash.MaxFiles
         $allArtifacts = [System.Collections.ArrayList]::new()
-
-        # Update UI - starting
-        $syncHash.Window.Dispatcher.Invoke([action]{
-            $syncHash.ArtifactsList.Items.Clear()
-            $syncHash.ArtifactsList.Items.Add("=== LOCAL ARTIFACT SCAN ===")
-            $syncHash.ArtifactsList.Items.Add("")
-            $syncHash.ArtifactsList.Items.Add("Collecting from $($directories.Count) directories:")
-            foreach ($dir in $directories) {
-                $syncHash.ArtifactsList.Items.Add("  - $dir")
-            }
-            $syncHash.ArtifactsList.Items.Add("")
-            $syncHash.ArtifactsList.Items.Add("[*] Scanning localhost... (UI remains responsive)")
-        })
+        $extensions = @(".exe", ".msi", ".bat", ".cmd", ".ps1", ".dll", ".vbs", ".js")
+        $totalFilesScanned = 0
 
         try {
             # Scan each directory
             foreach ($dir in $directories) {
-                if (-not (Test-Path $dir)) {
-                    $syncHash.Window.Dispatcher.Invoke([action]{
-                        $syncHash.ArtifactsList.Items.Add("[!] Directory not found: $dir")
-                    })
-                    continue
-                }
-
-                $syncHash.Window.Dispatcher.Invoke([action]{
-                    $syncHash.ArtifactsList.Items.Add("[*] Scanning: $dir...")
-                })
-
-                # Get executable artifacts from directory
-                $artifacts = Get-ExecutableArtifacts -Path $dir -MaxFiles $maxFiles -Recurse
-
-                foreach ($art in $artifacts) {
-                    # Normalize to standard artifact format
-                    $normalized = @{
-                        name = if ($art.FileName) { $art.FileName } else { (Split-Path $art.Path -Leaf) }
-                        path = $art.Path
-                        publisher = if ($art.Publisher) { $art.Publisher } else { "Unknown" }
-                        hash = if ($art.Hash) { $art.Hash } else { "" }
-                        version = if ($art.Version) { $art.Version } else { "" }
-                        size = if ($art.Size) { $art.Size } else { 0 }
-                        modifiedDate = if ($art.ModifiedDate) { $art.ModifiedDate } else { (Get-Date) }
-                        fileType = if ($art.FileType) { $art.FileType } else { "EXE" }
+                # Handle wildcard paths like C:\Users\*\Downloads
+                $actualPaths = @()
+                if ($dir -match '\*') {
+                    $parentPath = Split-Path $dir -Parent
+                    $childPattern = Split-Path $dir -Leaf
+                    if (Test-Path $parentPath) {
+                        $actualPaths = Get-ChildItem -Path $parentPath -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+                            Join-Path $_.FullName $childPattern
+                        } | Where-Object { Test-Path $_ }
                     }
-                    [void]$allArtifacts.Add($normalized)
+                } else {
+                    $actualPaths = @($dir)
                 }
 
-                $syncHash.Window.Dispatcher.Invoke([action]{
-                    $syncHash.ArtifactsList.Items.Add("    Found: $($artifacts.Count) files")
-                })
+                foreach ($actualDir in $actualPaths) {
+                    if (-not (Test-Path $actualDir)) {
+                        $syncHash.Window.Dispatcher.Invoke([action]{
+                            $syncHash.ArtifactsList.Items.Add("[!] Directory not found: $actualDir")
+                        })
+                        continue
+                    }
+
+                    $syncHash.Window.Dispatcher.Invoke([action]{
+                        $syncHash.ArtifactsList.Items.Add("[*] Scanning: $actualDir...")
+                    })
+
+                    # Get executable artifacts directly (embedded function)
+                    $dirArtifacts = @()
+                    try {
+                        $files = Get-ChildItem -Path $actualDir -Recurse -File -ErrorAction SilentlyContinue |
+                                 Where-Object { $extensions -contains $_.Extension.ToLower() } |
+                                 Select-Object -First ($maxFiles - $totalFilesScanned)
+
+                        foreach ($file in $files) {
+                            try {
+                                $versionInfo = $file.VersionInfo
+                                $publisher = if ($versionInfo.CompanyName) { $versionInfo.CompanyName } else { "Unknown" }
+
+                                # Determine file type
+                                $fileType = switch ($file.Extension.ToLower()) {
+                                    ".exe" { "EXE" }
+                                    ".dll" { "DLL" }
+                                    ".msi" { "MSI" }
+                                    ".ps1" { "Script" }
+                                    ".bat" { "Script" }
+                                    ".cmd" { "Script" }
+                                    ".vbs" { "Script" }
+                                    ".js"  { "Script" }
+                                    default { "Unknown" }
+                                }
+
+                                $artifact = @{
+                                    name = $file.Name
+                                    path = $file.FullName
+                                    publisher = $publisher
+                                    hash = ""
+                                    version = if ($versionInfo.FileVersion) { $versionInfo.FileVersion } else { "" }
+                                    size = $file.Length
+                                    modifiedDate = $file.LastWriteTime
+                                    fileType = $fileType
+                                }
+                                $dirArtifacts += $artifact
+                                [void]$allArtifacts.Add($artifact)
+                                [void]$syncHash.CollectedArtifacts.Add($artifact)
+                                $totalFilesScanned++
+
+                                if ($totalFilesScanned -ge $maxFiles) { break }
+                            } catch { continue }
+                        }
+                    } catch {
+                        $syncHash.Window.Dispatcher.Invoke([action]{
+                            $syncHash.ArtifactsList.Items.Add("    [!] Error scanning: $($_.Exception.Message)")
+                        })
+                    }
+
+                    $syncHash.Window.Dispatcher.Invoke([action]{
+                        $syncHash.ArtifactsList.Items.Add("    Found: $($dirArtifacts.Count) files")
+                    })
+
+                    if ($totalFilesScanned -ge $maxFiles) {
+                        $syncHash.Window.Dispatcher.Invoke([action]{
+                            $syncHash.ArtifactsList.Items.Add("[!] Max files limit reached ($maxFiles)")
+                        })
+                        break
+                    }
+                }
+                if ($totalFilesScanned -ge $maxFiles) { break }
             }
 
             # Update UI - complete
@@ -10802,70 +10627,72 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("=== SCAN COMPLETE ===")
                 $syncHash.ArtifactsList.Items.Add("Total artifacts: $($allArtifacts.Count)")
 
-                # Top publishers
-                $byPublisher = $allArtifacts | Group-Object -Property publisher | Sort-Object Count -Descending | Select-Object -First 10
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.ArtifactsList.Items.Add("=== TOP PUBLISHERS ===")
-                foreach ($pub in $byPublisher) {
-                    $syncHash.ArtifactsList.Items.Add("  $($pub.Name): $($pub.Count)")
-                }
+                if ($allArtifacts.Count -gt 0) {
+                    # Top publishers
+                    $byPublisher = $allArtifacts | Group-Object -Property publisher | Sort-Object Count -Descending | Select-Object -First 10
+                    $syncHash.ArtifactsList.Items.Add("")
+                    $syncHash.ArtifactsList.Items.Add("=== TOP PUBLISHERS ===")
+                    foreach ($pub in $byPublisher) {
+                        $syncHash.ArtifactsList.Items.Add("  $($pub.Name): $($pub.Count)")
+                    }
 
-                # By file type
-                $byType = $allArtifacts | Group-Object -Property fileType | Sort-Object Count -Descending
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.ArtifactsList.Items.Add("=== FILE TYPES ===")
-                foreach ($type in $byType) {
-                    $syncHash.ArtifactsList.Items.Add("  $($type.Name): $($type.Count)")
+                    # By file type
+                    $byType = $allArtifacts | Group-Object -Property fileType | Sort-Object Count -Descending
+                    $syncHash.ArtifactsList.Items.Add("")
+                    $syncHash.ArtifactsList.Items.Add("=== FILE TYPES ===")
+                    foreach ($type in $byType) {
+                        $syncHash.ArtifactsList.Items.Add("  $($type.Name): $($type.Count)")
+                    }
                 }
 
                 $syncHash.RulesOutput.Text = "Local scan complete!`n`nArtifacts collected: $($allArtifacts.Count)`n`nGo to Rule Generator to create rules from these artifacts."
                 $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
-                $syncHash.ScanDirectoriesBtn.IsEnabled = $true
             })
 
-            # Export artifacts to CSV automatically
-            $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
-            $csvPath = "C:\GA-AppLocker\Scans\LocalScan_$timestamp.csv"
+            # Export artifacts to CSV automatically if any found
+            if ($allArtifacts.Count -gt 0) {
+                $timestamp = Get-Date -Format "yyyy-MM-dd_HH-mm-ss"
+                $csvPath = "C:\GA-AppLocker\Scans\LocalScan_$timestamp.csv"
 
-            $syncHash.Window.Dispatcher.Invoke([action]{
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.ArtifactsList.Items.Add("Saving to: $csvPath...")
-            })
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("")
+                    $syncHash.ArtifactsList.Items.Add("Saving to: $csvPath...")
+                })
 
-            # Ensure Scans folder exists
-            $scansFolder = "C:\GA-AppLocker\Scans"
-            if (-not (Test-Path $scansFolder)) {
-                New-Item -ItemType Directory -Path $scansFolder -Force | Out-Null
-            }
-
-            # Convert artifacts to CSV format and save
-            $csvData = $allArtifacts | ForEach-Object {
-                [PSCustomObject]@{
-                    Name = $_.name
-                    Path = $_.path
-                    Publisher = $_.publisher
-                    Hash = $_.hash
-                    Version = $_.version
-                    Size = $_.size
-                    ModifiedDate = $_.modifiedDate
-                    FileType = $_.fileType
+                # Ensure Scans folder exists
+                $scansFolder = "C:\GA-AppLocker\Scans"
+                if (-not (Test-Path $scansFolder)) {
+                    New-Item -ItemType Directory -Path $scansFolder -Force | Out-Null
                 }
+
+                # Convert artifacts to CSV format and save
+                $csvData = $allArtifacts | ForEach-Object {
+                    [PSCustomObject]@{
+                        Name = $_.name
+                        Path = $_.path
+                        Publisher = $_.publisher
+                        Hash = $_.hash
+                        Version = $_.version
+                        Size = $_.size
+                        ModifiedDate = $_.modifiedDate
+                        FileType = $_.fileType
+                    }
+                }
+
+                $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
+
+                $syncHash.Window.Dispatcher.Invoke([action]{
+                    $syncHash.ArtifactsList.Items.Add("[OK] Saved: $csvPath")
+                    $syncHash.ArtifactsList.Items.Add("")
+                    $syncHash.RulesOutput.Text += "`n`nArtifacts exported to: $csvPath"
+
+                    # Update badge in Rule Generator
+                    if ($null -ne $syncHash.ArtifactCountBadge) {
+                        $syncHash.ArtifactCountBadge.Text = "$($allArtifacts.Count)"
+                    }
+                })
             }
 
-            $csvData | Export-Csv -Path $csvPath -NoTypeInformation -Encoding UTF8
-
-            $syncHash.Window.Dispatcher.Invoke([action]{
-                $syncHash.ArtifactsList.Items.Add("[OK] Saved: $csvPath")
-                $syncHash.ArtifactsList.Items.Add("")
-                $syncHash.RulesOutput.Text += "`n`nArtifacts exported to: $csvPath"
-
-                # Update badges in Rule Generator
-                $syncHash.ArtifactCountBadge.Text = "$($allArtifacts.Count)"
-                $syncHash.ArtifactCountBadge.Foreground = "#3FB950"
-                $syncHash.ArtifactCountBadge.Background = "#1F6FEB"
-            })
-
-            Write-Log "Local scan complete: $($allArtifacts.Count) artifacts collected, saved to: $csvPath"
         } catch {
             $errorMsg = $_.Exception.Message
             $syncHash.Window.Dispatcher.Invoke([action]{
@@ -10873,11 +10700,9 @@ $ScanLocalArtifactsBtn.Add_Click({
                 $syncHash.ArtifactsList.Items.Add("ERROR: $errorMsg")
                 $syncHash.RulesOutput.Text = "Local scan failed: $errorMsg"
                 $syncHash.ScanLocalArtifactsBtn.IsEnabled = $true
-                $syncHash.ScanDirectoriesBtn.IsEnabled = $true
             })
-            Write-Log "Local scan failed: $errorMsg" -Level "ERROR"
         }
-    }).AddParameter($syncHash) | Out-Null
+    }).AddArgument($syncHash) | Out-Null
 
     $handle = $powerShell.BeginInvoke()
 
