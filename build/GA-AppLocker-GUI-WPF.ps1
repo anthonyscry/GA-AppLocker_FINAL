@@ -17459,7 +17459,7 @@ $AL_ClearConsole.Add_Click({
 
 # === SCANNING & ANALYSIS ===
 # Helper function to launch AaronLocker scripts in their own console window
-# Uses Windows PowerShell 5.1 explicitly (required for AaronLocker compatibility)
+# Uses Windows PowerShell 5.1 explicitly (required for AaronLocker compatibility with -Encoding Byte)
 function Start-AaronLockerScript {
     param(
         [string]$ScriptName,
@@ -17472,15 +17472,51 @@ function Start-AaronLockerScript {
         return
     }
 
-    $AL_OutputConsole.Text = "Launching: $ScriptName`nParameters: $Parameters`n`nA new Windows PowerShell window will open..."
+    $AL_OutputConsole.Text = "Launching: $ScriptName`nParameters: $Parameters`n`nA new Windows PowerShell 5.1 window will open..."
 
-    # Use Windows PowerShell 5.1 explicitly (AaronLocker requires it for -Encoding Byte support)
-    $windowsPowerShell = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    # CRITICAL: Must use Windows PowerShell 5.1 (not PowerShell 7/Core)
+    # AaronLocker scripts use -Encoding Byte which only works in Windows PowerShell 5.1
+    $windowsPowerShell = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
 
-    # Build command to run in new window
-    $cmd = "Set-Location '$($script:AaronLockerRoot)'; Write-Host '=== $ScriptName ===' -ForegroundColor Cyan; Write-Host 'Parameters: $Parameters' -ForegroundColor Gray; Write-Host ''; . '$ScriptPath' $Parameters; Write-Host ''; Write-Host '=== COMPLETE ===' -ForegroundColor Green; Write-Host 'Press any key to close...'; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')"
+    if (-not (Test-Path $windowsPowerShell)) {
+        $AL_OutputConsole.Text = "ERROR: Windows PowerShell 5.1 not found at:`n$windowsPowerShell`n`nAaronLocker requires Windows PowerShell 5.1."
+        [System.Windows.MessageBox]::Show(
+            "Windows PowerShell 5.1 not found!`n`nAaronLocker requires Windows PowerShell 5.1 (not PowerShell 7).`n`nExpected path:`n$windowsPowerShell",
+            "PowerShell 5.1 Required",
+            [System.Windows.MessageBoxButton]::OK,
+            [System.Windows.MessageBoxImage]::Error
+        )
+        return
+    }
 
-    Start-Process $windowsPowerShell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", $cmd
+    # Build the command to run - verify PS version first, then run script
+    $cmd = @"
+`$Host.UI.RawUI.WindowTitle = 'AaronLocker - $ScriptName'
+if (`$PSVersionTable.PSVersion.Major -ne 5) {
+    Write-Host 'ERROR: This script requires Windows PowerShell 5.1' -ForegroundColor Red
+    Write-Host "Current version: `$(`$PSVersionTable.PSVersion)" -ForegroundColor Red
+    Write-Host 'Press any key to close...'
+    `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+    exit 1
+}
+Set-Location '$($script:AaronLockerRoot)'
+Write-Host '=== $ScriptName ===' -ForegroundColor Cyan
+Write-Host "PowerShell Version: `$(`$PSVersionTable.PSVersion)" -ForegroundColor DarkGray
+Write-Host "Parameters: $Parameters" -ForegroundColor Gray
+Write-Host ''
+. '$ScriptPath' $Parameters
+Write-Host ''
+Write-Host '=== COMPLETE ===' -ForegroundColor Green
+Write-Host 'Press any key to close...'
+`$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')
+"@
+
+    # Launch in a new visible console window using Windows PowerShell 5.1
+    # Use -EncodedCommand to handle complex strings properly
+    $bytes = [System.Text.Encoding]::Unicode.GetBytes($cmd)
+    $encodedCommand = [Convert]::ToBase64String($bytes)
+
+    Start-Process $windowsPowerShell -ArgumentList "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", $encodedCommand
 }
 
 # Scan Directories - Scans writable directories for potential policy bypasses
@@ -17550,7 +17586,7 @@ $AL_ComparePolicies.Add_Click({
         if ($openDialog2.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             $policy2 = $openDialog2.FileName
             $scriptPath = Join-Path $script:AaronLockerRoot "Compare-Policies.ps1"
-            Start-AaronLockerScript -ScriptName "Compare Policies" -ScriptPath $scriptPath -Parameters "-Policy1Path `"$policy1`" -Policy2Path `"$policy2`""
+            Start-AaronLockerScript -ScriptName "Compare Policies" -ScriptPath $scriptPath -Parameters "-ReferencePolicyXML `"$policy1`" -ComparisonPolicyXML `"$policy2`""
         }
     }
 })
@@ -17611,7 +17647,7 @@ $AL_ExportToCsv.Add_Click({
 
     if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         $scriptPath = Join-Path $script:AaronLockerRoot "Support\ExportPolicy-ToCsv.ps1"
-        Start-AaronLockerScript -ScriptName "Export Policy to CSV" -ScriptPath $scriptPath -Parameters "-AppLockerXML `"$($openDialog.FileName)`""
+        Start-AaronLockerScript -ScriptName "Export Policy to CSV" -ScriptPath $scriptPath -Parameters "-AppLockerPolicyFile `"$($openDialog.FileName)`""
     }
 })
 }
@@ -17652,23 +17688,23 @@ $AL_ConfigureForAppLocker.Add_Click({
 # Apply to Local GPO
 if ($null -ne $AL_ApplyToLocalGPO) {
 $AL_ApplyToLocalGPO.Add_Click({
-    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openDialog.Filter = "XML Files (*.xml)|*.xml"
-    $openDialog.Title = "Select AppLocker Policy to Apply to Local GPO"
-    $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+    # Script auto-selects the latest policy file - user chooses Audit or Enforce mode
+    $result = [System.Windows.MessageBox]::Show(
+        "Apply the most recent policy to LOCAL GPO?`n`nClick YES to apply ENFORCE rules (blocks unauthorized software)`nClick NO to apply AUDIT rules (logs only, doesn't block)`n`nThis will modify the local Group Policy.",
+        "Apply to Local GPO - Choose Mode",
+        [System.Windows.MessageBoxButton]::YesNoCancel,
+        [System.Windows.MessageBoxImage]::Question
+    )
 
-    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $result = [System.Windows.MessageBox]::Show(
-            "Apply policy to LOCAL GPO?`n`nPolicy: $($openDialog.FileName)`n`nThis will modify the local Group Policy.",
-            "Confirm Apply to Local GPO",
-            [System.Windows.MessageBoxButton]::YesNo,
-            [System.Windows.MessageBoxImage]::Warning
-        )
-
-        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
-            $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
-            Start-AaronLockerScript -ScriptName "Apply to Local GPO" -ScriptPath $scriptPath -Parameters "-PolicyPath `"$($openDialog.FileName)`""
-        }
+    if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+        # Apply Enforce rules
+        $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
+        Start-AaronLockerScript -ScriptName "Apply Enforce Policy to Local GPO" -ScriptPath $scriptPath -Parameters ""
+    }
+    elseif ($result -eq [System.Windows.MessageBoxResult]::No) {
+        # Apply Audit rules
+        $scriptPath = Join-Path $script:AaronLockerRoot "LocalConfiguration\ApplyPolicyToLocalGPO.ps1"
+        Start-AaronLockerScript -ScriptName "Apply Audit Policy to Local GPO" -ScriptPath $scriptPath -Parameters "-AuditOnly"
     }
 })
 }
@@ -17676,16 +17712,25 @@ $AL_ApplyToLocalGPO.Add_Click({
 # Set GPO AppLocker Policy
 if ($null -ne $AL_SetGPOPolicy) {
 $AL_SetGPOPolicy.Add_Click({
-    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
-    $openDialog.Filter = "XML Files (*.xml)|*.xml"
-    $openDialog.Title = "Select AppLocker Policy to Set on Domain GPO"
-    $openDialog.InitialDirectory = Join-Path $script:AaronLockerRoot "Outputs"
+    # Script auto-selects the latest policy file - user provides GPO name and chooses Audit or Enforce
+    $gpoName = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the GPO name to apply AppLocker policy to:", "Set GPO AppLocker Policy", "AppLocker Policy")
+    if ($gpoName) {
+        $result = [System.Windows.MessageBox]::Show(
+            "Apply the most recent policy to GPO '$gpoName'?`n`nClick YES to apply ENFORCE rules (blocks unauthorized software)`nClick NO to apply AUDIT rules (logs only, doesn't block)`n`nThis will modify the domain Group Policy.",
+            "Set Domain GPO Policy - Choose Mode",
+            [System.Windows.MessageBoxButton]::YesNoCancel,
+            [System.Windows.MessageBoxImage]::Question
+        )
 
-    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        $inputBox = [Microsoft.VisualBasic.Interaction]::InputBox("Enter the GPO name:", "Set GPO AppLocker Policy", "AppLocker Policy")
-        if ($inputBox) {
+        if ($result -eq [System.Windows.MessageBoxResult]::Yes) {
+            # Apply Enforce rules
             $scriptPath = Join-Path $script:AaronLockerRoot "GPOConfiguration\Set-GPOAppLockerPolicy.ps1"
-            Start-AaronLockerScript -ScriptName "Set GPO AppLocker Policy" -ScriptPath $scriptPath -Parameters "-GpoName `"$inputBox`" -AppLockerXml `"$($openDialog.FileName)`""
+            Start-AaronLockerScript -ScriptName "Set GPO Enforce Policy" -ScriptPath $scriptPath -Parameters "-GpoName `"$gpoName`" -Enforce"
+        }
+        elseif ($result -eq [System.Windows.MessageBoxResult]::No) {
+            # Apply Audit rules (default)
+            $scriptPath = Join-Path $script:AaronLockerRoot "GPOConfiguration\Set-GPOAppLockerPolicy.ps1"
+            Start-AaronLockerScript -ScriptName "Set GPO Audit Policy" -ScriptPath $scriptPath -Parameters "-GpoName `"$gpoName`""
         }
     }
 })
