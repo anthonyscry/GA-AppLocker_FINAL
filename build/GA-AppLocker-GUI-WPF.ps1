@@ -4036,12 +4036,12 @@ $xamlString = @"
                                     <TextBlock Text="TEMPLATES" FontSize="10" FontWeight="Bold" Foreground="#8957E5" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
-                                    <Button x:Name="NavTemplates" Content="Rule Templates" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavCreateTemplate" Content="Create Template" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavImportTemplate" Content="Import Template" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavTemplates" Content="Rule Templates (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
+                                    <Button x:Name="NavCreateTemplate" Content="Create Template (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
+                                    <Button x:Name="NavImportTemplate" Content="Import Template (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
                                 </StackPanel>
                             </Expander>
 
@@ -4066,12 +4066,12 @@ $xamlString = @"
                                 <StackPanel Margin="4,0,0,0">
                                     <Button x:Name="NavEvents" Content="Events" Style="{StaticResource NavButton}"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavReports" Content="Compliance Reports" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavSiem" Content="SIEM Integration" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavCompliance" Content="Compliance (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
+                                    <Button x:Name="NavReports" Content="Reports (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
+                                    <Button x:Name="NavSiem" Content="SIEM (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
                                 </StackPanel>
                             </Expander>
 
@@ -4081,8 +4081,8 @@ $xamlString = @"
                                     <TextBlock Text="TESTING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
-                                    <Button x:Name="NavPolicySimulator" Content="Policy Simulator" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavPolicySimulator" Content="Policy Simulator (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False" Opacity="0.5"/>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
@@ -4939,7 +4939,7 @@ $xamlString = @"
                         <Button x:Name="ExportEventsBtn" Content="Export Events to CSV" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" MinWidth="200" Height="34" FontSize="11" Padding="14,0"/>
                     </Border>
 
-                    <!-- Event Filters - Row 1: Filter Type Buttons -->
+                    <!-- Event Filters - Row 1: Filter Type Buttons and Refresh -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -4953,6 +4953,7 @@ $xamlString = @"
                                 <ColumnDefinition Width="10"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
                             <TextBlock Grid.Column="0" Text="Event Type:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
@@ -4960,6 +4961,7 @@ $xamlString = @"
                             <Button x:Name="FilterAllowedBtn" Content="Allowed" Style="{StaticResource SecondaryButton}" Grid.Column="4" Height="30" FontSize="11" Padding="14,0" MinWidth="80"/>
                             <Button x:Name="FilterBlockedBtn" Content="Blocked" Style="{StaticResource SecondaryButton}" Grid.Column="6" Height="30" FontSize="11" Padding="14,0" MinWidth="80"/>
                             <Button x:Name="FilterAuditBtn" Content="Audit" Style="{StaticResource SecondaryButton}" Grid.Column="8" Height="30" FontSize="11" Padding="14,0" MinWidth="70"/>
+                            <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="10" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
                         </Grid>
                     </Border>
 
@@ -4969,11 +4971,9 @@ $xamlString = @"
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="10"/>
-                                <ColumnDefinition Width="35"/>
-                                <ColumnDefinition Width="10"/>
                                 <ColumnDefinition Width="130"/>
                                 <ColumnDefinition Width="20"/>
-                                <ColumnDefinition Width="25"/>
+                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="10"/>
                                 <ColumnDefinition Width="130"/>
                                 <ColumnDefinition Width="20"/>
@@ -4991,23 +4991,21 @@ $xamlString = @"
                                        Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
                                        FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                            <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
                             <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
                                        Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
                                        FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                            <TextBlock Grid.Column="8" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="10,0,0,0"/>
-                            <TextBox x:Name="EventsFilterSearch" Grid.Column="10" Height="30" FontSize="11" Width="160"
+                            <TextBlock Grid.Column="8" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            <TextBox x:Name="EventsFilterSearch" Grid.Column="10" Height="30" FontSize="11"
                                      Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
                                      Padding="8,4" Text="Search events..."/>
 
-                            <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="13"
+                            <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="12"
                                     Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
 
-                            <TextBlock x:Name="EventsFilterCount" Grid.Column="15" Text=""
-                                      FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="100"/>
-
-                            <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="17" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
+                            <TextBlock x:Name="EventsFilterCount" Grid.Column="14" Text=""
+                                      FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="80"/>
                         </Grid>
                     </Border>
 
@@ -5026,18 +5024,6 @@ $xamlString = @"
                 <!-- Deployment Panel -->
                 <StackPanel x:Name="PanelDeployment" Visibility="Collapsed">
                     <TextBlock Text="Deployment" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
-
-                    <!-- Deployment Buttons (disabled in workgroup mode) -->
-                    <Grid Margin="0,0,0,15">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Button x:Name="CreateGP0Btn" Content="Create GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
-                        <Button x:Name="DisableGpoBtn" Content="Disable AppLocker GPO" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
-                    </Grid>
 
                     <!-- Import/Export Rules Buttons -->
                     <Grid Margin="0,0,0,15">
@@ -5786,9 +5772,8 @@ $xamlString = @"
                                 <!-- Actions Column -->
                                 <StackPanel Grid.Column="2">
                                     <TextBlock Text="Quick Actions" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
-                                    <Button x:Name="CreateGPOsBtn" Content="Create 3 GPOs" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" MinHeight="32"/>
-                                    <Button x:Name="ApplyGPOSettingsBtn" Content="Apply Phase/Mode" Style="{StaticResource SecondaryButton}" Margin="0,0,0,8" MinHeight="32"/>
-                                    <Button x:Name="LinkGPOsBtn" Content="Link to OUs" Style="{StaticResource SecondaryButton}" MinHeight="32"/>
+                                    <Button x:Name="LinkGPOsBtn" Content="Link to OUs" Style="{StaticResource PrimaryButton}" Margin="0,0,0,8" MinHeight="32"/>
+                                    <Button x:Name="ApplyGPOSettingsBtn" Content="Apply Phase/Mode" Style="{StaticResource SecondaryButton}" MinHeight="32"/>
                                 </StackPanel>
                             </Grid>
                         </StackPanel>
@@ -6240,8 +6225,6 @@ $WorkstationsGPOPhase = $window.FindName("WorkstationsGPOPhase")
 if ($null -eq $WorkstationsGPOPhase) { Write-Log "WARNING: Control 'WorkstationsGPOPhase' not found in XAML" -Level "WARNING" }
 $WorkstationsGPOMode = $window.FindName("WorkstationsGPOMode")
 if ($null -eq $WorkstationsGPOMode) { Write-Log "WARNING: Control 'WorkstationsGPOMode' not found in XAML" -Level "WARNING" }
-$CreateGPOsBtn = $window.FindName("CreateGPOsBtn")
-if ($null -eq $CreateGPOsBtn) { Write-Log "WARNING: Control 'CreateGPOsBtn' not found in XAML" -Level "WARNING" }
 $ApplyGPOSettingsBtn = $window.FindName("ApplyGPOSettingsBtn")
 if ($null -eq $ApplyGPOSettingsBtn) { Write-Log "WARNING: Control 'ApplyGPOSettingsBtn' not found in XAML" -Level "WARNING" }
 $LinkGPOsBtn = $window.FindName("LinkGPOsBtn")
@@ -6424,10 +6407,6 @@ $ComplianceClearFilterBtn = $window.FindName("ComplianceClearFilterBtn")
 if ($null -eq $ComplianceClearFilterBtn) { Write-Log "WARNING: Control 'ComplianceClearFilterBtn' not found in XAML" -Level "WARNING" }
 $ComplianceFilterCount = $window.FindName("ComplianceFilterCount")
 if ($null -eq $ComplianceFilterCount) { Write-Log "WARNING: Control 'ComplianceFilterCount' not found in XAML" -Level "WARNING" }
-$CreateGP0Btn = $window.FindName("CreateGP0Btn")
-if ($null -eq $CreateGP0Btn) { Write-Log "WARNING: Control 'CreateGP0Btn' not found in XAML" -Level "WARNING" }
-$DisableGpoBtn = $window.FindName("DisableGpoBtn")
-if ($null -eq $DisableGpoBtn) { Write-Log "WARNING: Control 'DisableGpoBtn' not found in XAML" -Level "WARNING" }
 $DeploymentStatus = $window.FindName("DeploymentStatus")
 if ($null -eq $DeploymentStatus) { Write-Log "WARNING: Control 'DeploymentStatus' not found in XAML" -Level "WARNING" }
 $GenerateEvidenceBtn = $window.FindName("GenerateEvidenceBtn")
@@ -10379,8 +10358,6 @@ function Initialize-Tooltips {
     if ($null -ne $GenerateEvidenceBtn) { $GenerateEvidenceBtn.ToolTip = "Generate compliance evidence package with policy and inventory reports." }
 
     # Deployment tooltips
-    if ($null -ne $CreateGPOsBtn) { $CreateGPOsBtn.ToolTip = "Create 3 GPOs: AppLocker-DC, AppLocker-Servers, AppLocker-Workstations." }
-    if ($null -ne $DisableGpoBtn) { $DisableGpoBtn.ToolTip = "Disable AppLocker policy in existing GPOs." }
     if ($null -ne $ExportRulesBtn) { $ExportRulesBtn.ToolTip = "Export generated rules to XML files (Audit and Enforce versions)." }
     if ($null -ne $ImportRulesBtn) { $ImportRulesBtn.ToolTip = "Import rules into existing GPO (Merge or Overwrite)." }
     if ($null -ne $LinkGPOsBtn) { $LinkGPOsBtn.ToolTip = "Link GPOs to OUs: Domain Controllers, Servers, Workstations." }
@@ -10390,70 +10367,6 @@ function Initialize-Tooltips {
 if ($null -ne $RefreshDashboardBtn) {
 $RefreshDashboardBtn.Add_Click({
     Refresh-Data
-})
-}
-
-# GPO Quick Assignment - Create GPOs button
-if ($null -ne $CreateGPOsBtn) {
-$CreateGPOsBtn.Add_Click({
-    Write-Log "User requested creation of 3 AppLocker GPOs (DC, Servers, Workstations)"
-    Write-AuditLog -Action "GPO_CREATE_ATTEMPT" -Target "AppLocker-DC, AppLocker-Servers, AppLocker-Workstations" -Result 'ATTEMPT' -Details "User initiated bulk GPO creation"
-
-    if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        $DashboardOutput.Text += "ERROR: GPO creation requires Domain Mode.`n"
-        Write-AuditLog -Action "GPO_CREATE_ATTEMPT" -Target "Multiple GPOs" -Result 'FAILURE' -Details "Failed: Workgroup mode"
-        return
-    }
-
-    # Confirmation dialog for GPO creation
-    $confirmed = Show-ConfirmationDialog -Title "Confirm GPO Creation" -Message "This will create 3 Group Policy Objects:" -TargetObject "AppLocker-DC, AppLocker-Servers, AppLocker-Workstations" -ActionType 'CREATE'
-    if (-not $confirmed) {
-        $DashboardOutput.Text = "GPO creation cancelled by user."
-        return
-    }
-
-    try {
-        # Use embedded New-AppLockerGpo function - no module import needed
-        Import-Module GroupPolicy -ErrorAction Stop
-
-        $gpoNames = @("AppLocker-DC", "AppLocker-Servers", "AppLocker-Workstations")
-        $results = @()
-        $successCount = 0
-
-        foreach ($gpoName in $gpoNames) {
-            $result = New-AppLockerGpo -GpoName $gpoName
-            if ($result.success) {
-                $results += "Created: $gpoName`n"
-                Write-Log "Created GPO: $gpoName"
-                Write-AuditLog -Action "GPO_CREATED" -Target $gpoName -Result 'SUCCESS' -Details "GPO created successfully"
-                $successCount++
-            } else {
-                $results += "Failed: $gpoName - $($result.error)`n"
-                Write-Log "Failed to create GPO $gpoName`: $($result.error)" -Level "ERROR"
-                Write-AuditLog -Action "GPO_CREATE_FAILED" -Target $gpoName -Result 'FAILURE' -Details "Error: $($result.error)"
-            }
-        }
-
-        # Update GPO status display
-        $DCGPOStatus.Text = "Created"
-        $DCGPOStatus.Foreground = "#3FB950"
-        $ServersGPOStatus.Text = "Created"
-        $ServersGPOStatus.Foreground = "#3FB950"
-        $WorkstationsGPOStatus.Text = "Created"
-        $WorkstationsGPOStatus.Foreground = "#3FB950"
-
-        $summaryMsg = "GPO Creation Summary: $successCount of 3 created successfully"
-        $DashboardOutput.Text = "=== GPO CREATION COMPLETE ===`n`n$results`n`nNext steps:`n1. Click 'Link to OUs' to link GPOs to proper OUs`n2. Import rules from Rule Generator`n3. Apply rules to GPOs in Deployment panel"
-
-        Write-AuditLog -Action "GPO_CREATE_BULK_COMPLETE" -Target "Multiple GPOs" -Result 'SUCCESS' -Details $summaryMsg
-    }
-    catch {
-        $errorMsg = ConvertTo-SafeString -InputString $_.Exception.Message -MaxLength 500
-        $DashboardOutput.Text = "ERROR: $errorMsg"
-        Write-Log "GPO creation failed: $errorMsg" -Level "ERROR"
-        Write-AuditLog -Action "GPO_CREATE_BULK_FAILED" -Target "Multiple GPOs" -Result 'FAILURE' -Details "Exception: $errorMsg"
-    }
 })
 }
 
@@ -10584,20 +10497,17 @@ $LinkGPOsBtn.Add_Click({
         Import-Module GroupPolicy -ErrorAction Stop
         Import-Module ActiveDirectory -ErrorAction Stop
 
-        # Get domain root for linking
-        $domainDN = $script:DomainInfo.dnsRoot -replace '\.', ',DC='
-        $domainDN = "DC=$domainDN"
+        # Get domain info
+        $domain = Get-ADDomain -ErrorAction Stop
+        $domainDN = $domain.DistinguishedName
 
         # Default AD OUs
-        # Domain Controllers â†’ default OU
-        # Member Servers â†’ domain root (or custom OU if exists)
-        # Workstations â†’ domain root (or custom OU if exists)
         $dcOU = "OU=Domain Controllers,$domainDN"
 
         # Check for custom OUs (many organizations have separate Servers/Workstations OUs)
         $serversOU = Get-ADOrganizationalUnit -Filter "Name -like '*Server*'" -ErrorAction SilentlyContinue |
                      Select-Object -ExpandProperty DistinguishedName -First 1
-        $workstationsOU = Get-ADOrganizationalUnit -Filter "Name -like '*Workstation*'" -ErrorAction SilentlyContinue |
+        $workstationsOU = Get-ADOrganizationalUnit -Filter "Name -like '*Workstation*' -or Name -eq 'Computers'" -ErrorAction SilentlyContinue |
                           Select-Object -ExpandProperty DistinguishedName -First 1
 
         # Default to domain root if custom OUs don't exist
@@ -10608,39 +10518,55 @@ $LinkGPOsBtn.Add_Click({
         $successCount = 0
 
         # Link DC GPO to Domain Controllers OU
-        $dcResult = Add-GPOLink -GpoName "AppLocker-DC" -TargetOU $dcOU
-        if ($dcResult.success) {
-            $results += "DC GPO linked to: $dcOU`n"
+        try {
+            New-GPLink -Name "AppLocker-DC" -Target $dcOU -LinkEnabled Yes -ErrorAction Stop | Out-Null
+            $results += "OK: AppLocker-DC linked to $dcOU`n"
             Write-AuditLog -Action "GPO_LINKED" -Target "AppLocker-DC -> $dcOU" -Result 'SUCCESS' -Details "GPO linked successfully"
             $successCount++
-        } else {
-            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-DC -> $dcOU" -Result 'FAILURE' -Details "Error: $($dcResult.error)"
+        } catch {
+            if ($_.Exception.Message -like "*already linked*") {
+                $results += "OK: AppLocker-DC already linked to $dcOU`n"
+                $successCount++
+            } else {
+                $results += "FAILED: AppLocker-DC - $($_.Exception.Message)`n"
+                Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-DC -> $dcOU" -Result 'FAILURE' -Details "Error: $($_.Exception.Message)"
+            }
         }
 
         # Link Servers GPO
-        $serversResult = Add-GPOLink -GpoName "AppLocker-Servers" -TargetOU $serversTarget
-        if ($serversResult.success) {
-            $results += "Servers GPO linked to: $serversTarget`n"
+        try {
+            New-GPLink -Name "AppLocker-Servers" -Target $serversTarget -LinkEnabled Yes -ErrorAction Stop | Out-Null
+            $results += "OK: AppLocker-Servers linked to $serversTarget`n"
             Write-AuditLog -Action "GPO_LINKED" -Target "AppLocker-Servers -> $serversTarget" -Result 'SUCCESS' -Details "GPO linked successfully"
             $successCount++
-        } else {
-            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-Servers -> $serversTarget" -Result 'FAILURE' -Details "Error: $($serversResult.error)"
+        } catch {
+            if ($_.Exception.Message -like "*already linked*") {
+                $results += "OK: AppLocker-Servers already linked to $serversTarget`n"
+                $successCount++
+            } else {
+                $results += "FAILED: AppLocker-Servers - $($_.Exception.Message)`n"
+                Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-Servers -> $serversTarget" -Result 'FAILURE' -Details "Error: $($_.Exception.Message)"
+            }
         }
 
         # Link Workstations GPO
-        $workstationsResult = Add-GPOLink -GpoName "AppLocker-Workstations" -TargetOU $workstationsTarget
-        if ($workstationsResult.success) {
-            $results += "Workstations GPO linked to: $workstationsTarget`n"
+        try {
+            New-GPLink -Name "AppLocker-Workstations" -Target $workstationsTarget -LinkEnabled Yes -ErrorAction Stop | Out-Null
+            $results += "OK: AppLocker-Workstations linked to $workstationsTarget`n"
             Write-AuditLog -Action "GPO_LINKED" -Target "AppLocker-Workstations -> $workstationsTarget" -Result 'SUCCESS' -Details "GPO linked successfully"
             $successCount++
-        } else {
-            Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-Workstations -> $workstationsTarget" -Result 'FAILURE' -Details "Error: $($workstationsResult.error)"
+        } catch {
+            if ($_.Exception.Message -like "*already linked*") {
+                $results += "OK: AppLocker-Workstations already linked to $workstationsTarget`n"
+                $successCount++
+            } else {
+                $results += "FAILED: AppLocker-Workstations - $($_.Exception.Message)`n"
+                Write-AuditLog -Action "GPO_LINK_FAILED" -Target "AppLocker-Workstations -> $workstationsTarget" -Result 'FAILURE' -Details "Error: $($_.Exception.Message)"
+            }
         }
 
-        $results += "`nNOTE: If your organization uses custom OUs for Servers/Workstations, the GPOs have been linked to the domain root. You can manually move the GPO links to your custom OUs using GPMC."
-
-        $DashboardOutput.Text = "=== GPO LINKING COMPLETE ===`n`n$results`n`nRun 'gpupdate /force' on target systems or wait for automatic GP refresh (90 minutes default)."
-        Write-Log "GPO linking complete"
+        $DashboardOutput.Text = "=== GPO LINKING COMPLETE ===`n`nLinked $successCount of 3 GPOs:`n`n$results`nRun 'gpupdate /force' on target systems to apply immediately."
+        Write-Log "GPO linking complete: $successCount of 3"
         Write-AuditLog -Action "GPO_LINK_BULK_COMPLETE" -Target "Multiple GPOs" -Result 'SUCCESS' -Details "GPO linking complete: $successCount of 3 linked"
     }
     catch {
@@ -14035,90 +13961,6 @@ $RefreshComplianceListBtn.Add_Click({
 })
 }
 
-# Deployment events
-if ($null -ne $CreateGP0Btn) {
-$CreateGP0Btn.Add_Click({
-    Write-Log "Create GPO button clicked"
-    if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("GPO creation requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        return
-    }
-
-    $DeploymentStatus.Text = "Creating AppLocker GPO...`n`nPlease wait..."
-    [System.Windows.Forms.Application]::DoEvents()
-
-    $result = New-AppLockerGpo -GpoName "AppLocker Policy"
-
-    if ($result.success) {
-        if ($result.isNew) {
-            $DeploymentStatus.Text = "SUCCESS: AppLocker GPO created!`n`nGPO Name: $($result.gpoName)`nGPO ID: $($result.gpoId)`nLinked to: $($result.linkedTo)`n`nNext Steps:`n1. Export rules from Rule Generator`n2. Import rules to GPO via Group Policy Management`n3. Set enforcement mode (start with Audit)`n4. Monitor events before enforcing"
-            [System.Windows.MessageBox]::Show("AppLocker GPO created successfully!`n`nGPO: $($result.gpoName)`nLinked to: $($result.linkedTo)", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        } else {
-            $DeploymentStatus.Text = "GPO '$($result.gpoName)' already exists.`n`nUse GPMC to manage GPO links."
-            [System.Windows.MessageBox]::Show("GPO '$($result.gpoName)' already exists.`n`nUse GPMC to manage GPO links.", "GPO Exists", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        }
-        Write-Log "AppLocker GPO created/found: $($result.gpoName)"
-    } else {
-        $DeploymentStatus.Text = "ERROR: Failed to create GPO`n`n$($result.error)`n`nMake sure you are running as Domain Admin with Group Policy module installed."
-        [System.Windows.MessageBox]::Show("Failed to create AppLocker GPO:`n$($result.error)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-        Write-Log "Failed to create AppLocker GPO: $($result.error)" -Level "ERROR"
-    }
-})
-}
-
-if ($null -ne $DisableGpoBtn) {
-$DisableGpoBtn.Add_Click({
-    Write-Log "Disable GPO button clicked"
-    if ($script:IsWorkgroup) {
-        [System.Windows.MessageBox]::Show("GPO management requires Domain Controller access. This feature is disabled in workgroup mode.", "Workgroup Mode", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        return
-    }
-
-    $confirm = [System.Windows.MessageBox]::Show(
-        "This will disable the AppLocker GPO link, which stops the policy from applying.`n`nThe GPO will not be deleted, just disabled.`n`nContinue?",
-        "Confirm Disable GPO",
-        [System.Windows.MessageBoxButton]::YesNo,
-        [System.Windows.MessageBoxImage]::Warning
-    )
-
-    if ($confirm -ne [System.Windows.MessageBoxResult]::Yes) { return }
-
-    try {
-        Import-Module GroupPolicy -ErrorAction Stop
-        Import-Module ActiveDirectory -ErrorAction SilentlyContinue
-
-        # Get domain root
-        $domain = ActiveDirectory\Get-ADDomain -ErrorAction Stop
-        $domainDN = $domain.DistinguishedName
-
-        # Check if AppLocker GPO exists
-        $gpo = Get-GPO -Name "AppLocker Policy" -ErrorAction SilentlyContinue
-        if (-not $gpo) {
-            [System.Windows.MessageBox]::Show("AppLocker GPO not found.", "GPO Not Found", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-            $DeploymentStatus.Text = "INFO: AppLocker GPO not found - nothing to disable."
-            return
-        }
-
-        # Find and disable the link
-        $gpoLink = Get-GPInheritance -Target $domainDN | Select-Object -ExpandProperty GpoLinks | Where-Object { $_.DisplayName -eq "AppLocker Policy" }
-        if ($gpoLink) {
-            Set-GPLink -Name "AppLocker Policy" -Target $domainDN -LinkEnabled No -ErrorAction Stop
-            $DeploymentStatus.Text = "SUCCESS: AppLocker GPO DISABLED`n`nGPO: AppLocker Policy`nDomain: $domainDN`n`nThe policy will no longer apply.`nTo re-enable, use Group Policy Management Console."
-            [System.Windows.MessageBox]::Show("AppLocker GPO has been disabled.`n`nThe policy will no longer apply after the next Group Policy refresh.", "GPO Disabled", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-            Write-Log "AppLocker GPO disabled: $domainDN"
-        } else {
-            $DeploymentStatus.Text = "INFO: AppLocker GPO is not currently linked to the domain.`n`nNothing to disable."
-            [System.Windows.MessageBox]::Show("AppLocker GPO is not linked to the domain root.", "Not Linked", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        }
-    }
-    catch {
-        $DeploymentStatus.Text = "ERROR: Failed to disable GPO`n`n$($_.Exception.Message)"
-        [System.Windows.MessageBox]::Show("Failed to disable GPO:`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-        Write-Log "Failed to disable GPO: $($_.Exception.Message)" -Level "ERROR"
-    }
-})
-}
-
 # WinRM events
 if ($null -ne $CreateWinRMGpoBtn) {
 $CreateWinRMGpoBtn.Add_Click({
@@ -16637,8 +16479,6 @@ $window.add_Loaded({
         $EnvironmentBanner.Background = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#21262D")
 
         # Disable AD/GPO related buttons
-        $CreateGP0Btn.IsEnabled = $false
-        $DisableGpoBtn.IsEnabled = $false
         $CreateWinRMGpoBtn.IsEnabled = $false
         $ForceGPUpdateBtn.IsEnabled = $false
         $ExportGroupsBtn.IsEnabled = $false
@@ -16678,8 +16518,6 @@ $window.add_Loaded({
         $EnvironmentText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#000000")
 
         # Disable GPO-related buttons (need RSAT)
-        $CreateGP0Btn.IsEnabled = $false
-        $DisableGpoBtn.IsEnabled = $false
         $CreateWinRMGpoBtn.IsEnabled = $false
         $ForceGPUpdateBtn.IsEnabled = $false
         $ExportGroupsBtn.IsEnabled = $false
@@ -16718,8 +16556,6 @@ $window.add_Loaded({
         $EnvironmentText.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFromString("#FFFFFF")
 
         # Enable all buttons
-        $CreateGP0Btn.IsEnabled = $true
-        $DisableGpoBtn.IsEnabled = $true
         $CreateWinRMGpoBtn.IsEnabled = $true
         $DiscoverComputersBtn.IsEnabled = $true
         $ImportBaselineBtn.IsEnabled = $true
