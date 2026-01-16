@@ -336,6 +336,14 @@ function Set-LatestAppLockerPolicy {
         [string]$PolicyDirectory = $script:outputsDir
     )
 
+    # Validate PolicyDirectory parameter
+    if (-not (Test-Path $PolicyDirectory)) {
+        return @{
+            success = $false
+            error = "Policy directory not found: $PolicyDirectory"
+        }
+    }
+
     # Check if required modules are available (imported at module level)
     if (-not (Get-Module GroupPolicy)) {
         return @{

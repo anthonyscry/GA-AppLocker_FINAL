@@ -4834,61 +4834,50 @@ $xamlString = @"
 
                     <!-- Event Filters - Row 2: Date Range and Search -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <StackPanel>
-                            <!-- Date Range Row -->
-                            <Grid Margin="0,0,0,10">
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="125"/>
-                                    <ColumnDefinition Width="20"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="125"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="35"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="25"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="20"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="10"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                                <TextBlock Grid.Column="0" Text="From:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                <DatePicker x:Name="EventsDateFrom" Grid.Column="2" Height="30" FontSize="11"
-                                           Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                           FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
+                            <TextBlock Grid.Column="0" Text="From:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
+                            <DatePicker x:Name="EventsDateFrom" Grid.Column="2" Height="30" FontSize="11"
+                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                       FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                                <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
-                                           Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                           FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
-                            </Grid>
+                            <TextBlock Grid.Column="4" Text="To:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                            <DatePicker x:Name="EventsDateTo" Grid.Column="6" Height="30" FontSize="11"
+                                       Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                       FirstDayOfWeek="Monday" DisplayDateStart="{x:Static sys:DateTime.Today}"/>
 
-                            <!-- Search and Actions Row -->
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="180"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="8" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                            <TextBox x:Name="EventsFilterSearch" Grid.Column="10" Height="30" FontSize="11" Width="160"
+                                     Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
+                                     Padding="8,4" Text="Search events..."/>
 
-                                    <TextBlock Grid.Column="0" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
-                                    <TextBox x:Name="EventsFilterSearch" Grid.Column="2" Height="30" FontSize="11"
-                                             Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D"
-                                             Padding="8,4" Text="Search events..."/>
+                            <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="13"
+                                    Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
 
-                                    <Button x:Name="EventsClearFilterBtn" Content="Clear Filters" Grid.Column="4"
-                                            Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="14,0" MinWidth="100"/>
+                            <TextBlock x:Name="EventsFilterCount" Grid.Column="15" Text=""
+                                      FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="100"/>
 
-                                    <TextBlock x:Name="EventsFilterCount" Grid.Column="6" Text=""
-                                              FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="80"/>
-
-                                    <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="10" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
-                            </Grid>
-                        </StackPanel>
+                            <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="17" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
+                        </Grid>
                     </Border>
 
                     <!-- Events Output -->
@@ -7167,10 +7156,6 @@ function Deduplicate-Rules {
     <#
     .SYNOPSIS
         Deduplicate generated rules by selected criteria
-        IMPORTANT: Preserves rules assigned to different AD groups
-        A rule is only considered a duplicate if it has BOTH:
-        1. The same publisher/hash/path (based on criteria selected)
-        2. The same assigned AD group (userOrGroupSid)
     #>
     if (-not $script:GeneratedRules -or $script:GeneratedRules.Count -eq 0) {
         [System.Windows.MessageBox]::Show("No rules to deduplicate.", "Deduplicate", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
@@ -7179,7 +7164,7 @@ function Deduplicate-Rules {
 
     # Show deduplication options
     $result = [System.Windows.MessageBox]::Show(
-        "Deduplicate by which criteria?`n`nIMPORTANT: Rules assigned to different groups will be preserved.`n`nYes = Publisher (Recommended)`nNo = File Hash`nCancel = Path",
+        "Deduplicate by which criteria?`n`nYes = Publisher (Recommended)`nNo = File Hash`nCancel = Path",
         "Deduplicate Rules",
         [System.Windows.MessageBoxButton]::YesNoCancel,
         [System.Windows.MessageBoxImage]::Question
@@ -7195,19 +7180,15 @@ function Deduplicate-Rules {
     $seen = @{}
 
     foreach ($rule in $script:GeneratedRules) {
-        # Get the group SID for this rule
-        $groupSid = if ($rule.userOrGroupSid) { $rule.userOrGroupSid } else { "S-1-1-0" }
-
-        # Build key combining criteria and group to preserve rules for different groups
         $key = switch ($criteria) {
             "Publisher" {
-                if ($rule.Publisher) { "$($rule.Publisher)|$groupSid" }
-                elseif ($rule.Name) { "$($rule.Name)|$groupSid" }
-                else { "$($rule.FilePath)|$groupSid" }
+                if ($rule.Publisher) { $rule.Publisher }
+                elseif ($rule.Name) { $rule.Name }
+                else { $rule.FilePath }
             }
             "Hash" {
-                if ($rule.FileHash) { "$($rule.FileHash)|$groupSid" }
-                else { "$($rule.Name)$($rule.FilePath)|$groupSid" }
+                if ($rule.FileHash) { $rule.FileHash }
+                else { "$($rule.Name)$($rule.FilePath)" }
             }
         }
 
@@ -7227,9 +7208,8 @@ function Deduplicate-Rules {
     Apply-RuleTypeFormatting
 
     $RulesOutput.Text += "Deduplicated by $criteria`: Removed $removed duplicate rules.`n"
-    $RulesOutput.Text += "Note: Rules assigned to different groups were preserved.`n"
 
-    Write-AuditLog -Action "RULES_DEDUPLICATED" -Target $criteria -Result 'SUCCESS' -Details "Removed $removed duplicate rules (rules for different groups preserved)"
+    Write-AuditLog -Action "RULES_DEDUPLICATED" -Target $criteria -Result 'SUCCESS' -Details "Removed $removed duplicate rules"
 }
 
 function Export-SelectedRules {
@@ -14977,18 +14957,7 @@ $ImportRulesBtn.Add_Click({
     Write-Log "Importing rules to GPO: $targetGpoName (Mode: $(if ($isMergeMode) { 'Merge' } else { 'Overwrite' }))"
 
     try {
-        if ($script:ModulePath -and (Test-Path $script:ModulePath)) {
-            Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-        } else {
-            $script:ModulePath = "C:\projects\GA-AppLocker_FINAL\src\modules"
-            if (Test-Path $script:ModulePath) {
-                Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
-            } else {
-                Write-Log "ERROR: Module path not found for Module4-PolicyLab" -Level "ERROR"
-                $DeploymentStatus.Text = "ERROR: Module path not found for Module4-PolicyLab"
-                return
-            }
-        }
+        Import-Module (Join-Path $script:ModulePath "Module4-PolicyLab.psm1") -ErrorAction Stop
         Import-Module GroupPolicy -ErrorAction Stop
 
         # Load new rules from XML file

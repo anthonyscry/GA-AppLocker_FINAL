@@ -26,7 +26,23 @@ function Get-ADModuleUnavailableMessage {
     param()
 
     # Check if system is in workgroup mode
-    $isWorkgroup = (Get-CimInstance Win32_ComputerSystem).PartOfDomain -eq $false
+    try {
+        $isWorkgroup = (Get-CimInstance Win32_ComputerSystem -ErrorAction Stop).PartOfDomain -eq $false
+    }
+    catch {
+        # If we can't determine domain status, provide generic message
+        return @'
+The Active Directory PowerShell module is not available.
+
+RECOMMENDATION:
+- Install Remote Server Administration Tools (RSAT)
+- Run as Administrator and execute: Add-WindowsCapability -Online -Name Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0
+- Or download RSAT from Microsoft: https://aka.ms/rsat
+
+For Windows 10/11:
+  Settings -> Apps -> Optional Features -> Add Feature -> RSAT: Active Directory Lightweight Services
+'@
+    }
 
     if ($isWorkgroup) {
         return @'
@@ -236,6 +252,16 @@ function New-AppLockerGroups {
     param(
         [string]$TargetOU
     )
+
+    # Validate TargetOU if provided
+    if ($TargetOU) {
+        if ($TargetOU -notmatch '^OU=|CN=|DC=') {
+            return @{
+                success = $false
+                error = 'Invalid TargetOU format. Must be a valid LDAP path (e.g., "OU=Workstations,DC=contoso,DC=com")'
+            }
+        }
+    }
 
     $groupNames = @(
         'AppLocker-Admins',

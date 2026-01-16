@@ -334,7 +334,7 @@ function Get-ComplianceSummary {
 #>
 function New-ComplianceReport {
     [CmdletBinding()]
-    [OutputType([hashtable]")]
+    [OutputType([hashtable])]
     param(
         [string]$OutputPath = (Join-Path $script:evidenceDir "Reports\ComplianceReport.html")
     )
