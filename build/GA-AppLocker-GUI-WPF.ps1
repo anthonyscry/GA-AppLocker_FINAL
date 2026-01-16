@@ -3936,10 +3936,10 @@ $xamlString = @"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
                                     <Button x:Name="NavCompliance" Content="Compliance" Style="{StaticResource NavButton}"
                                             HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavReports" Content="Compliance Reports" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
-                                    <Button x:Name="NavSiem" Content="SIEM Integration" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavReports" Content="Compliance Reports (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False"/>
+                                    <Button x:Name="NavSiem" Content="SIEM Integration (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False"/>
                                 </StackPanel>
                             </Expander>
 
@@ -3949,8 +3949,8 @@ $xamlString = @"
                                     <TextBlock Text="TESTING" FontSize="10" FontWeight="Bold" Foreground="#58A6FF" VerticalAlignment="Center" Width="150"/>
                                 </Expander.Header>
                                 <StackPanel Margin="4,0,0,0">
-                                    <Button x:Name="NavPolicySimulator" Content="Policy Simulator" Style="{StaticResource NavButton}"
-                                            HorizontalAlignment="Stretch" Margin="10,1,5,1"/>
+                                    <Button x:Name="NavPolicySimulator" Content="Policy Simulator (WIP)" Style="{StaticResource NavButton}"
+                                            HorizontalAlignment="Stretch" Margin="10,1,5,1" IsEnabled="False"/>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
@@ -4328,7 +4328,7 @@ $xamlString = @"
 
                     <!-- Artifacts List -->
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinHeight="200">
+                            CornerRadius="8" Margin="0,0,0,0" Padding="15" MinHeight="150" MaxHeight="350">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto"/>
@@ -4338,8 +4338,10 @@ $xamlString = @"
                             <TextBlock Grid.Row="0" Text="Discovered Artifacts" FontSize="13" FontWeight="Bold"
                                        Foreground="#8B949E" Margin="0,0,0,10"/>
 
-                            <ListBox x:Name="ArtifactsList" Grid.Row="1" Background="#0D1117"
-                                     Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="11"/>
+                            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                <ListBox x:Name="ArtifactsList" Background="#0D1117"
+                                         Foreground="#E6EDF3" BorderThickness="0" FontFamily="Consolas" FontSize="11"/>
+                            </ScrollViewer>
                         </Grid>
                     </Border>
                 </StackPanel>
@@ -4513,7 +4515,7 @@ $xamlString = @"
                 <!-- Rules Panel -->
                 <StackPanel x:Name="PanelRules" Visibility="Collapsed">
                     <!-- Header -->
-                    <Grid Margin="0,0,0,15">
+                    <Grid Margin="0,0,0,10">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
@@ -4526,9 +4528,9 @@ $xamlString = @"
                     </Grid>
 
                     <!-- Section 1: Configuration -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Configuration" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto"/>
@@ -4540,32 +4542,47 @@ $xamlString = @"
                                 </Grid.ColumnDefinitions>
 
                                 <!-- Rule Type -->
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,0,8"/>
-                                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Margin="0,0,0,8">
-                                    <RadioButton x:Name="RuleTypeAuto" Content="Auto (Recommended)" IsChecked="True"
-                                                 Foreground="#58A6FF" FontSize="12" Margin="0,0,20,0"/>
-                                    <RadioButton x:Name="RuleTypePublisher" Content="Publisher"
-                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
-                                    <RadioButton x:Name="RuleTypeHash" Content="Hash"
-                                                 Foreground="#E6EDF3" FontSize="12" Margin="0,0,20,0"/>
-                                    <RadioButton x:Name="RuleTypePath" Content="Path"
-                                                 Foreground="#E6EDF3" FontSize="12"/>
-                                </StackPanel>
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Type:" FontSize="12" Foreground="#8B949E" VerticalAlignment="Center" Margin="0,0,0,6"/>
+                                <ComboBox x:Name="RuleTypeCombo" Grid.Row="0" Grid.Column="1" Height="28" Width="200" HorizontalAlignment="Left" Margin="0,0,0,6"
+                                          Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="12">
+                                    <ComboBoxItem Content="Auto (Recommended)" IsSelected="True"/>
+                                    <ComboBoxItem Content="Publisher"/>
+                                    <ComboBoxItem Content="Hash"/>
+                                    <ComboBoxItem Content="Path"/>
+                                </ComboBox>
 
                                 <!-- Action & Group -->
                                 <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Orientation="Horizontal">
                                     <StackPanel>
                                         <TextBlock Text="Action:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <RadioButton x:Name="RuleActionAllow" Content="Allow" IsChecked="True"
-                                                         Foreground="#3FB950" FontSize="12" Margin="0,0,20,0"/>
-                                            <RadioButton x:Name="RuleActionDeny" Content="Deny"
-                                                         Foreground="#F85149" FontSize="12"/>
-                                        </StackPanel>
+                                        <ToggleButton x:Name="ActionToggle" Content="Allow" Width="150" Height="28" FontSize="12" FontWeight="SemiBold"
+                                                      Background="#238636" Foreground="#FFFFFF" BorderBrush="#30363D" BorderThickness="1">
+                                            <ToggleButton.Style>
+                                                <Style TargetType="ToggleButton">
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ToggleButton">
+                                                                <Border x:Name="border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4">
+                                                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsChecked" Value="True">
+                                                                        <Setter TargetName="border" Property="Background" Value="#DA3633"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="border" Property="Opacity" Value="0.9"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ToggleButton.Style>
+                                        </ToggleButton>
                                     </StackPanel>
-                                    <StackPanel Margin="30,0,0,0">
+                                    <StackPanel Margin="20,0,0,0">
                                         <TextBlock Text="Apply to Group:" FontSize="12" Foreground="#8B949E" Margin="0,0,0,4"/>
-                                        <ComboBox x:Name="RuleGroupCombo" Height="30" MinWidth="220"
+                                        <ComboBox x:Name="RuleGroupCombo" Height="28" MinWidth="220"
                                                   Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" FontSize="12">
                                             <ComboBoxItem Content="AppLocker-Admins" IsSelected="True"/>
                                             <ComboBoxItem Content="AppLocker-StandardUsers"/>
@@ -4579,12 +4596,12 @@ $xamlString = @"
                     </Border>
 
                     <!-- Section 2: Import Artifacts -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="Import Artifacts" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Import Artifacts" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
 
                             <!-- Quick Import -->
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
@@ -4620,8 +4637,6 @@ $xamlString = @"
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="10"/>
-                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <Button x:Name="ImportArtifactsBtn" Content="Import File" Grid.Column="0"
@@ -4636,16 +4651,14 @@ $xamlString = @"
                                     <ComboBoxItem Content="By Hash"/>
                                     <ComboBoxItem Content="By Path"/>
                                 </ComboBox>
-                                <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="8"
-                                        Style="{StaticResource SecondaryButton}" Height="30" FontSize="11" Padding="12,0" MinWidth="100"/>
                             </Grid>
                         </StackPanel>
                     </Border>
 
                     <!-- Section 3: Generate Rules -->
-                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                    <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="Generate Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
+                            <TextBlock Text="Generate Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -4665,26 +4678,29 @@ $xamlString = @"
                     </Border>
 
                     <!-- Section 4: Rules List -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,12" Padding="16">
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Margin="0,0,0,8" Padding="12">
                         <StackPanel>
                             <!-- Header with count and actions -->
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Generated Rules" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" VerticalAlignment="Center"/>
                                 <TextBlock x:Name="RulesCountText" Grid.Column="2" Text="0 rules" FontSize="12" Foreground="#3FB950" VerticalAlignment="Center"/>
-                                <Button x:Name="DeleteRulesBtn" Content="Delete Selected" Grid.Column="5"
+                                <Button x:Name="ExportArtifactsListBtn" Content="Export List" Grid.Column="4"
+                                        Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Padding="10,0" MinWidth="100"/>
+                                <Button x:Name="DeleteRulesBtn" Content="Delete Selected" Grid.Column="6"
                                         Style="{StaticResource SecondaryButton}" Height="28" FontSize="11" Background="#F85149" Padding="10,0" MinWidth="110"/>
                             </Grid>
 
                             <!-- Filter and Search -->
-                            <Grid Margin="0,0,0,10">
+                            <Grid Margin="0,0,0,8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="80"/>
                                     <ColumnDefinition Width="10"/>
@@ -4744,9 +4760,9 @@ $xamlString = @"
                     </Border>
 
                     <!-- Section 5: Output Log -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="16">
+                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12">
                         <StackPanel>
-                            <TextBlock Text="Output Log" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
+                            <TextBlock Text="Output Log" FontSize="13" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,6"/>
                             <ScrollViewer MaxHeight="180" VerticalScrollBarVisibility="Auto">
                                 <TextBlock x:Name="RulesOutput" Text="Import artifacts or generate rules to see results here..."
                                            FontFamily="Consolas" FontSize="11" Foreground="#3FB950"
@@ -4801,11 +4817,6 @@ $xamlString = @"
                                 </ListBox.ItemTemplate>
                             </ListBox>
                         </Grid>
-                    </Border>
-
-                    <!-- Export Button -->
-                    <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,10">
-                        <Button x:Name="ExportEventsBtn" Content="Export Events to CSV" Style="{StaticResource SecondaryButton}" HorizontalAlignment="Left" MinWidth="200" Height="34" FontSize="11" Padding="14,0"/>
                     </Border>
 
                     <!-- Event Filters - Row 1: Filter Type Buttons -->
@@ -4873,6 +4884,10 @@ $xamlString = @"
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="10"/>
                                     <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                     <TextBlock Grid.Column="0" Text="Search:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center"/>
@@ -4885,6 +4900,8 @@ $xamlString = @"
 
                                     <TextBlock x:Name="EventsFilterCount" Grid.Column="6" Text=""
                                               FontSize="11" Foreground="#58A6FF" VerticalAlignment="Center" MinWidth="80"/>
+
+                                    <Button x:Name="ExportEventsBtn" Content="Export Events" Style="{StaticResource SecondaryButton}" Grid.Column="8" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
 
                                     <Button x:Name="RefreshEventsBtn" Content="Refresh Events" Style="{StaticResource PrimaryButton}" Grid.Column="10" Height="30" FontSize="11" Padding="14,0" MinWidth="120"/>
                             </Grid>
@@ -4907,49 +4924,28 @@ $xamlString = @"
                 <StackPanel x:Name="PanelDeployment" Visibility="Collapsed">
                     <TextBlock Text="Deployment" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
 
-                    <!-- Deployment Buttons (disabled in workgroup mode) -->
-                    <Grid Margin="0,0,0,15">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Button x:Name="CreateGP0Btn" Content="Create GPO" Style="{StaticResource PrimaryButton}" Grid.Column="0"/>
-                        <Button x:Name="DisableGpoBtn" Content="Disable AppLocker GPO" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
-                    </Grid>
-
-                    <!-- Import/Export Rules Buttons -->
-                    <Grid Margin="0,0,0,15">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="10"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-
-                        <Button x:Name="ExportRulesBtn" Content="Export Rules" Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
-                        <Button x:Name="ImportRulesBtn" Content="Import Rules to GPO" Style="{StaticResource PrimaryButton}" Grid.Column="2"/>
-                    </Grid>
-
-                    <!-- Import to GPO Section -->
+                    <!-- Import Rules to GPO Section -->
                     <Border Background="#21262D" BorderBrush="#30363D" BorderThickness="1"
                             CornerRadius="8" Padding="15" Margin="0,0,0,15">
                         <StackPanel>
                             <TextBlock Text="Import Rules to GPO" FontSize="13" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,10"/>
 
-                            <Grid>
+                            <!-- Row 1: Target GPO, Mode, Import Button -->
+                            <Grid Margin="0,0,0,10">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="8"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="250"/>
+                                    <ColumnDefinition Width="15"/>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="8"/>
+                                    <ColumnDefinition Width="120"/>
+                                    <ColumnDefinition Width="15"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
                                 <TextBlock Text="Target GPO:" FontSize="11" Foreground="#8B949E" VerticalAlignment="Center" Grid.Column="0"/>
-                                <ComboBox x:Name="TargetGpoCombo" Grid.Column="2" Height="26" FontSize="11" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
+                                <ComboBox x:Name="TargetGpoCombo" Grid.Column="2" Width="250" Height="26" FontSize="11" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D">
                                     <ComboBoxItem Content="GA-AppLocker-DC"/>
                                     <ComboBoxItem Content="GA-AppLocker-Servers"/>
                                     <ComboBoxItem Content="GA-AppLocker-Workstations"/>
@@ -4959,6 +4955,19 @@ $xamlString = @"
                                     <ComboBoxItem Content="Merge (Add)" IsSelected="True" ToolTip="Add new rules, keep existing rules"/>
                                     <ComboBoxItem Content="Overwrite" ToolTip="Replace all existing rules"/>
                                 </ComboBox>
+                                <Button x:Name="ImportRulesBtn" Content="Import" Style="{StaticResource PrimaryButton}" Grid.Column="8" MinWidth="100" Height="26"/>
+                            </Grid>
+
+                            <!-- Row 2: Load Rules and Toggle Audit/Enforce Buttons -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="10"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+
+                                <Button x:Name="LoadRulesBtn" Content="Load Rules..." Style="{StaticResource SecondaryButton}" Grid.Column="0"/>
+                                <Button x:Name="DeploymentAuditToggleBtn" Content="Toggle Audit/Enforce" Style="{StaticResource SecondaryButton}" Grid.Column="2"/>
                             </Grid>
                         </StackPanel>
                     </Border>
@@ -4973,7 +4982,7 @@ $xamlString = @"
                     </Border>
 
                     <Border Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                            CornerRadius="8" Padding="15" MinHeight="200">
+                            CornerRadius="8" Padding="15" MinHeight="150" MaxHeight="300">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <TextBlock FontFamily="Consolas" FontSize="12" Foreground="#8B949E">
                                 <Run Text="Deployment Workflow:" Foreground="#E6EDF3"/>
@@ -5558,7 +5567,7 @@ $xamlString = @"
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="160"/>
+                                    <ColumnDefinition Width="200"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="Remove protection from AppLocker OUs (allows deletion)" FontSize="11" Foreground="#F85149" VerticalAlignment="Center"/>
                                 <Button x:Name="RemoveOUProtectionBtn" Content="Remove OU Protection" Style="{StaticResource SecondaryButton}" Grid.Column="1" MinHeight="26"/>
@@ -5767,7 +5776,7 @@ $xamlString = @"
 
                 <!-- Rule Templates Panel - Phase 5 -->
                 <StackPanel x:Name="PanelTemplates" Visibility="Collapsed">
-                    <TextBlock Text="Rule Templates" FontSize="24" FontWeight="Bold" Foreground="#E6EDF3" Margin="0,0,0,20"/>
+                    <TextBlock Text="Rule Templates" FontSize="24" FontWeight="Bold" Foreground="#58A6FF" Margin="0,0,0,20"/>
 
                     <!-- Toolbar -->
                     <Border Background="#21262D" CornerRadius="6" Padding="12" Margin="0,0,0,12">
@@ -5814,7 +5823,7 @@ $xamlString = @"
                             <StackPanel>
                                 <TextBlock Text="Available Templates" FontSize="14" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,12"/>
                                 <ListBox x:Name="TemplatesList" Background="#0D1117" BorderBrush="#30363D" BorderThickness="1"
-                                         Height="450" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                         Height="300" ScrollViewer.VerticalScrollBarVisibility="Auto">
                                     <ListBox.ItemTemplate>
                                         <DataTemplate>
                                             <StackPanel Margin="8">
@@ -6139,18 +6148,10 @@ if ($null -eq $ArtifactsList) { Write-Log "WARNING: Control 'ArtifactsList' not 
 # Artifact Local Scan controls
 $ScanLocalArtifactsBtn = $window.FindName("ScanLocalArtifactsBtn")
 if ($null -eq $ScanLocalArtifactsBtn) { Write-Log "WARNING: Control 'ScanLocalArtifactsBtn' not found in XAML" -Level "WARNING" }
-$RuleTypeAuto = $window.FindName("RuleTypeAuto")
-if ($null -eq $RuleTypeAuto) { Write-Log "WARNING: Control 'RuleTypeAuto' not found in XAML" -Level "WARNING" }
-$RuleTypePublisher = $window.FindName("RuleTypePublisher")
-if ($null -eq $RuleTypePublisher) { Write-Log "WARNING: Control 'RuleTypePublisher' not found in XAML" -Level "WARNING" }
-$RuleTypeHash = $window.FindName("RuleTypeHash")
-if ($null -eq $RuleTypeHash) { Write-Log "WARNING: Control 'RuleTypeHash' not found in XAML" -Level "WARNING" }
-$RuleTypePath = $window.FindName("RuleTypePath")
-if ($null -eq $RuleTypePath) { Write-Log "WARNING: Control 'RuleTypePath' not found in XAML" -Level "WARNING" }
-$RuleActionAllow = $window.FindName("RuleActionAllow")
-if ($null -eq $RuleActionAllow) { Write-Log "WARNING: Control 'RuleActionAllow' not found in XAML" -Level "WARNING" }
-$RuleActionDeny = $window.FindName("RuleActionDeny")
-if ($null -eq $RuleActionDeny) { Write-Log "WARNING: Control 'RuleActionDeny' not found in XAML" -Level "WARNING" }
+$RuleTypeCombo = $window.FindName("RuleTypeCombo")
+if ($null -eq $RuleTypeCombo) { Write-Log "WARNING: Control 'RuleTypeCombo' not found in XAML" -Level "WARNING" }
+$ActionToggle = $window.FindName("ActionToggle")
+if ($null -eq $ActionToggle) { Write-Log "WARNING: Control 'ActionToggle' not found in XAML" -Level "WARNING" }
 $RuleGroupCombo = $window.FindName("RuleGroupCombo")
 if ($null -eq $RuleGroupCombo) { Write-Log "WARNING: Control 'RuleGroupCombo' not found in XAML" -Level "WARNING" }
 $CustomSidPanel = $window.FindName("CustomSidPanel")
@@ -6304,10 +6305,9 @@ $ComplianceClearFilterBtn = $window.FindName("ComplianceClearFilterBtn")
 if ($null -eq $ComplianceClearFilterBtn) { Write-Log "WARNING: Control 'ComplianceClearFilterBtn' not found in XAML" -Level "WARNING" }
 $ComplianceFilterCount = $window.FindName("ComplianceFilterCount")
 if ($null -eq $ComplianceFilterCount) { Write-Log "WARNING: Control 'ComplianceFilterCount' not found in XAML" -Level "WARNING" }
-$CreateGP0Btn = $window.FindName("CreateGP0Btn")
-if ($null -eq $CreateGP0Btn) { Write-Log "WARNING: Control 'CreateGP0Btn' not found in XAML" -Level "WARNING" }
-$DisableGpoBtn = $window.FindName("DisableGpoBtn")
-if ($null -eq $DisableGpoBtn) { Write-Log "WARNING: Control 'DisableGpoBtn' not found in XAML" -Level "WARNING" }
+# Removed buttons (no longer in UI):
+# $CreateGP0Btn = $window.FindName("CreateGP0Btn")
+# $DisableGpoBtn = $window.FindName("DisableGpoBtn")
 $DeploymentStatus = $window.FindName("DeploymentStatus")
 if ($null -eq $DeploymentStatus) { Write-Log "WARNING: Control 'DeploymentStatus' not found in XAML" -Level "WARNING" }
 $GenerateEvidenceBtn = $window.FindName("GenerateEvidenceBtn")
@@ -6421,15 +6421,41 @@ if ($null -eq $GapVersionCount) { Write-Log "WARNING: Control 'GapVersionCount' 
 $ExportGapAnalysisBtn = $window.FindName("ExportGapAnalysisBtn")
 if ($null -eq $ExportGapAnalysisBtn) { Write-Log "WARNING: Control 'ExportGapAnalysisBtn' not found in XAML" -Level "WARNING" }
 
-# Export/Import Rules controls
-$ExportRulesBtn = $window.FindName("ExportRulesBtn")
-if ($null -eq $ExportRulesBtn) { Write-Log "WARNING: Control 'ExportRulesBtn' not found in XAML" -Level "WARNING" }
+# Load/Import Rules controls (Deployment panel)
+$LoadRulesBtn = $window.FindName("LoadRulesBtn")
+if ($null -eq $LoadRulesBtn) { Write-Log "WARNING: Control 'LoadRulesBtn' not found in XAML" -Level "WARNING" }
 $ImportRulesBtn = $window.FindName("ImportRulesBtn")
 if ($null -eq $ImportRulesBtn) { Write-Log "WARNING: Control 'ImportRulesBtn' not found in XAML" -Level "WARNING" }
+$DeploymentAuditToggleBtn = $window.FindName("DeploymentAuditToggleBtn")
+if ($null -eq $DeploymentAuditToggleBtn) { Write-Log "WARNING: Control 'DeploymentAuditToggleBtn' not found in XAML" -Level "WARNING" }
 $TargetGpoCombo = $window.FindName("TargetGpoCombo")
 if ($null -eq $TargetGpoCombo) { Write-Log "WARNING: Control 'TargetGpoCombo' not found in XAML" -Level "WARNING" }
 $ImportModeCombo = $window.FindName("ImportModeCombo")
 if ($null -eq $ImportModeCombo) { Write-Log "WARNING: Control 'ImportModeCombo' not found in XAML" -Level "WARNING" }
+
+# Additional controls for dashboard and status
+$GaugeScore = $window.FindName("GaugeScore")
+if ($null -eq $GaugeScore) { Write-Log "WARNING: Control 'GaugeScore' not found in XAML" -Level "WARNING" }
+$GaugeLabel = $window.FindName("GaugeLabel")
+if ($null -eq $GaugeLabel) { Write-Log "WARNING: Control 'GaugeLabel' not found in XAML" -Level "WARNING" }
+$LabelWorkstations = $window.FindName("LabelWorkstations")
+if ($null -eq $LabelWorkstations) { Write-Log "WARNING: Control 'LabelWorkstations' not found in XAML" -Level "WARNING" }
+$LabelServers = $window.FindName("LabelServers")
+if ($null -eq $LabelServers) { Write-Log "WARNING: Control 'LabelServers' not found in XAML" -Level "WARNING" }
+$LabelDCs = $window.FindName("LabelDCs")
+if ($null -eq $LabelDCs) { Write-Log "WARNING: Control 'LabelDCs' not found in XAML" -Level "WARNING" }
+$MiniStatusMode = $window.FindName("MiniStatusMode")
+if ($null -eq $MiniStatusMode) { Write-Log "WARNING: Control 'MiniStatusMode' not found in XAML" -Level "WARNING" }
+$MiniStatusPhase = $window.FindName("MiniStatusPhase")
+if ($null -eq $MiniStatusPhase) { Write-Log "WARNING: Control 'MiniStatusPhase' not found in XAML" -Level "WARNING" }
+$MiniStatusConnected = $window.FindName("MiniStatusConnected")
+if ($null -eq $MiniStatusConnected) { Write-Log "WARNING: Control 'MiniStatusConnected' not found in XAML" -Level "WARNING" }
+$HeaderLogo = $window.FindName("HeaderLogo")
+if ($null -eq $HeaderLogo) { Write-Log "WARNING: Control 'HeaderLogo' not found in XAML" -Level "WARNING" }
+$EventMonitorPanel = $window.FindName("EventMonitorPanel")
+if ($null -eq $EventMonitorPanel) { Write-Log "WARNING: Control 'EventMonitorPanel' not found in XAML" -Level "WARNING" }
+$ArtifactPanel = $window.FindName("ArtifactPanel")
+if ($null -eq $ArtifactPanel) { Write-Log "WARNING: Control 'ArtifactPanel' not found in XAML" -Level "WARNING" }
 
 # Global variables
 $script:CollectedArtifacts = @()
@@ -6443,6 +6469,7 @@ $script:GeneratedRules = @()
 $script:DiscoveredComputers = @()
 $script:CollectedEvents = @()
 $script:ComplianceComputers = @()
+$script:LoadedRulesXmlPath = $null  # Path to loaded rules XML file for deployment
 
 # Phase 4: Filter state variables - store original data for filtering
 $script:OriginalRules = @()  # Store unfiltered rules
@@ -9679,12 +9706,12 @@ function Refresh-Data {
     [System.Windows.Forms.Application]::DoEvents()
 
     # Get time filter
-    $timeFilter = $DashboardTimeFilter.SelectedItem.Content
+    $timeFilter = if ($DashboardTimeFilter.SelectedItem) { $DashboardTimeFilter.SelectedItem.Content } else { "Last 7 Days" }
     $daysBack = if ($timeFilter -eq "Last 7 Days") { 7 } else { 30 }
     $cutoffDate = (Get-Date).AddDays(-$daysBack)
 
     # Get system filter
-    $systemFilter = $DashboardSystemFilter.SelectedItem.Content
+    $systemFilter = if ($DashboardSystemFilter.SelectedItem) { $DashboardSystemFilter.SelectedItem.Content } else { "All Systems" }
 
     # Get policy health from local system
     $summary = Get-DashboardSummary
@@ -9717,7 +9744,7 @@ function Refresh-Data {
         }
 
         # Update system filter dropdown
-        $currentSelection = $DashboardSystemFilter.SelectedItem.Content
+        $currentSelection = if ($DashboardSystemFilter.SelectedItem) { $DashboardSystemFilter.SelectedItem.Content } else { "All Systems" }
         $DashboardSystemFilter.Items.Clear()
         $allItem = New-Object System.Windows.Controls.ComboBoxItem
         $allItem.Content = "All Systems"
@@ -12273,14 +12300,13 @@ function Show-GroupSelectionDialog {
     $groupCombo.VerticalAlignment = "Top"
     $groupCombo.Height = 30
 
-    # Add group options
+    # Add group options (matching Initialize-AppLockerGroups.ps1)
     $groups = @(
-        "AppLocker-Admins",
-        "AppLocker-PowerUsers",
-        "AppLocker-StandardUsers",
-        "AppLocker-RestrictedUsers",
+        "AppLocker-Admin",
         "AppLocker-Installers",
-        "AppLocker-Developers",
+        "AppLocker-StandardUsers",
+        "AppLocker-Dev",
+        "AppLocker-Audit",
         "Everyone"
     )
 
@@ -12294,8 +12320,12 @@ function Show-GroupSelectionDialog {
     $groupCombo.Margin = 0
     $groupCombo.VerticalAlignment = "Top"
     [System.Windows.Controls.Grid]::SetRow($groupCombo, 1)
-    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Property Height = [System.Windows.GridLength]::new(10)))
-    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Property Height = [System.Windows.GridLength]::new(35)))
+    $rowDef1 = New-Object System.Windows.Controls.RowDefinition
+    $rowDef1.Height = [System.Windows.GridLength]::new(10)
+    $grid.RowDefinitions.Add($rowDef1)
+    $rowDef2 = New-Object System.Windows.Controls.RowDefinition
+    $rowDef2.Height = [System.Windows.GridLength]::new(35)
+    $grid.RowDefinitions.Add($rowDef2)
     [void]$grid.Children.Add($groupCombo)
 
     # Buttons
@@ -12305,7 +12335,9 @@ function Show-GroupSelectionDialog {
     $buttonPanel.Margin = 0
     $buttonPanel.VerticalAlignment = "Top"
     [System.Windows.Controls.Grid]::SetRow($buttonPanel, 2)
-    $grid.RowDefinitions.Add((New-Object System.Windows.Controls.RowDefinition -Property Height = [System.Windows.GridLength]::new(40)))
+    $rowDef3 = New-Object System.Windows.Controls.RowDefinition
+    $rowDef3.Height = [System.Windows.GridLength]::new(40)
+    $grid.RowDefinitions.Add($rowDef3)
     [void]$grid.Children.Add($buttonPanel)
 
     $okButton = New-Object System.Windows.Controls.Button
@@ -12697,7 +12729,7 @@ $DefaultDenyRulesBtn.Add_Click({
     Write-Log "Adding default deny rules for bypass locations"
 
     $sid = Get-SelectedSid
-    $groupName = $RuleGroupCombo.SelectedItem.Content
+    $groupName = if ($RuleGroupCombo.SelectedItem) { $RuleGroupCombo.SelectedItem.Content } else { "Everyone" }
 
     $RulesOutput.Text = "=== GENERATING DEFAULT DENY RULES ===`n`n"
     $RulesOutput.Text += "These rules block execution from common bypass locations.`n"
@@ -13177,6 +13209,16 @@ function Get-SelectedSid {
     }
 }
 
+# ActionToggle button - toggle between Allow and Deny
+if ($null -ne $ActionToggle) {
+$ActionToggle.Add_Checked({
+    $ActionToggle.Content = "Deny"
+})
+$ActionToggle.Add_Unchecked({
+    $ActionToggle.Content = "Allow"
+})
+}
+
 if ($null -ne $GenerateRulesBtn) {
 $GenerateRulesBtn.Add_Click({
     if ($script:CollectedArtifacts.Count -eq 0) {
@@ -13184,14 +13226,16 @@ $GenerateRulesBtn.Add_Click({
         return
     }
 
-    # Determine rule type selection
-    $ruleType = if ($RuleTypeAuto.IsChecked) { "Automated" }
-                elseif ($RuleTypePublisher.IsChecked) { "Publisher" }
-                elseif ($RuleTypeHash.IsChecked) { "Hash" }
+    # Determine rule type selection from ComboBox
+    $selectedTypeItem = if ($RuleTypeCombo.SelectedItem) { $RuleTypeCombo.SelectedItem.Content } else { "Auto (Recommended)" }
+    $ruleType = if ($selectedTypeItem -like "*Auto*") { "Automated" }
+                elseif ($selectedTypeItem -eq "Publisher") { "Publisher" }
+                elseif ($selectedTypeItem -eq "Hash") { "Hash" }
                 else { "Path" }
 
-    $action = if ($RuleActionAllow.IsChecked) { "Allow" } else { "Deny" }
-    $selectedGroup = $RuleGroupCombo.SelectedItem.Content
+    # Determine action from ToggleButton (unchecked = Allow, checked = Deny)
+    $action = if ($ActionToggle.IsChecked) { "Deny" } else { "Allow" }
+    $selectedGroup = if ($RuleGroupCombo.SelectedItem) { $RuleGroupCombo.SelectedItem.Content } else { "Everyone" }
 
     # QoL: Bulk Action Confirmation
     $confirmMsg = "[!] You are about to:`n`n"
@@ -14120,6 +14164,85 @@ $DisableGpoBtn.Add_Click({
 })
 }
 
+# Deployment Audit Toggle Button (Deployment panel)
+if ($null -ne $DeploymentAuditToggleBtn) {
+$DeploymentAuditToggleBtn.Add_Click({
+    Write-Log "Deployment audit toggle clicked"
+
+    # Check if rules are loaded
+    if (-not $script:LoadedRulesXmlPath -or -not (Test-Path $script:LoadedRulesXmlPath)) {
+        [System.Windows.MessageBox]::Show("No rules loaded. Please load rules first using the 'Load Rules...' button.", "No Rules", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
+        return
+    }
+
+    try {
+        # Read the loaded XML
+        [xml]$xmlDoc = Get-Content -Path $script:LoadedRulesXmlPath -Encoding Unicode -ErrorAction Stop
+
+        # Detect current mode
+        $currentMode = "Unknown"
+        $auditCount = 0
+        $enforceCount = 0
+
+        foreach ($ruleCollection in $xmlDoc.AppLockerPolicy.RuleCollection) {
+            $enforcementMode = $ruleCollection.EnforcementMode
+            if ($enforcementMode -eq "AuditOnly") {
+                $auditCount++
+            } elseif ($enforcementMode -eq "Enabled") {
+                $enforceCount++
+            }
+        }
+
+        if ($auditCount -gt 0 -and $enforceCount -eq 0) {
+            $currentMode = "Audit"
+            $newMode = "Enforce"
+        } elseif ($enforceCount -gt 0 -and $auditCount -eq 0) {
+            $currentMode = "Enforce"
+            $newMode = "Audit"
+        } else {
+            $currentMode = "Mixed"
+            $newMode = "Audit"
+        }
+
+        # Confirm mode change
+        $confirmMsg = "Current mode: $currentMode`n`nThis will change all rule collections to $newMode mode.`n`nContinue?"
+        $result = [System.Windows.MessageBox]::Show($confirmMsg, "Confirm Mode Change", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Question)
+
+        if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
+            Write-Log "Audit toggle cancelled by user"
+            return
+        }
+
+        # Toggle mode
+        $targetMode = if ($newMode -eq "Audit") { "AuditOnly" } else { "Enabled" }
+
+        foreach ($ruleCollection in $xmlDoc.AppLockerPolicy.RuleCollection) {
+            $ruleCollection.EnforcementMode = $targetMode
+        }
+
+        # Save the modified XML
+        $xws = [System.Xml.XmlWriterSettings]::new()
+        $xws.Encoding = [System.Text.Encoding]::Unicode
+        $xws.Indent = $true
+        $xw = [System.Xml.XmlWriter]::Create($script:LoadedRulesXmlPath, $xws)
+        $xmlDoc.Save($xw)
+        $xw.Close()
+
+        [System.Windows.MessageBox]::Show("Rules mode changed to: $newMode`n`nFile: $([System.IO.Path]::GetFileName($script:LoadedRulesXmlPath))`n`nYou can now import these rules to a GPO.", "Mode Changed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+        Write-Log "Rules mode changed to $newMode: $script:LoadedRulesXmlPath"
+
+        # Update deployment status
+        if ($null -ne $DeploymentStatus) {
+            $DeploymentStatus.Text = "Mode changed to $newMode for: $([System.IO.Path]::GetFileName($script:LoadedRulesXmlPath))`nReady to import to GPO."
+        }
+
+    } catch {
+        [System.Windows.MessageBox]::Show("Failed to toggle audit mode:`n`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+        Write-Log "Failed to toggle audit mode: $($_.Exception.Message)" -Level "ERROR"
+    }
+})
+}
+
 # WinRM events
 if ($null -ne $CreateWinRMGpoBtn) {
 $CreateWinRMGpoBtn.Add_Click({
@@ -14870,65 +14993,52 @@ $ExportGapAnalysisBtn.Add_Click({
 })
 }
 
-# Export/Import Rules events
-if ($null -ne $ExportRulesBtn) {
-$ExportRulesBtn.Add_Click({
-    Write-Log "Export rules button clicked"
+# Load Rules event (for Deployment panel)
+if ($null -ne $LoadRulesBtn) {
+$LoadRulesBtn.Add_Click({
+    Write-Log "Load rules button clicked"
 
-    if ($script:GeneratedRules.Count -eq 0) {
-        [System.Windows.MessageBox]::Show("No generated rules to export. Please generate rules first using the Rule Generator tab.", "No Rules", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Warning)
-        return
-    }
+    $openDialog = New-Object System.Windows.Forms.OpenFileDialog
+    $openDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
+    $openDialog.Title = "Load AppLocker Rules"
+    $openDialog.InitialDirectory = "C:\GA-AppLocker\Rules"
+    $openDialog.Multiselect = $false
 
-    # Validate rules before export
-    $validation = Test-AppLockerRules -Rules $script:GeneratedRules
+    if ($openDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+        try {
+            Write-Log "Loading rules from: $($openDialog.FileName)"
 
-    if (-not $validation.success) {
-        $errorMsg = "The following validation errors were found:`n`n"
-        $errorMsg += ($validation.errors | Select-Object -First 5) -join "`n"
-        if ($validation.errors.Count -gt 5) {
-            $errorMsg += "`n... and $($validation.errors.Count - 5) more errors"
+            # Read and validate XML
+            [xml]$xmlDoc = Get-Content -Path $openDialog.FileName -Encoding Unicode -ErrorAction Stop
+
+            # Validate it's an AppLocker policy XML
+            if ($null -eq $xmlDoc.AppLockerPolicy) {
+                [System.Windows.MessageBox]::Show("Invalid AppLocker policy file. The XML file must contain an AppLockerPolicy root element.", "Invalid File", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+                Write-Log "Invalid AppLocker policy file: $($openDialog.FileName)" -Level "ERROR"
+                return
+            }
+
+            # Store the loaded XML path for import
+            $script:LoadedRulesXmlPath = $openDialog.FileName
+
+            # Count rules
+            $ruleCount = 0
+            foreach ($ruleCollection in $xmlDoc.AppLockerPolicy.RuleCollection) {
+                $ruleCount += $ruleCollection.ChildNodes.Count
+            }
+
+            [System.Windows.MessageBox]::Show("Rules loaded successfully from:`n$($openDialog.FileName)`n`nTotal rules: $ruleCount`n`nYou can now import these rules to a GPO using the Import button.", "Rules Loaded", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
+            Write-Log "Rules loaded: $($openDialog.FileName) ($ruleCount rules)"
+
+            # Update deployment status
+            if ($null -ne $DeploymentStatus) {
+                $DeploymentStatus.Text = "Loaded $ruleCount rules from: $([System.IO.Path]::GetFileName($openDialog.FileName))`nReady to import to GPO."
+            }
+
+        } catch {
+            [System.Windows.MessageBox]::Show("Failed to load rules file:`n`n$($_.Exception.Message)", "Error", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
+            Write-Log "Failed to load rules: $($_.Exception.Message)" -Level "ERROR"
         }
-        $errorMsg += "`n`nPlease fix these errors before exporting."
-
-        [System.Windows.MessageBox]::Show($errorMsg, "Validation Failed", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Error)
-        Write-Log "Rule validation failed: $($validation.errorCount) errors" -Level "ERROR"
-        return
-    }
-
-    if ($validation.warningCount -gt 0) {
-        $warningMsg = "Warnings:`n`n"
-        $warningMsg += ($validation.warnings -join "`n")
-        $warningMsg += "`n`nContinue with export?"
-
-        $result = [System.Windows.MessageBox]::Show($warningMsg, "Validation Warnings", [System.Windows.MessageBoxButton]::YesNo, [System.Windows.MessageBoxImage]::Warning)
-        if ($result -ne [System.Windows.MessageBoxResult]::Yes) {
-            Write-Log "Export cancelled by user due to warnings"
-            return
-        }
-    }
-
-    $saveDialog = New-Object System.Windows.Forms.SaveFileDialog
-    $saveDialog.Filter = "XML Files (*.xml)|*.xml|All Files (*.*)|*.*"
-    $saveDialog.Title = "Export AppLocker Rules"
-    $saveDialog.FileName = "AppLocker-Rules_$(Get-Date -Format 'yyyy-MM-dd').xml"
-    $saveDialog.InitialDirectory = "C:\GA-AppLocker\Rules"
-
-    if ($saveDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-        # Generate AppLocker XML from rules
-        $xmlContent = Convert-RulesToAppLockerXml -Rules $script:GeneratedRules
-
-        # AppLocker policies MUST be UTF-16 encoded
-        $xmlDoc = [xml]$xmlContent
-        $xws = [System.Xml.XmlWriterSettings]::new()
-        $xws.Encoding = [System.Text.Encoding]::Unicode
-        $xws.Indent = $true
-        $xw = [System.Xml.XmlWriter]::Create($saveDialog.FileName, $xws)
-        $xmlDoc.Save($xw)
-        $xw.Close()
-
-        [System.Windows.MessageBox]::Show("Rules exported to: $($saveDialog.FileName)`n`n$($validation.validCount) rules exported.`n`nYou can now import this XML into a GPO using Group Policy Management.", "Success", [System.Windows.MessageBoxButton]::OK, [System.Windows.MessageBoxImage]::Information)
-        Write-Log "Rules exported: $($saveDialog.FileName) ($($validation.validCount) rules)"
     }
 })
 }
@@ -15833,7 +15943,7 @@ function New-CustomTemplate {
                     <StackPanel>
                         <TextBlock Text="Template Rules (JSON format)" FontSize="12" FontWeight="SemiBold" Foreground="#E6EDF3" Margin="0,0,0,8"/>
                         <TextBox Name="TemplateRulesInput" Background="#0D1117" Foreground="#E6EDF3" BorderBrush="#30363D" BorderThickness="1" Padding="8" FontSize="11" Height="150" TextWrapping="Wrap" AcceptsReturn="True" FontFamily="Consolas"/>
-                        <TextBlock Text="Example: [{`"Name`":`"My App`",`"Type`":`"Path`",`"Path`":`"C:\\Program Files\\MyApp.exe`}]" FontSize="10" Foreground="#6E7681" Margin="0,4,0,0"/>
+                        <TextBlock Text='Example: [{"Name":"My App","Type":"Path","Path":"C:\Program Files\MyApp.exe"}]'  FontSize="10" Foreground="#6E7681" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -15870,7 +15980,7 @@ function New-CustomTemplate {
         $CreateTemplateBtn.Add_Click({
             $name = $TemplateNameInput.Text.Trim()
             $desc = $TemplateDescInput.Text.Trim()
-            $category = $TemplateCategoryInput.SelectedItem.Content
+            $category = if ($TemplateCategoryInput.SelectedItem) { $TemplateCategoryInput.SelectedItem.Content } else { "Custom" }
             $rulesJson = $TemplateRulesInput.Text.Trim()
 
             if ([string]::IsNullOrEmpty($name)) {
@@ -15953,14 +16063,15 @@ function Invoke-RuleWizard {
 
         <!-- Step Content Panels -->
         <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Name="WizardContent">
-            <StackPanel Name="Step1Panel">
-                <TextBlock Text="Select the type of rule you want to create:" FontSize="13" Foreground="#8B949E" Margin="0,0,0,12"/>
-                <RadioButton Name="PublisherRuleRadio" Content="Publisher Rule (recommended)" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8" IsChecked="True"/>
-                <TextBlock Text="Rules based on digital signature. Most flexible option." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
-                <RadioButton Name="PathRuleRadio" Content="Path Rule" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8"/>
-                <TextBlock Text="Rules based on file path. Less flexible but simple." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
-                <RadioButton Name="HashRuleRadio" Content="Hash Rule" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8"/>
-                <TextBlock Text="Rules based on file hash. Most secure but breaks on updates." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
+            <Grid>
+                <StackPanel Name="Step1Panel">
+                    <TextBlock Text="Select the type of rule you want to create:" FontSize="13" Foreground="#8B949E" Margin="0,0,0,12"/>
+                    <RadioButton Name="PublisherRuleRadio" Content="Publisher Rule (recommended)" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8" IsChecked="True"/>
+                    <TextBlock Text="Rules based on digital signature. Most flexible option." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
+                    <RadioButton Name="PathRuleRadio" Content="Path Rule" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8"/>
+                    <TextBlock Text="Rules based on file path. Less flexible but simple." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
+                    <RadioButton Name="HashRuleRadio" Content="Hash Rule" FontSize="13" Foreground="#E6EDF3" Margin="0,8,0,8"/>
+                    <TextBlock Text="Rules based on file hash. Most secure but breaks on updates." FontSize="11" Foreground="#6E7681" Margin="24,0,0,12"/>
             </StackPanel>
 
             <StackPanel Name="Step2Panel" Visibility="Collapsed">
@@ -16022,8 +16133,8 @@ function Invoke-RuleWizard {
                     </StackPanel>
                 </Border>
             </StackPanel>
+            </Grid>
         </ScrollViewer>
-
         <!-- Navigation Buttons -->
         <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Name="WizardBackBtn" Content="Back" Style="{StaticResource SecondaryButton}" Margin="0,0,12,0" IsEnabled="False"/>
@@ -16140,7 +16251,7 @@ function Invoke-RuleWizard {
                 $ReviewRuleType.Text = "Rule Type: $ruleType"
                 $ReviewApplications.Text = "Applications: $($selectedApps.Count) selected"
                 $ReviewAction.Text = "Action: $(if ($AllowActionRadio.IsChecked) { 'Allow' } else { 'Deny' })"
-                $ReviewUserGroup.Text = "User Group: $($UserGroupCombo.SelectedItem.Content)"
+                $ReviewUserGroup.Text = "User Group: $(if ($UserGroupCombo.SelectedItem) { $UserGroupCombo.SelectedItem.Content } else { 'Everyone' })"
                 $ReviewExceptions.Text = "Exceptions: $(if ($UseExceptionsCheck.IsChecked) { 'Enabled' } else { 'None' })"
             }
         }

@@ -1279,6 +1279,7 @@ function Send-TcpEvent {
         [hashtable]$Config
     )
 
+    $client = $null
     try {
         $client = [System.Net.Sockets.TcpClient]::new()
         $client.Connect($Config.Server, $Config.Port)
@@ -1290,11 +1291,15 @@ function Send-TcpEvent {
         $writer.WriteLine($data)
         $writer.Flush()
         $writer.Close()
-        $client.Close()
 
         return @{ Success = $true }
     } catch {
         return @{ Success = $false; Error = $_.Exception.Message }
+    }
+    finally {
+        if ($client) {
+            $client.Close()
+        }
     }
 }
 
